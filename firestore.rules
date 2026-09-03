@@ -1,0 +1,168 @@
+rules_version = '2';
+
+// ============================================================================
+// DyanSetu — Firestore security rules
+//
+// Paste this whole file into: Firebase console -> Firestore Database -> Rules
+// -> Publish.
+//
+// These rules are the only thing protecting the data. The Firebase web config
+// in .env.local is public by design and grants nothing on its own.
+//
+// Three things they enforce that the interface alone could not:
+//   * Only one email address can ever hold the admin role.
+//   * A user cannot promote themselves by editing their own profile.
+//   * Only faculty and admins can publish notes or question papers.
+// ============================================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---------------------------------------------------------------- helpers
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    // Read from the token rather than a document, so this costs no reads and
+    // cannot recurse through the profile rules below.
+    function callerEmail() {
+      return signedIn() && request.auth.token.email != null
+        ? request.auth.token.email.lower()
+        : '';
+    }
+
+    // The single administrator. Change this address and re-publish to move the
+    // role; nothing else grants it.
+    function adminEmail() {
+      return 'smuiqac@gmail.com';
+    }
+
+    function isAdminEmail() {
+      return callerEmail() == adminEmail();
+    }
+
+    function profileOf(uid) {
+      return get(/databases/$(database)/documents/profiles/$(uid)).data;
+    }
+
+    function profileExists(uid) {
+      return exists(/databases/$(database)/documents/profiles/$(uid));
+    }
+
+    // An admin is the authorised address, holding the admin role, not blocked.
+    // 'restricted' is compared against true rather than false on purpose: a
+    // profile document written by hand can be missing the field entirely, and
+    // `missing == false` is false, which silently denied the whole directory
+    // and made the admin desk look like a site with no users on it. Absent
+    // means not restricted.
+    function isAdmin() {
+      return isAdminEmail()
+        && profileExists(request.auth.uid)
+        && profileOf(request.auth.uid).role == 'admin'
+        && profileOf(request.auth.uid).restricted != true;
+    }
+
+    // Faculty and admins are the only accounts that may publish material.
+    function canPublish() {
+      return signedIn()
+        && profileExists(request.auth.uid)
+        && profileOf(request.auth.uid).role in ['faculty', 'admin']
+        // != true, not == false: a profile written by hand can omit the field
+        // entirely, and `missing == false` is false — which would silently
+        // refuse every upload from a perfectly valid teaching account.
+        && profileOf(request.auth.uid).restricted != true;
+    }
+
+    function isOwner(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    // Privilege fields must survive a self-update untouched.
+    function privilegeUnchanged() {
+      return request.resource.data.role == resource.data.role
+        && request.resource.data.status == resource.data.status
+        && request.resource.data.restricted == resource.data.restricted;
+    }
+
+    // --------------------------------------------------------------- profiles
+
+    match /profiles/{uid} {
+      // A user reads their own record; an admin reads the directory.
+      allow read: if isOwner(uid) || isAdmin();
+
+      // Written by the client straight after signup. The role is clamped here:
+      // 'admin' is accepted only from the authorised address, and every other
+      // signup must be a student or a member of faculty.
+      allow create: if isOwner(uid)
+        && request.resource.data.email == callerEmail()
+        && request.resource.data.restricted == false
+        && request.resource.data.status == 'active'
+        && (
+          (request.resource.data.role == 'admin' && isAdminEmail())
+          || request.resource.data.role in ['student', 'faculty']
+        );
+
+      // Editing your own profile must not change role, status or restriction.
+      // An admin may change all three — but still cannot invent a new admin,
+      // because the role is pinned to the authorised address.
+      allow update: if (isOwner(uid) && privilegeUnchanged())
+        || (isAdmin() && (
+              request.resource.data.role != 'admin'
+              || resource.data.email == adminEmail()
+           ));
+
+      // Accounts are retired by setting status to 'deleted', never removed.
+      allow delete: if false;
+
+      // ------------------------------------------------------- quiz attempts
+      match /attempts/{attemptId} {
+        allow read: if isOwner(uid) || isAdmin();
+        allow create: if isOwner(uid)
+          && request.resource.data.score is int
+          && request.resource.data.total is int
+          && request.resource.data.passed is bool;
+        // An attempt is a record of what happened; it is never edited.
+        allow update, delete: if false;
+      }
+    }
+
+    // ------------------------------------------------------------------ notes
+
+    match /notes/{noteId} {
+      // The library is public, so signed-out students can browse and download.
+      allow read: if true;
+
+      allow create: if canPublish()
+        && request.resource.data.uploadedBy == request.auth.uid
+        && request.resource.data.title is string
+        && request.resource.data.title.size() > 0
+        && request.resource.data.subject is string
+        && request.resource.data.subject.size() > 0;
+
+      // A teacher manages their own uploads; an admin can remove any.
+      allow update, delete: if isAdmin()
+        || (signedIn() && resource.data.uploadedBy == request.auth.uid);
+    }
+
+    // ------------------------------------------------------------- pyq papers
+
+    match /pyqPapers/{paperId} {
+      allow read: if true;
+      allow write: if canPublish();
+    }
+
+    // ------------------------------------------------- admin session lock
+
+    // One administrator window at a time. Only the administrator can read or
+    // write it, so nobody else can inspect, steal or clear the lock.
+    match /adminSessions/{lockId} {
+      allow read, write: if isAdmin();
+    }
+
+    // Anything not named above is closed.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

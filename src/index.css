@@ -1,0 +1,60 @@
+:root {
+  --abc-navy: #0B1E2E;
+  --abc-navy-light: #162E44;
+  --abc-saffron: #E65100;
+  --abc-saffron-hover: #D84315;
+  --abc-saffron-bg: #FFF7ED;
+  --abc-blue: #1D4ED8;
+  --abc-cyan: #0284C7;
+  --abc-emerald: #059669;
+  --abc-purple: #8B5CF6;
+  --abc-rose: #DC2626;
+  --text-dark: #0F172A;
+  --muted: #64748B;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  min-height: 100%;
+}
+
+body {
+  font-family: "Segoe UI", "Roboto", "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI Emoji", sans-serif;
+  background: #f8fafc;
+  color: var(--text-dark);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+body,
+body * {
+  font-family: "Segoe UI", "Roboto", "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI Emoji", sans-serif !important;
+}
+
+h1, h2, h3, h4, h5, h6, strong, b {
+  font-weight: 600;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+img {
+  max-width: 100%;
+  display: block;
+}
