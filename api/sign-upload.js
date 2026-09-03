@@ -88,6 +88,7 @@ async function verifyIdToken(token, projectId) {
      correct token look like it belongs to "a different project". The project
      ID itself is not a secret (it is the same value VITE_FIREBASE_PROJECT_ID
      ships to the browser), so it is safe to name both sides when this fails. */
+  const now = Math.floor(Date.now() / 1000);
   const expectedProjectId = String(projectId || "").trim();
   if (claims.aud !== expectedProjectId) {
     throw new Error(
