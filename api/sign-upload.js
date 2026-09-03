@@ -136,15 +136,16 @@ async function fetchRole(projectId, uid, idToken) {
 /* ------------------------------- the handler ------------------------------ */
 
 export async function handleSignUpload(body) {
-  const {
-    CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET,
-    CLOUDINARY_UPLOAD_PRESET,
-  } = process.env;
-
-  /* Env vars typed into a dashboard by hand can pick up a trailing space or
-     newline from a copy-paste. Trim once here so every downstream use (the
-     token check, the Firestore REST URL) sees the same clean value instead of
-     each call site having to remember to trim it itself. */
+  /* Every one of these is an env var typed into a dashboard by hand, which can
+     silently pick up a trailing space or newline from a copy-paste. That kind
+     of value still looks right in a masked "•••••" input and still passes a
+     truthiness check, but breaks exact comparisons and hash signatures
+     downstream (a Firebase project-id check, a Cloudinary HMAC signature).
+     Trim every one of them once, here, at the single place they enter the
+     function, so nothing downstream has to remember to do it. */
+  const CLOUDINARY_API_KEY = (process.env.CLOUDINARY_API_KEY || "").trim();
+  const CLOUDINARY_API_SECRET = (process.env.CLOUDINARY_API_SECRET || "").trim();
+  const CLOUDINARY_UPLOAD_PRESET = (process.env.CLOUDINARY_UPLOAD_PRESET || "").trim();
   const FIREBASE_PROJECT_ID = (process.env.FIREBASE_PROJECT_ID || "").trim();
 
   /* Name the missing variable. "Not configured" alone sent people to SETUP.md
