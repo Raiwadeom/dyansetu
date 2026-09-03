@@ -115,7 +115,16 @@ async function fetchRole(projectId, uid, idToken) {
     `/databases/(default)/documents/profiles/${uid}`;
 
   const response = await fetch(url, { headers: { Authorization: `Bearer ${idToken}` } });
-  if (!response.ok) throw new Error("Could not read your profile.");
+  if (!response.ok) {
+    /* Include Firestore's own status and body server-side only — the uid and
+       project id here are not secrets, and this is what tells us whether the
+       profile document is simply missing (404) versus the rules refusing the
+       read (403 permission-denied) versus something else entirely. */
+    const detail = await response.text().catch(() => "");
+    throw new Error(
+      `Could not read your profile (HTTP ${response.status} for uid=${uid}, url=${url}): ${detail}`,
+    );
+  }
 
   const fields = (await response.json()).fields || {};
   return {
@@ -129,8 +138,14 @@ async function fetchRole(projectId, uid, idToken) {
 export async function handleSignUpload(body) {
   const {
     CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET,
-    CLOUDINARY_UPLOAD_PRESET, FIREBASE_PROJECT_ID,
+    CLOUDINARY_UPLOAD_PRESET,
   } = process.env;
+
+  /* Env vars typed into a dashboard by hand can pick up a trailing space or
+     newline from a copy-paste. Trim once here so every downstream use (the
+     token check, the Firestore REST URL) sees the same clean value instead of
+     each call site having to remember to trim it itself. */
+  const FIREBASE_PROJECT_ID = (process.env.FIREBASE_PROJECT_ID || "").trim();
 
   /* Name the missing variable. "Not configured" alone sent people to SETUP.md
      to re-check five values when only one was ever blank. The names are not
