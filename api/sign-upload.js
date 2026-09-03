@@ -154,16 +154,20 @@ export async function handleSignUpload(body) {
   let claims;
   try {
     claims = await verifyIdToken(idToken, FIREBASE_PROJECT_ID);
-  } catch {
-    /* Deliberately vague: a caller probing this endpoint learns nothing about
-       which part of their token was wrong. */
+  } catch (error) {
+    /* Deliberately vague to the caller: a caller probing this endpoint learns
+       nothing about which part of their token was wrong. The real reason is
+       logged server-side only, to debug deployment issues (env var mismatch,
+       clock skew, etc.) without exposing anything to the client. */
+    console.error("[sign-upload] verifyIdToken failed:", error?.message || error);
     return { status: 401, json: { error: "Your session is not valid. Please sign in again." } };
   }
 
   let profile;
   try {
     profile = await fetchRole(FIREBASE_PROJECT_ID, claims.sub, idToken);
-  } catch {
+  } catch (error) {
+    console.error("[sign-upload] fetchRole failed:", error?.message || error);
     return { status: 403, json: { error: "Could not confirm your account." } };
   }
 
