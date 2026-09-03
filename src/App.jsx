@@ -2499,10 +2499,26 @@ export default function App() {
     } catch { /* private mode or storage disabled — refresh just loses the spot */ }
   }, [view, booting]);
 
-  /* Hardware and browser back follow the same trail as the in-app buttons. */
+  /* Hardware and browser back follow the same trail as the in-app buttons.
+     A page like the quiz has its own drill-down (year -> branch -> subject ->
+     level -> a live question) that this view-level history knows nothing
+     about — left alone, a single popstate would jump straight from five
+     levels deep to the previous *view* (e.g. the landing page), skipping
+     everything in between. Such a page registers its own step-back function
+     here; when one is registered, the gesture calls that first and leaves
+     the view-level trail untouched, so it only actually changes view once
+     the page itself has nothing left to unwind. */
+  const pageBackRef = useRef(null);
+  const registerPageBack = useCallback((fn) => { pageBackRef.current = fn; }, []);
+
   useEffect(() => {
     window.history.pushState({ view }, "");
     const onPop = () => {
+      if (pageBackRef.current) {
+        pageBackRef.current();
+        window.history.pushState({ view }, "");
+        return;
+      }
       setHistory((prev) => {
         if (prev.length === 0) { setView("landing"); return prev; }
         setView(prev[prev.length - 1]);
@@ -2813,7 +2829,7 @@ export default function App() {
       )}
       {view === "quiz" && currentUser && (
         <Suspense fallback={<div className="boot-screen"><Loader2 size={20} className="spin" /> Loading practice tests…</div>}>
-          <QuizPage onBack={goBack} user={currentUser} />
+          <QuizPage onBack={goBack} onRegisterBack={registerPageBack} user={currentUser} />
         </Suspense>
       )}
       {view === "scholarships" && <ScholarshipsPage onBack={goBack} />}

@@ -20,7 +20,11 @@
 
 import { auth, isBackendConfigured } from "./firebase.js";
 
-const CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
+/* Trimmed defensively: this value is typed into a hosting dashboard by hand,
+   and a trailing space or newline from a copy-paste compiles straight into
+   the bundle as part of the upload URL — Cloudinary then reports the whole
+   thing, whitespace included, as an "Invalid cloud_name". */
+const CLOUD_NAME = (import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || "").trim();
 
 export const isCloudinaryConfigured = Boolean(CLOUD_NAME);
 

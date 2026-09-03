@@ -48,7 +48,7 @@ function streamsOfferingYear(year) {
 
 /* ============================== The page ============================== */
 
-export default function QuizPage({ onBack, user }) {
+export default function QuizPage({ onBack, onRegisterBack, user }) {
   const [year, setYear] = useState(null);
   const [streamId, setStreamId] = useState(null);
   const [subjectId, setSubjectId] = useState(null);
@@ -96,11 +96,6 @@ export default function QuizPage({ onBack, user }) {
     if (!userId && !syncing) saveLocalProgress(progress);
   }, [progress, userId, syncing]);
 
-  /* Screen changes should always start at the top of the page. */
-  useEffect(() => {
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  }, [year, streamId, subjectId, stage, sitting ? sitting.id : null, result ? result.id : null]);
-
   const resetToYear = () => {
     setYear(null); setStreamId(null); setSubjectId(null);
     setStage(null); setSitting(null); setResult(null); setQuery("");
@@ -126,6 +121,19 @@ export default function QuizPage({ onBack, user }) {
     if (year) { setYear(null); setQuery(""); return; }
     onBack();
   };
+
+  /* The phone's hardware/gesture back button fires a single browser
+     popstate, with no idea a screen five levels deep (year -> branch ->
+     subject -> level -> a live question) is really five undo-able steps —
+     left alone it would jump straight out to the landing page. Handing the
+     parent this same stepBack (re-registered on every render, since it
+     closes over year/streamId/.../sitting) lets the gesture undo one level
+     at a time, exactly like the on-screen Back button, and only actually
+     leaves the quiz once stepBack itself has nothing left to unwind. */
+  useEffect(() => {
+    onRegisterBack?.(() => stepBack());
+    return () => onRegisterBack?.(null);
+  });
 
   /* ------------------------- Starting a sitting ------------------------- */
 
