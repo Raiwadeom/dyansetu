@@ -83,9 +83,18 @@ async function verifyIdToken(token, projectId) {
     .verify(certificate, decodeBase64Url(signatureB64));
   if (!verified) throw new Error("Token signature is invalid.");
 
-  const now = Math.floor(Date.now() / 1000);
-  if (claims.aud !== projectId) throw new Error("Token is for a different project.");
-  if (claims.iss !== `https://securetoken.google.com/${projectId}`) {
+  /* projectId comes from an env var typed into a dashboard by hand — trim it
+     so a stray trailing space or newline from a copy-paste doesn't make a
+     correct token look like it belongs to "a different project". The project
+     ID itself is not a secret (it is the same value VITE_FIREBASE_PROJECT_ID
+     ships to the browser), so it is safe to name both sides when this fails. */
+  const expectedProjectId = String(projectId || "").trim();
+  if (claims.aud !== expectedProjectId) {
+    throw new Error(
+      `Token is for a different project (token aud="${claims.aud}", configured FIREBASE_PROJECT_ID="${expectedProjectId}").`,
+    );
+  }
+  if (claims.iss !== `https://securetoken.google.com/${expectedProjectId}`) {
     throw new Error("Token has an unexpected issuer.");
   }
   if (!claims.sub) throw new Error("Token has no subject.");
