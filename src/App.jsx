@@ -929,7 +929,7 @@ function AboutPage({ onBack }) {
           </div>
 
           <div className="faq-list">
-            <details className="faq-item" open>
+            <details className="faq-item">
               <summary>Is DyanSetu free to use?</summary>
               <p>Yes. It is free for students and faculty of the college. There is no payment step and no card is ever asked for.</p>
             </details>
@@ -1347,7 +1347,7 @@ function PyqPage({ onBack }) {
 
 /* =============================== VIEW: Scholarships ============================== */
 
-function ScholarshipsPage({ onBack }) {
+function ScholarshipsPage({ onBack, onRegisterBack }) {
   const [categoryId, setCategoryId] = useState(null);
   const [openDocs, setOpenDocs] = useState(null);
   const [showAllDocs, setShowAllDocs] = useState(false);
@@ -1356,17 +1356,30 @@ function ScholarshipsPage({ onBack }) {
   const matches = category ? scholarshipsFor(category.id) : [];
   const allDocs = category ? documentsFor(category.id) : [];
 
-  /* Back closes the documents panel first, then the category, then leaves. */
+  /* Closes the documents panel first, then the category, and only then
+     reports it had nothing left to unwind — true/false rather than calling
+     onBack() itself, since this same function is also handed to the
+     hardware-back handler, which needs to know whether the gesture was
+     actually absorbed before it decides what to do next. */
   const stepBack = () => {
-    if (openDocs) { setOpenDocs(null); return; }
-    if (categoryId) { setCategoryId(null); return; }
-    onBack();
+    if (openDocs) { setOpenDocs(null); return true; }
+    if (showAllDocs) { setShowAllDocs(false); return true; }
+    if (categoryId) { setCategoryId(null); return true; }
+    return false;
   };
+  const handleBackClick = () => { if (!stepBack()) onBack(); };
+
+  /* Same undo the on-screen Back button does, but for the hardware/gesture
+     back too — see the note in App() by registerPageBack. */
+  useEffect(() => {
+    onRegisterBack?.(() => stepBack());
+    return () => onRegisterBack?.(null);
+  });
 
   return (
     <main className="resource-page">
       <div className="resource-head">
-        <button type="button" className="btn btn-ghost btn-sm" onClick={stepBack}>
+        <button type="button" className="btn btn-ghost btn-sm" onClick={handleBackClick}>
           <ArrowLeft size={16} /> Back
         </button>
         <div className="resource-head-copy">
@@ -2520,7 +2533,6 @@ function TopNavApp({ view, go, onLogout, user }) {
 
 export default function App() {
   const [view, setView] = useState("landing");
-  const [history, setHistory] = useState([]);
   const [authMode, setAuthMode] = useState("login");
   /* Which side of the door the auth screen opens on: the header's own Log in /
      Get Started always mean a student, while "Staff Login" in the nav is the
@@ -2543,24 +2555,42 @@ export default function App() {
      uploads and cross-device progress are the parts that need the real thing. */
   const demoMode = !isBackendConfigured;
 
-  /* A real trail, so Back steps back one screen instead of jumping home.
-     replaceView is for auth transitions, where the previous screen should not
-     be returned to. */
+  /* The browser's own history is the single source of truth for navigation —
+     no parallel in-app stack to fall out of sync with it. navigateTo pushes a
+     real entry, so the hardware/gesture back button and every in-app "Back"
+     button (which both funnel through goBack) land on exactly the same
+     screen the browser back button would. replaceView is for transitions
+     where the previous screen should never come back (auth, after logout,
+     after a session gets forced out) — it swaps the current entry instead of
+     adding one.
+
+     A page with its own internal drill-down (year -> subject -> level, for
+     instance) registers a step-back function via registerPageBack; when one
+     is registered it gets first refusal on every back gesture, and the
+     top-level view only actually changes once that function has nothing left
+     to unwind. */
+  const pageBackRef = useRef(null);
+  const registerPageBack = useCallback((fn) => { pageBackRef.current = fn; }, []);
+  const viewRef = useRef(view);
+  useEffect(() => { viewRef.current = view; }, [view]);
+
   const navigateTo = (next) => {
-    setHistory((prev) => [...prev, view]);
+    window.history.pushState({ view: next }, "");
     setView(next);
+    window.scrollTo(0, 0);
   };
   const replaceView = (next) => {
-    setHistory([]);
+    window.history.replaceState({ view: next }, "");
     setView(next);
   };
+  /* This is the onBack a page falls through to once its own stepBack (the
+     one registered in pageBackRef) has nothing left to unwind — so it must
+     never consult pageBackRef itself, or a page whose stepBack ends by
+     calling onBack() would call straight back into itself forever. Hardware
+     back is the only caller that needs the pageBackRef check, and it makes
+     that check directly in the popstate handler below. */
   const goBack = () => {
-    if (history.length === 0) {
-      setView("landing");
-      return;
-    }
-    setView(history[history.length - 1]);
-    setHistory(history.slice(0, -1));
+    window.history.back();
   };
 
   const redirectUser = (u) => {
@@ -2635,7 +2665,7 @@ export default function App() {
       if (!active) return;
       try {
         const saved = sessionStorage.getItem(VIEW_KEY);
-        if (mayOpenView(saved, profile)) setView(saved);
+        if (mayOpenView(saved, profile)) replaceView(saved);
       } catch { /* storage blocked — start on the landing page */ }
       if (active) setBooting(false);
     })();
@@ -2653,36 +2683,30 @@ export default function App() {
     } catch { /* private mode or storage disabled — refresh just loses the spot */ }
   }, [view, booting]);
 
-  /* Hardware and browser back follow the same trail as the in-app buttons.
-     A page like the quiz has its own drill-down (year -> branch -> subject ->
-     level -> a live question) that this view-level history knows nothing
-     about — left alone, a single popstate would jump straight from five
-     levels deep to the previous *view* (e.g. the landing page), skipping
-     everything in between. Such a page registers its own step-back function
-     here; when one is registered, the gesture calls that first and leaves
-     the view-level trail untouched, so it only actually changes view once
-     the page itself has nothing left to unwind. */
-  const pageBackRef = useRef(null);
-  const registerPageBack = useCallback((fn) => { pageBackRef.current = fn; }, []);
-
+  /* Establishes the very first history entry once, then answers every
+     hardware/gesture/browser back press from here on. A page's own
+     registered step-back (see pageBackRef above) gets first refusal — it
+     returns true if it unwound something locally and false once it has
+     nothing left, so this never has to guess whether the gesture was
+     actually handled. When it has nothing left, the entry the browser landed
+     on names the view to show — read from event.state rather than
+     re-deriving it, so this never needs to re-subscribe (and never
+     re-pushes) on every view change. */
   useEffect(() => {
-    window.history.pushState({ view }, "");
-    const onPop = () => {
-      if (pageBackRef.current) {
-        pageBackRef.current();
-        window.history.pushState({ view }, "");
+    window.history.replaceState({ view: "landing" }, "");
+    const onPop = (e) => {
+      if (pageBackRef.current?.()) {
+        /* The physical back was absorbed by the page's own drill-down, so put
+           the entry back — the browser's stack depth still has to match, and
+           the top-level view never actually changed. */
+        window.history.pushState({ view: viewRef.current }, "");
         return;
       }
-      setHistory((prev) => {
-        if (prev.length === 0) { setView("landing"); return prev; }
-        setView(prev[prev.length - 1]);
-        return prev.slice(0, -1);
-      });
-      window.history.pushState({ view }, "");
+      setView(e.state?.view || "landing");
     };
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
-  }, [view]);
+  }, []);
 
   /* Keeps this tab honest when the session ends elsewhere or a token expires. */
   useEffect(() => {
@@ -2694,7 +2718,7 @@ export default function App() {
         /* Staying put when the auth screen is already open: signup ends its own
            session on purpose, and bouncing to the landing page there would wipe
            the "sign up successful" confirmation before it could be read. */
-        setView((current) => (current === "auth" ? current : "landing"));
+        if (viewRef.current !== "auth") replaceView("landing");
       }
     });
   }, [demoMode]);
@@ -2764,7 +2788,7 @@ export default function App() {
       setPendingPage(view);
       setAuthMode("login");
       setNotice("Please sign in with your registered email and password to open this.");
-      setView("auth");
+      replaceView("auth");
     }
   }, [view, currentUser, booting]);
 
@@ -2894,7 +2918,7 @@ export default function App() {
     setUsers([]);
     setPendingPage(null);
     try { sessionStorage.removeItem(VIEW_KEY); } catch { /* ignore */ }
-    setView("landing");
+    replaceView("landing");
   };
 
   /* Members-only pages bounce to the login tab instead of opening. Checked here
@@ -2978,7 +3002,7 @@ export default function App() {
       )}
       {view === "notes" && currentUser && (
         <Suspense fallback={<div className="boot-screen"><Loader2 size={20} className="spin" /> Loading notes…</div>}>
-          <NotesPage onBack={goBack} />
+          <NotesPage onBack={goBack} onRegisterBack={registerPageBack} />
         </Suspense>
       )}
       {view === "quiz" && currentUser && (
@@ -2986,7 +3010,7 @@ export default function App() {
           <QuizPage onBack={goBack} onRegisterBack={registerPageBack} user={currentUser} />
         </Suspense>
       )}
-      {view === "scholarships" && <ScholarshipsPage onBack={goBack} />}
+      {view === "scholarships" && <ScholarshipsPage onBack={goBack} onRegisterBack={registerPageBack} />}
       {view === "auth" && (
         <AuthScreen mode={authMode} setMode={setAuthMode} roleScope={authRoleScope} onSubmit={handleAuthSubmit} goLanding={() => replaceView("landing")} />
       )}

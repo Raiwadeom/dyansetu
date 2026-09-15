@@ -31,7 +31,7 @@ function timeAgo(ts) {
   return months === 1 ? "a month ago" : `${months} months ago`;
 }
 
-export default function NotesPage({ onBack }) {
+export default function NotesPage({ onBack, onRegisterBack }) {
   const [streamId, setStreamId] = useState(null);
   const [notes, setNotes] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -41,12 +41,21 @@ export default function NotesPage({ onBack }) {
 
   const stream = streamId ? noteStreamById(streamId) : null;
 
-  /* Back returns to the branch list first, and only leaves the notes library
-     once there is no selection left to undo. */
+  /* Returns to the branch list first, then reports it had nothing left to
+     undo — true/false rather than calling onBack() itself, since this same
+     function is also handed to the hardware-back handler. */
   const stepBack = () => {
-    if (streamId) { setStreamId(null); setQuery(""); setSemester("All"); return; }
-    onBack();
+    if (streamId) { setStreamId(null); setQuery(""); setSemester("All"); return true; }
+    return false;
   };
+  const handleBackClick = () => { if (!stepBack()) onBack(); };
+
+  /* Same undo the on-screen Back button does, but for the hardware/gesture
+     back too. */
+  useEffect(() => {
+    onRegisterBack?.(() => stepBack());
+    return () => onRegisterBack?.(null);
+  });
 
   useEffect(() => {
     let active = true;
@@ -100,7 +109,7 @@ export default function NotesPage({ onBack }) {
   return (
     <main className="resource-page">
       <div className="resource-head">
-        <button type="button" className="btn btn-ghost btn-sm" onClick={stepBack}>
+        <button type="button" className="btn btn-ghost btn-sm" onClick={handleBackClick}>
           <ArrowLeft size={16} /> Back
         </button>
         <div className="resource-head-copy">

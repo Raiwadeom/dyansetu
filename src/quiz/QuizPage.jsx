@@ -111,16 +111,19 @@ export default function QuizPage({ onBack, onRegisterBack, user }) {
   };
 
   /* The header Back button unwinds one stage at a time — sitting -> levels ->
-     subject -> branch -> year — and only leaves the quiz once there is nothing
-     left to step back through. Jumping straight out from four levels deep was
-     the old behaviour and it lost the whole selection. */
+     subject -> branch -> year — and only reports it had nothing left to step
+     back through once every level is gone. Jumping straight out from four
+     levels deep was the old behaviour and it lost the whole selection.
+     Returns true/false rather than calling onBack() itself, since this same
+     function is also handed to the hardware-back handler. */
   const stepBack = () => {
-    if (sitting || result || stage) { resetToLevels(); return; }
-    if (subjectId) { setSubjectId(null); setQuery(""); return; }
-    if (streamId) { setStreamId(null); setQuery(""); return; }
-    if (year) { setYear(null); setQuery(""); return; }
-    onBack();
+    if (sitting || result || stage) { resetToLevels(); return true; }
+    if (subjectId) { setSubjectId(null); setQuery(""); return true; }
+    if (streamId) { setStreamId(null); setQuery(""); return true; }
+    if (year) { setYear(null); setQuery(""); return true; }
+    return false;
   };
+  const handleBackClick = () => { if (!stepBack()) onBack(); };
 
   /* The phone's hardware/gesture back button fires a single browser
      popstate, with no idea a screen five levels deep (year -> branch ->
@@ -206,7 +209,7 @@ export default function QuizPage({ onBack, onRegisterBack, user }) {
   return (
     <main className="quiz-page">
       <div className="quiz-head">
-        <button type="button" className="btn btn-ghost btn-sm" onClick={stepBack}>
+        <button type="button" className="btn btn-ghost btn-sm" onClick={handleBackClick}>
           <ArrowLeft size={16} /> Back
         </button>
         <div className="quiz-head-copy">
