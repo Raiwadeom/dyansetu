@@ -112,6 +112,17 @@ export function papersFor(stream, subject) {
 
 /* ------------------------------ Scholarships ------------------------------ */
 
+/* Who a student should contact with scholarship questions. Placeholder — swap
+   in the real name, designation and photo (import it like principalPhoto in
+   App.jsx and set `photo` below) as soon as they're confirmed. */
+export const SCHOLARSHIP_CONTACT = {
+  name: "To be added",
+  designation: "Scholarship Coordinator",
+  photo: null,
+  phone: "",
+  email: "",
+};
+
 export const SCHOLARSHIP_CATEGORIES = [
   { id: "open", name: "Open / General", note: "No caste-based reservation claimed." },
   { id: "ews", name: "EWS", note: "Economically Weaker Section, general category." },
@@ -134,12 +145,14 @@ const DOC = {
   nonCreamy: "Non-creamy layer certificate (valid for the current year)",
   ews: "EWS certificate issued by the competent authority",
   domicile: "Domicile / nationality certificate (Maharashtra)",
-  marksheet: "Marksheet of the last qualifying examination",
-  admission: "Current-year admission / fee receipt",
-  gap: "Gap certificate (only if there is a break in education)",
+  marksheet: "Marksheet of the last qualifying examination (10th, 12th and UG, as applicable)",
+  admission: "Current-year admission / College current bonafide certificate",
+  gap: "Gap certificate (only for gap students, i.e. a break in education)",
+  deathCert: "Father's death certificate + mother's income certificate (only if the father is not alive)",
+  nonCriminal: "Non-criminal certificate",
   hostel: "Hostel admission proof (for maintenance allowance)",
+  hostelAgreement: "Hostel / house-owner rent agreement (only if hostel admission proof is not available)",
   ration: "Ration card",
-  photo: "Recent passport-size photograph",
   minority: "Self-declaration of minority community",
   cet: "CET / entrance score card (where admission was through CET)",
 };
@@ -153,7 +166,8 @@ export const SCHOLARSHIPS = [
     amount: "Full tuition + exam fees + maintenance allowance",
     window: "Usually August – December",
     eligibility: "SC students in a recognised post-matric course, family income under ₹2.5 lakh per year.",
-    documents: ["aadhaar", "bank", "income", "caste", "validity", "domicile", "marksheet", "admission", "photo"],
+    documents: ["aadhaar", "bank", "income", "caste", "validity", "domicile", "marksheet", "admission", "gap", "deathCert"],
+    note: "If you have already applied for another scholarship, you cannot apply for this one — the government sanctions only one scholarship per student.",
     portal: "https://mahadbt.maharashtra.gov.in/",
   },
   {
@@ -164,7 +178,8 @@ export const SCHOLARSHIPS = [
     amount: "Full tuition + exam fees + maintenance allowance",
     window: "Usually August – December",
     eligibility: "ST students in a recognised post-matric course, family income under ₹2.5 lakh per year.",
-    documents: ["aadhaar", "bank", "income", "caste", "validity", "domicile", "marksheet", "admission", "photo"],
+    documents: ["aadhaar", "bank", "income", "caste", "validity", "domicile", "marksheet", "admission", "gap", "deathCert"],
+    note: "If you have already applied for another scholarship, you cannot apply for this one — the government sanctions only one scholarship per student.",
     portal: "https://mahadbt.maharashtra.gov.in/",
   },
   {
@@ -175,7 +190,8 @@ export const SCHOLARSHIPS = [
     amount: "Tuition + exam fees, plus maintenance for eligible students",
     window: "Usually August – December",
     eligibility: "VJNT / OBC / SBC students with a valid non-creamy layer certificate and family income under ₹8 lakh.",
-    documents: ["aadhaar", "bank", "income", "caste", "nonCreamy", "domicile", "marksheet", "admission", "photo"],
+    documents: ["aadhaar", "bank", "income", "caste", "nonCreamy", "domicile", "marksheet", "admission", "gap", "deathCert"],
+    note: "If you have already applied for another scholarship, you cannot apply for this one — the government sanctions only one scholarship per student.",
     portal: "https://mahadbt.maharashtra.gov.in/",
   },
   {
@@ -183,10 +199,11 @@ export const SCHOLARSHIPS = [
     name: "Rajarshi Chhatrapati Shahu Maharaj Shikshan Shulk Shishyavrutti",
     provider: "Higher & Technical Education Dept., Govt. of Maharashtra",
     categories: ["open", "ews", "obc", "sbc", "vjnt", "nt"],
-    amount: "50% tuition and exam fee waiver",
+    amount: "100% tuition fee waiver",
     window: "Along with admission, usually July – November",
     eligibility: "Family income under ₹8 lakh per year, admitted to a professional course through CAP.",
-    documents: ["aadhaar", "bank", "income", "domicile", "marksheet", "admission", "cet", "photo"],
+    documents: ["aadhaar", "bank", "income", "domicile", "marksheet", "admission", "cet", "gap", "deathCert"],
+    note: "If you have already applied for another scholarship, you cannot apply for this one — the government sanctions only one scholarship per student.",
     portal: "https://mahadbt.maharashtra.gov.in/",
   },
   {
@@ -197,7 +214,8 @@ export const SCHOLARSHIPS = [
     amount: "Up to 50% of tuition fees",
     window: "Along with admission",
     eligibility: "Open-category students holding a valid EWS certificate, family income under ₹8 lakh per year.",
-    documents: ["aadhaar", "bank", "ews", "income", "domicile", "marksheet", "admission", "photo"],
+    documents: ["aadhaar", "bank", "ews", "income", "domicile", "marksheet", "admission", "nonCriminal", "gap", "deathCert"],
+    note: "If you have already applied for another scholarship, you cannot apply for this one — the government sanctions only one scholarship per student.",
     portal: "https://mahadbt.maharashtra.gov.in/",
   },
   {
@@ -208,7 +226,8 @@ export const SCHOLARSHIPS = [
     amount: "₹10,000 – ₹30,000 per year hostel maintenance",
     window: "Usually August – December",
     eligibility: "Hostel residents whose parents are registered labourers or landholding farmers; income under ₹8 lakh.",
-    documents: ["aadhaar", "bank", "income", "domicile", "hostel", "admission", "ration", "photo"],
+    documents: ["aadhaar", "bank", "income", "domicile", "hostel", "hostelAgreement", "admission", "ration", "gap", "deathCert"],
+    note: "If you have already applied for another scholarship, you cannot apply for this one — the government sanctions only one scholarship per student.",
     portal: "https://mahadbt.maharashtra.gov.in/",
   },
   {
@@ -219,7 +238,8 @@ export const SCHOLARSHIPS = [
     amount: "₹5,000 – ₹25,000 per year",
     window: "Usually September – January",
     eligibility: "Students from notified minority communities with at least 50% in the previous examination.",
-    documents: ["aadhaar", "bank", "income", "minority", "domicile", "marksheet", "admission", "photo"],
+    documents: ["aadhaar", "bank", "income", "minority", "domicile", "marksheet", "admission", "gap", "deathCert"],
+    note: "If you have already applied for another scholarship, you cannot apply for this one — the government sanctions only one scholarship per student.",
     portal: "https://mahadbt.maharashtra.gov.in/",
   },
   {
@@ -230,7 +250,8 @@ export const SCHOLARSHIPS = [
     amount: "₹12,000 per year for graduation",
     window: "Usually July – October",
     eligibility: "Above the 80th percentile in Class XII, family income under ₹4.5 lakh, pursuing a regular degree.",
-    documents: ["aadhaar", "bank", "income", "domicile", "marksheet", "admission", "photo"],
+    documents: ["aadhaar", "bank", "income", "domicile", "marksheet", "admission", "gap", "deathCert"],
+    note: "If you have already applied for another scholarship, you cannot apply for this one — the government sanctions only one scholarship per student.",
     portal: "https://scholarships.gov.in/",
   },
   {
@@ -241,7 +262,8 @@ export const SCHOLARSHIPS = [
     amount: "Partial tuition fee concession",
     window: "Along with admission",
     eligibility: "Open-category students with family income under the notified EBC ceiling.",
-    documents: ["aadhaar", "bank", "income", "domicile", "marksheet", "admission"],
+    documents: ["aadhaar", "bank", "income", "domicile", "marksheet", "admission", "gap", "deathCert"],
+    note: "If you have already applied for another scholarship, you cannot apply for this one — the government sanctions only one scholarship per student.",
     portal: "https://mahadbt.maharashtra.gov.in/",
   },
   {
@@ -252,7 +274,8 @@ export const SCHOLARSHIPS = [
     amount: "₹5,000 per year",
     window: "Usually September – December",
     eligibility: "At least 60% in the previous year, parents' income under the notified ceiling; merit-based.",
-    documents: ["aadhaar", "bank", "income", "domicile", "marksheet", "admission"],
+    documents: ["aadhaar", "bank", "income", "domicile", "marksheet", "admission", "gap", "deathCert"],
+    note: "If you have already applied for another scholarship, you cannot apply for this one — the government sanctions only one scholarship per student.",
     portal: "https://dhepune.gov.in/",
   },
 ];

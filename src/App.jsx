@@ -15,7 +15,7 @@ import { generateTrackingId } from "./utils/identity";
 import { downloadCsv, timestampedName } from "./utils/exportSheet";
 import { isBackendConfigured } from "./lib/firebase";
 import {
-  signUp, signIn, signOut, getSession, onAuthChange,
+  signUp, signIn, signOut, getSession, onAuthChange, resetPassword,
   fetchProfile, updateProfile, listProfiles, adminUpdateProfile, adminDeleteProfile,
   markNotesOpened,
 } from "./lib/profiles";
@@ -28,14 +28,14 @@ import {
 } from "./lib/adminSession";
 import { NOTE_STREAMS, SEMESTERS, ACCEPTED_NOTE_TYPES, formatBytes } from "./data/notes";
 import {
-  SCHOLARSHIP_CATEGORIES, scholarshipsFor, documentsFor, expandDocuments,
+  SCHOLARSHIP_CATEGORIES, SCHOLARSHIP_CONTACT, scholarshipsFor, documentsFor, expandDocuments,
 } from "./data/resources";
 import {
   Mail, Phone, Lock, User, ArrowRight, ArrowLeft, CheckCircle2, Users, Award, Linkedin, GraduationCap,
   Code2, Compass, MessageSquare, LogOut, MapPin, X, Loader2, Target, Shield, ExternalLink,
   FileText, Edit3, Trash2, Ban, Sparkles, BookOpen, ImagePlus, BarChart3,
   Info, Facebook, Instagram, CalendarDays, Search, Droplet, ClipboardList, ListChecks, Coins, HandHeart,
-  ScrollText, NotebookPen, Download, ChevronRight, FileDown, AlertTriangle
+  ScrollText, NotebookPen, Download, ChevronRight, FileDown, AlertTriangle, Newspaper
 } from "lucide-react";
 
 /* ============================================================================
@@ -123,6 +123,10 @@ const INSTITUTION = {
    Services card turns into a live link automatically. */
 const RAKTSETU_APP_URL = "";
 
+/* CSM News Desk. Paste the published site link here once it's live and the
+   card turns into a live link automatically, same as RaktSetu above. */
+const CSM_NEWS_DESK_URL = "";
+
 
 /* ------------------------- Landing Hubs (Study / Career / Social) -------------------------
    One catalog drives three things: the landing hub sections, the nav search index,
@@ -184,6 +188,16 @@ const LANDING_HUBS = [
         href: RAKTSETU_APP_URL,
         cta: "Open RaktSetu app",
         pendingNote: "App link coming soon",
+      },
+      {
+        id: "csm-news-desk",
+        name: "CSM News Desk",
+        icon: Newspaper,
+        blurb: "College announcements, events and press coverage in one feed.",
+        keywords: "csm news desk announcements events press college updates",
+        href: CSM_NEWS_DESK_URL,
+        cta: "Open CSM News Desk",
+        pendingNote: "Coming soon",
       },
       {
         id: "scholarships",
@@ -524,8 +538,6 @@ function Landing({ goAuth, onOpenAbout, onOpenPage }) {
             <span className="top-announcement-trust">{INSTITUTION.trust}</span>
             <span className="top-announcement-name">{INSTITUTION.name}</span>
           </span>
-          <span className="top-announcement-rule" aria-hidden="true" />
-          <span className="top-announcement-tag">Skill Diagnostics · Faculty Mentorship</span>
         </span>
       </div>
 
@@ -604,8 +616,10 @@ function Landing({ goAuth, onOpenAbout, onOpenPage }) {
         </div>
 
         <div className="nav-actions">
-          <button className="btn btn-ghost" onClick={() => goAuth("login")}>Log in</button>
-          <button className="btn btn-primary" onClick={() => goAuth("signup")}>Get Started</button>
+          <button type="button" className="nav-staff-link" onClick={() => goAuth("login", "staff")}>
+            <Shield size={13} /> <span>Staff Login</span>
+          </button>
+          <button className="btn btn-primary" onClick={() => goAuth("login")}>Log in</button>
         </div>
       </nav>
 
@@ -672,26 +686,28 @@ function Landing({ goAuth, onOpenAbout, onOpenPage }) {
                     key={item.id}
                   >
                     <div className="hub-card-icon"><ItemIcon size={20} /></div>
-                    <h3>{item.name}</h3>
-                    <p>{item.blurb}</p>
+                    <div className="hub-card-body">
+                      <h3>{item.name}</h3>
+                      <p>{item.blurb}</p>
 
-                    {item.page ? (
-                      <button className="hub-card-link" type="button" onClick={() => onOpenPage(item.page)}>
-                        Open <ArrowRight size={14} />
-                      </button>
-                    ) : item.href !== undefined ? (
-                      isLive ? (
-                        <a className="hub-card-link" href={item.href} target="_blank" rel="noreferrer">
-                          {item.cta || "Open"} <ExternalLink size={14} />
-                        </a>
+                      {item.page ? (
+                        <button className="hub-card-link" type="button" onClick={() => onOpenPage(item.page)}>
+                          Open <ArrowRight size={14} />
+                        </button>
+                      ) : item.href !== undefined ? (
+                        isLive ? (
+                          <a className="hub-card-link" href={item.href} target="_blank" rel="noreferrer">
+                            {item.cta || "Open"} <ExternalLink size={14} />
+                          </a>
+                        ) : (
+                          <span className="hub-card-pending">{item.pendingNote || "Coming soon"}</span>
+                        )
                       ) : (
-                        <span className="hub-card-pending">{item.pendingNote || "Coming soon"}</span>
-                      )
-                    ) : (
-                      <button className="hub-card-link" type="button" onClick={() => goAuth("signup")}>
-                        Open <ArrowRight size={14} />
-                      </button>
-                    )}
+                        <button className="hub-card-link" type="button" onClick={() => goAuth("signup")}>
+                          Open <ArrowRight size={14} />
+                        </button>
+                      )}
+                    </div>
                   </article>
                 );
               })}
@@ -800,7 +816,16 @@ function Landing({ goAuth, onOpenAbout, onOpenPage }) {
         <div className="site-footer-bar">
           <span>© 2026–2027 DyanSetu · {INSTITUTION.name}. All rights reserved.</span>
           <span className="footer-author">
-            Built by <strong>Omrushikesh Vijaykumar Raiwade</strong>
+            Built by{" "}
+            <a
+              href="https://portfolio-zeta-one-nhmx6ncw7b.vercel.app/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="footer-author-link"
+              title="View portfolio"
+            >
+              <strong>Omrushikesh Vijaykumar Raiwade</strong> <ExternalLink size={12} className="footer-author-link-icon" />
+            </a>
           </span>
         </div>
       </footer>
@@ -943,8 +968,9 @@ function AboutPage({ onBack }) {
 
 /* =============================== VIEW: Auth Screen ============================== */
 
-function AuthScreen({ mode, setMode, onSubmit, goLanding }) {
-  const [selectedRole, setSelectedRole] = useState("student");
+function AuthScreen({ mode, setMode, onSubmit, goLanding, roleScope = "student" }) {
+  const isStaffScope = roleScope === "staff";
+  const [selectedRole, setSelectedRole] = useState(isStaffScope ? "faculty" : "student");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -953,6 +979,11 @@ function AuthScreen({ mode, setMode, onSubmit, goLanding }) {
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [forgotMode, setForgotMode] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
+  const [resetSubmitting, setResetSubmitting] = useState(false);
+  const [resetError, setResetError] = useState("");
+  const [resetSent, setResetSent] = useState(false);
   const localHostUrl = typeof window !== "undefined" ? window.location.origin : "http://localhost:5173";
 
   /* Accounts are keyed on the email address alone. Phone sign-in was removed,
@@ -1040,93 +1071,177 @@ function AuthScreen({ mode, setMode, onSubmit, goLanding }) {
     }
   };
 
+  /* Works the same way for a student, faculty or admin account — Firebase
+     Auth does not care which, so there is nothing role-specific to ask here. */
+  const handleResetSubmit = async (e) => {
+    e.preventDefault();
+    setResetError("");
+    if (resetSubmitting) return;
+
+    const normalizedEmail = normalizeEmail(resetEmail);
+    if (!isValidEmail(normalizedEmail)) {
+      setResetError("Please enter a valid email address.");
+      return;
+    }
+    setResetSubmitting(true);
+    try {
+      const result = await resetPassword({ email: normalizedEmail });
+      if (result?.success) {
+        setResetSent(true);
+      } else {
+        setResetError(result?.message || "Could not send the reset email right now.");
+      }
+    } finally {
+      setResetSubmitting(false);
+    }
+  };
+
+  const closeForgotMode = () => {
+    setForgotMode(false);
+    setResetError("");
+    setResetSent(false);
+    setResetEmail("");
+  };
+
   return (
     <div className="auth-screen">
       <div className="auth-brand-panel">
-        <div>
-          <div className="auth-brand-header" onClick={goLanding} style={{ cursor: "pointer" }}>
-            <BrandLogo variant="full" alt="DyanSetu logo" />
-            <div className="auth-brand-text-wrap">
-              <span className="auth-brand-name">DyanSetu</span>
-              <span className="auth-brand-slogan">Connecting Futures</span>
-            </div>
-          </div>
-          <InstitutionLockup size={44} tone="dark" className="auth-brand-institution" />
+        <div onClick={goLanding} style={{ cursor: "pointer" }}>
+          <InstitutionLockup size={64} tone="dark" className="auth-brand-institution" />
         </div>
       </div>
 
       <div className="auth-form-panel">
-        <div className="auth-tabs">
-          <button className={`auth-tab ${mode === "login" ? "auth-tab-active" : ""}`} onClick={() => setMode("login")}>Log in</button>
-          <button className={`auth-tab ${mode === "signup" ? "auth-tab-active" : ""}`} onClick={() => { setMode("signup"); if (selectedRole === "admin") setSelectedRole("student"); }}>Sign up</button>
-        </div>
+        <button type="button" className="auth-back-link" onClick={goLanding}>
+          <ArrowLeft size={15} /> Back
+        </button>
+        {forgotMode ? (
+          <>
+            <div className="auth-heading">
+              <h2 className="auth-title">Reset your password</h2>
+              <p className="auth-sub">
+                Works for student, faculty and admin accounts alike — enter the email you signed
+                up with and we will send a reset link.
+              </p>
+            </div>
 
-        <div className="auth-heading">
-          <h2 className="auth-title">{mode === "login" ? "Welcome back" : "Create your account"}</h2>
-          <p className="auth-sub">
-            {mode === "login"
-              ? "Sign in with your registered email address."
-              : "Register with your name, email address, and password to begin."}
-          </p>
-          {mode === "login" && (
-            <p className="auth-host-note">Local host: <strong>{localHostUrl}</strong></p>
-          )}
-        </div>
+            {resetError && <div className="form-error">{resetError}</div>}
 
-        <div className="role-selector-wrap">
-          <button type="button" className={`role-tab ${selectedRole === "student" ? "role-tab-active" : ""}`} onClick={() => setSelectedRole("student")}>
-            <GraduationCap size={16} /> Student
-          </button>
-          <button type="button" className={`role-tab ${selectedRole === "faculty" ? "role-tab-active" : ""}`} onClick={() => setSelectedRole("faculty")}>
-            <NotebookPen size={16} /> Faculty
-          </button>
-          {/* Administration is a single fixed account, so it is never a signup option. */}
-          {mode === "login" && (
-            <button type="button" className={`role-tab ${selectedRole === "admin" ? "role-tab-active" : ""}`} onClick={() => setSelectedRole("admin")}>
-              <Shield size={16} /> Admin
-            </button>
-          )}
-        </div>
-
-        {error && <div className="form-error">{error}</div>}
-        {successMessage && <div className="form-success"><CheckCircle2 size={15} /> <span>{successMessage}</span></div>}
-
-        <form onSubmit={handleSubmit}>
-          {mode === "signup" && selectedRole !== "admin" && (
-            <Field label="Full Name" icon={User} type="text" placeholder="Enter your full name" value={name} onChange={(e) => setName(e.target.value)} />
-          )}
-          <Field label={mode === "signup" ? "Email" : "Registered Email"} icon={Mail} type="email" autoComplete="email" placeholder="name@arcsas.edu" value={email} onChange={(e) => setEmail(e.target.value)} />
-          <Field label="Password" icon={Lock} type={showPassword ? "text" : "password"} placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} />
-          {mode === "signup" && (
-            <Field label="Confirm Password" icon={Lock} type={showPassword ? "text" : "password"} placeholder="Re-enter password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
-          )}
-
-          <div style={{ marginTop: 12, marginBottom: 6, display: "flex", alignItems: "center", gap: 8 }}>
-            <input
-              id="show-password-toggle"
-              type="checkbox"
-              checked={showPassword}
-              onChange={(e) => setShowPassword(e.target.checked)}
-            />
-            <label htmlFor="show-password-toggle" style={{ cursor: "pointer", userSelect: "none" }}>
-              Show password
-            </label>
-          </div>
-
-          <button type="submit" className="btn btn-primary btn-block btn-lg" style={{ marginTop: 16 }} disabled={submitting}>
-            {submitting ? (
-              <><Loader2 size={16} className="spin" /> {mode === "login" ? "Signing in…" : "Creating account…"}</>
+            {resetSent ? (
+              <div className="form-success">
+                <CheckCircle2 size={15} />
+                <span>If an account exists for <strong>{normalizeEmail(resetEmail)}</strong>, a reset link is on its way. Check your inbox (and spam folder).</span>
+              </div>
             ) : (
-              <>{mode === "login" ? `Log in as ${selectedRole.toUpperCase()}` : `Register as ${selectedRole.toUpperCase()}`} <ArrowRight size={16} /></>
+              <form onSubmit={handleResetSubmit}>
+                <Field label="Registered Email" icon={Mail} type="email" autoComplete="email" placeholder="name@arcsas.edu" value={resetEmail} onChange={(e) => setResetEmail(e.target.value)} />
+                <button type="submit" className="btn btn-primary btn-block btn-lg" style={{ marginTop: 16 }} disabled={resetSubmitting}>
+                  {resetSubmitting ? (
+                    <><Loader2 size={16} className="spin" /> Sending reset link…</>
+                  ) : (
+                    <>Send reset link <ArrowRight size={16} /></>
+                  )}
+                </button>
+              </form>
             )}
-          </button>
 
-          {mode === "signup" && (
-            <button type="button" className="btn btn-ghost btn-block" style={{ marginTop: 10 }} onClick={() => setMode("login")}>
-              Already registered? Go to login
+            <button type="button" className="btn btn-ghost btn-block" style={{ marginTop: 10 }} onClick={closeForgotMode}>
+              Back to login
             </button>
-          )}
-        </form>
+          </>
+        ) : (
+          <>
+            <div className="auth-tabs">
+              <button className={`auth-tab ${mode === "login" ? "auth-tab-active" : ""}`} onClick={() => setMode("login")}>Log in</button>
+              <button className={`auth-tab ${mode === "signup" ? "auth-tab-active" : ""}`} onClick={() => { setMode("signup"); if (selectedRole === "admin") setSelectedRole("student"); }}>Sign up</button>
+            </div>
+
+            <div className="auth-heading">
+              <h2 className="auth-title">{mode === "login" ? "Welcome back" : "Create your account"}</h2>
+              <p className="auth-sub">
+                {mode === "login"
+                  ? "Sign in with your registered email address."
+                  : "Register with your name, email address, and password to begin."}
+              </p>
+              {mode === "login" && (
+                <p className="auth-host-note">Local host: <strong>{localHostUrl}</strong></p>
+              )}
+            </div>
+
+            <div className="role-selector-wrap">
+              {isStaffScope ? (
+                <>
+                  <div className="role-divider"><span>Staff sign-in</span></div>
+                  <div className="role-selector-staff">
+                    <button type="button" className={`role-tab ${selectedRole === "faculty" ? "role-tab-active" : ""}`} onClick={() => setSelectedRole("faculty")}>
+                      <NotebookPen size={16} /> Faculty
+                    </button>
+                    {/* Administration is a single fixed account, so it is never a signup option. */}
+                    {mode === "login" && (
+                      <button type="button" className={`role-tab ${selectedRole === "admin" ? "role-tab-active" : ""}`} onClick={() => setSelectedRole("admin")}>
+                        <Shield size={16} /> Admin
+                      </button>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <div className="role-current-chip">
+                  <GraduationCap size={16} /> Student {mode === "login" ? "sign-in" : "sign-up"}
+                </div>
+              )}
+            </div>
+
+            {error && <div className="form-error">{error}</div>}
+            {successMessage && <div className="form-success"><CheckCircle2 size={15} /> <span>{successMessage}</span></div>}
+
+            <form onSubmit={handleSubmit}>
+              {mode === "signup" && selectedRole !== "admin" && (
+                <Field label="Full Name" icon={User} type="text" placeholder="Enter your full name" value={name} onChange={(e) => setName(e.target.value)} />
+              )}
+              <Field label={mode === "signup" ? "Email" : "Registered Email"} icon={Mail} type="email" autoComplete="email" placeholder="name@arcsas.edu" value={email} onChange={(e) => setEmail(e.target.value)} />
+              <Field label="Password" icon={Lock} type={showPassword ? "text" : "password"} placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} />
+              {mode === "signup" && (
+                <Field label="Confirm Password" icon={Lock} type={showPassword ? "text" : "password"} placeholder="Re-enter password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
+              )}
+
+              {mode === "login" && (
+                <button
+                  type="button"
+                  className="auth-forgot-link"
+                  onClick={() => { setForgotMode(true); setResetEmail(email); }}
+                >
+                  Forgot password?
+                </button>
+              )}
+
+              <div style={{ marginTop: 12, marginBottom: 6, display: "flex", alignItems: "center", gap: 8 }}>
+                <input
+                  id="show-password-toggle"
+                  type="checkbox"
+                  checked={showPassword}
+                  onChange={(e) => setShowPassword(e.target.checked)}
+                />
+                <label htmlFor="show-password-toggle" style={{ cursor: "pointer", userSelect: "none" }}>
+                  Show password
+                </label>
+              </div>
+
+              <button type="submit" className="btn btn-primary btn-block btn-lg" style={{ marginTop: 16 }} disabled={submitting}>
+                {submitting ? (
+                  <><Loader2 size={16} className="spin" /> {mode === "login" ? "Signing in…" : "Creating account…"}</>
+                ) : (
+                  <>{mode === "login" ? `Log in as ${selectedRole.toUpperCase()}` : `Register as ${selectedRole.toUpperCase()}`} <ArrowRight size={16} /></>
+                )}
+              </button>
+
+              {mode === "signup" && (
+                <button type="button" className="btn btn-ghost btn-block" style={{ marginTop: 10 }} onClick={() => setMode("login")}>
+                  Already registered? Go to login
+                </button>
+              )}
+            </form>
+          </>
+        )}
 
       </div>
     </div>
@@ -1235,6 +1350,7 @@ function PyqPage({ onBack }) {
 function ScholarshipsPage({ onBack }) {
   const [categoryId, setCategoryId] = useState(null);
   const [openDocs, setOpenDocs] = useState(null);
+  const [showAllDocs, setShowAllDocs] = useState(false);
 
   const category = SCHOLARSHIP_CATEGORIES.find((c) => c.id === categoryId) || null;
   const matches = category ? scholarshipsFor(category.id) : [];
@@ -1271,13 +1387,32 @@ function ScholarshipsPage({ onBack }) {
         </span>
       </p>
 
+      <div className="scholarship-contact">
+        <div className="scholarship-contact-avatar">
+          {SCHOLARSHIP_CONTACT.photo
+            ? <img src={SCHOLARSHIP_CONTACT.photo} alt={SCHOLARSHIP_CONTACT.name} />
+            : <User size={30} />}
+        </div>
+        <div className="scholarship-contact-body">
+          <p className="scholarship-contact-label">For scholarship queries, contact</p>
+          <p className="scholarship-contact-name">{SCHOLARSHIP_CONTACT.name}</p>
+          <p className="scholarship-contact-role">{SCHOLARSHIP_CONTACT.designation}</p>
+          {(SCHOLARSHIP_CONTACT.phone || SCHOLARSHIP_CONTACT.email) && (
+            <p className="scholarship-contact-meta">
+              {SCHOLARSHIP_CONTACT.phone && <span><Phone size={13} /> {SCHOLARSHIP_CONTACT.phone}</span>}
+              {SCHOLARSHIP_CONTACT.email && <span><Mail size={13} /> {SCHOLARSHIP_CONTACT.email}</span>}
+            </p>
+          )}
+        </div>
+      </div>
+
       <div className="category-row" role="group" aria-label="Select your category">
         {SCHOLARSHIP_CATEGORIES.map((item) => (
           <button
             type="button"
             key={item.id}
             className={`category-chip ${categoryId === item.id ? "is-active" : ""}`}
-            onClick={() => { setCategoryId(item.id); setOpenDocs(null); }}
+            onClick={() => { setCategoryId(item.id); setOpenDocs(null); setShowAllDocs(false); }}
           >
             {item.name}
           </button>
@@ -1297,6 +1432,11 @@ function ScholarshipsPage({ onBack }) {
             </div>
             <span className="category-count">{matches.length} scheme{matches.length === 1 ? "" : "s"} available</span>
           </div>
+
+          <p className="scheme-note scheme-note--global">
+            <Info size={13} /> Only one scholarship can be sanctioned by the government — if you have
+            already applied for one, you cannot apply for another.
+          </p>
 
           <div className="scheme-list">
             {matches.map((scheme) => {
@@ -1322,7 +1462,7 @@ function ScholarshipsPage({ onBack }) {
                       aria-expanded={isOpen}
                       onClick={() => setOpenDocs(isOpen ? null : scheme.id)}
                     >
-                      <ListChecks size={15} /> {isOpen ? "Hide documents" : "Documents required"}
+                      <ListChecks size={15} /> {isOpen ? "Click here to hide documents" : "Click here for documents required"}
                     </button>
                     <a className="btn btn-primary btn-sm" href={scheme.portal} target="_blank" rel="noreferrer">
                       Apply on portal <ExternalLink size={14} />
@@ -1345,11 +1485,21 @@ function ScholarshipsPage({ onBack }) {
             <section className="doc-summary">
               <h2><FileDown size={18} /> Everything you may be asked for</h2>
               <p>Across all {matches.length} schemes open to {category.name}. Keep scans of these ready before you start an application.</p>
-              <ul className="doc-list doc-list--two">
-                {allDocs.map((doc) => (
-                  <li key={doc}><CheckCircle2 size={15} /> {doc}</li>
-                ))}
-              </ul>
+              <button
+                type="button"
+                className="btn btn-outline btn-sm"
+                aria-expanded={showAllDocs}
+                onClick={() => setShowAllDocs((v) => !v)}
+              >
+                <ListChecks size={15} /> {showAllDocs ? "Click here to hide the full list" : `Click here for all ${allDocs.length} documents`}
+              </button>
+              {showAllDocs && (
+                <ul className="doc-list doc-list--two">
+                  {allDocs.map((doc) => (
+                    <li key={doc}><CheckCircle2 size={15} /> {doc}</li>
+                  ))}
+                </ul>
+              )}
             </section>
           )}
         </>
@@ -2372,6 +2522,10 @@ export default function App() {
   const [view, setView] = useState("landing");
   const [history, setHistory] = useState([]);
   const [authMode, setAuthMode] = useState("login");
+  /* Which side of the door the auth screen opens on: the header's own Log in /
+     Get Started always mean a student, while "Staff Login" in the nav is the
+     only way to reach the Faculty / Admin tabs. */
+  const [authRoleScope, setAuthRoleScope] = useState("student");
   const [users, setUsers] = useState([]);
   const [currentUser, setCurrentUser] = useState(null);
   const [booting, setBooting] = useState(true);
@@ -2810,7 +2964,7 @@ export default function App() {
 
       {view === "landing" && (
         <Landing
-          goAuth={(m) => { setAuthMode(m); navigateTo("auth"); }}
+          goAuth={(m, scope) => { setAuthMode(m); setAuthRoleScope(scope || "student"); navigateTo("auth"); }}
           onOpenAbout={() => navigateTo("about")}
           onOpenPage={openPage}
         />
@@ -2834,7 +2988,7 @@ export default function App() {
       )}
       {view === "scholarships" && <ScholarshipsPage onBack={goBack} />}
       {view === "auth" && (
-        <AuthScreen mode={authMode} setMode={setAuthMode} onSubmit={handleAuthSubmit} goLanding={() => replaceView("landing")} />
+        <AuthScreen mode={authMode} setMode={setAuthMode} roleScope={authRoleScope} onSubmit={handleAuthSubmit} goLanding={() => replaceView("landing")} />
       )}
       {view === "faculty-setup" && <FacultyProfileSetup profile={currentUser} onComplete={handleFacultySetupComplete} />}
       {view === "profile" && currentUser?.role === "student" && (
@@ -3173,7 +3327,7 @@ function Styles() {
         animation: none;
       }
       .brand-logo-frame--full {
-        width: min(200px, 68%);
+        width: min(128px, 45%);
         aspect-ratio: 1 / 1;
         padding: 14px 16px;
         border-radius: 20px;
@@ -3452,9 +3606,9 @@ function Styles() {
       .footer-institution-copy strong { font-size: 12px; color: #FFFFFF; line-height: 1.4; }
       .footer-institution-copy small { font-size: 10px; color: rgba(255, 255, 255, 0.62); line-height: 1.45; }
 
-      /* On the login panel the lockup sits under a centred wordmark, so it centres too. */
+      /* Sole brand element on the login panel now, so it centres itself. */
       .auth-brand-institution {
-        margin-top: 22px;
+        flex-direction: column;
         justify-content: center;
         text-align: center;
       }
@@ -4042,6 +4196,9 @@ function Styles() {
         -webkit-background-clip: text; background-clip: text;
         -webkit-text-fill-color: transparent;
       }
+      .footer-author-link { display: inline-flex; align-items: center; gap: 4px; text-decoration: none; border-bottom: 1px dashed rgba(255, 255, 255, 0.35); transition: border-color 0.15s ease; }
+      .footer-author-link:hover { border-color: var(--abc-saffron); }
+      .footer-author-link-icon { color: var(--abc-saffron); opacity: 0.85; flex: 0 0 auto; }
 
       @media (max-width: 900px) {
         .site-footer-inner { grid-template-columns: 1fr; gap: 40px; }
@@ -4112,6 +4269,15 @@ function Styles() {
         text-align: center;
       }
       .nav-actions { display: flex; align-items: center; gap: 8px; }
+      .nav-staff-link {
+        display: inline-flex; align-items: center; gap: 6px;
+        border: 1px solid var(--border-strong); background: #FFFFFF; cursor: pointer;
+        padding: 8px 12px; border-radius: var(--radius-sm);
+        font-family: inherit; font-size: 12.5px; font-weight: 600;
+        color: var(--text-subtle); white-space: nowrap;
+      }
+      .nav-staff-link:hover { color: var(--abc-navy); border-color: var(--abc-navy); background: #F8FAFC; }
+      .nav-staff-link svg { flex: 0 0 auto; color: var(--abc-blue); }
 
       /* --------------------------- Nav search --------------------------- */
       .nav-search {
@@ -4281,11 +4447,13 @@ function Styles() {
         justify-content: center;
         width: 44px;
         height: 44px;
+        flex: 0 0 auto;
         margin-bottom: 4px;
         border-radius: 13px;
         background: linear-gradient(145deg, rgba(11, 30, 46, 0.09), rgba(11, 30, 46, 0.03));
         color: var(--abc-navy);
       }
+      .hub-card-body { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
       .hub-card h3 { font-size: 16.5px; font-weight: 700; color: var(--text-dark); line-height: 1.35; }
       .hub-card p { font-size: 13.5px; line-height: 1.65; color: var(--text-muted); flex: 1; }
       .hub-card-link {
@@ -4365,6 +4533,19 @@ function Styles() {
         background: linear-gradient(135deg, #0B1E2E 0%, #162E44 100%);
         color: #FFFFFF; font-weight: 600; box-shadow: var(--shadow-sm); 
       }
+      .auth-back-link {
+        display: inline-flex; align-items: center; gap: 6px; width: fit-content;
+        border: 0; background: transparent; cursor: pointer; padding: 0;
+        margin-bottom: 18px; font-family: inherit; font-size: 13px; font-weight: 600;
+        color: var(--text-muted);
+      }
+      .auth-back-link:hover { color: var(--abc-navy); }
+      .auth-forgot-link {
+        display: block; margin-top: 8px; border: 0; background: transparent; cursor: pointer;
+        padding: 0; font-family: inherit; font-size: 12.5px; font-weight: 600;
+        color: var(--abc-blue); text-align: right; width: 100%;
+      }
+      .auth-forgot-link:hover { text-decoration: underline; }
       /* Heading, sub-copy and host note share one left edge and one rhythm,
          so the block stays aligned whether or not the host note is rendered. */
       .auth-heading { display: flex; flex-direction: column; gap: 8px; margin-bottom: 24px; text-align: left; }
@@ -4373,8 +4554,17 @@ function Styles() {
       .auth-sub { color: var(--text-muted); font-size: 14px; line-height: 1.65; max-width: 42ch; }
       .auth-host-note { font-size: 12.5px; line-height: 1.5; color: var(--abc-blue); word-break: break-all; }
 
-      .role-selector-wrap { display: flex; gap: 10px; margin-bottom: 20px; }
-      .role-tab { 
+      .role-selector-wrap { display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px; }
+      .role-selector-staff { display: flex; gap: 10px; }
+      .role-divider { display: flex; align-items: center; gap: 10px; color: var(--text-muted); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; }
+      .role-divider::before, .role-divider::after { content: ""; flex: 1; height: 1px; background: var(--border-light); }
+      .role-current-chip {
+        display: inline-flex; align-items: center; gap: 8px; width: fit-content;
+        padding: 9px 14px; border-radius: var(--radius-sm);
+        background: rgba(29, 78, 216, 0.07); border: 1px solid rgba(29, 78, 216, 0.18);
+        color: var(--abc-navy); font-size: 13px; font-weight: 600;
+      }
+      .role-tab {
         flex: 1; 
         border: 1.5px solid var(--border-strong); 
         background: #FFFFFF; 
@@ -5078,16 +5268,15 @@ function Styles() {
         .top-announcement-crest { width: 22px; height: 22px; flex: 0 0 22px; }
         .top-announcement-name { font-size: 11px; white-space: normal; text-align: left; }
         .top-announcement-trust { font-size: 9px; white-space: normal; }
-        .top-announcement-rule, .top-announcement-tag { display: none; }
 
         /* Marketing nav */
         .nav-marketing { padding: 10px 16px; gap: 10px; }
         .landing-brand-wrap { min-width: 0; }
         .landing-brand-name { font-size: 20px; }
         .landing-brand-tag { font-size: 9px; }
-        .brand-logo-img { width: 40px; height: 40px; max-width: 40px; max-height: 40px; }
+        .brand-logo-frame--nav { width: 40px; height: 40px; }
         .nav-actions { margin-left: auto; gap: 6px; }
-        .nav-actions .btn { padding: 0 12px; font-size: 13px; }
+        .nav-actions .btn { padding: 9px 14px; font-size: 13px; min-height: 38px; }
         .nav-search-panel { max-height: 60vh; overflow-y: auto; }
 
         .hero-alison { padding: 24px 16px 34px; gap: 18px; }
@@ -5100,9 +5289,29 @@ function Styles() {
         .about-page-flow-steps, .footer-cols-four { grid-template-columns: 1fr; }
         .footer-social-block { grid-column: auto; }
         .stream-box, .hub-card { padding: 18px 16px; border-radius: 16px; }
-        .story-shell { padding: 24px 18px; }
+
+        /* Landscape list rows instead of tall portrait cards, so Notes /
+           PYQ / Quiz (and every other hub grid) take far less scrolling. */
+        .hub-card { flex-direction: row; align-items: center; gap: 14px; padding: 14px 16px; }
+        .hub-card-icon { width: 40px; height: 40px; margin-bottom: 0; }
+        .hub-card-body { gap: 3px; }
+        .hub-card h3 { font-size: 15px; }
+        .hub-card p { font-size: 12.5px; line-height: 1.5; }
+        .hub-card-link { margin-top: 4px; }
+        .hub-card:hover { transform: none; }
+
+        .story-shell { padding: 24px 18px; gap: 18px; }
         .story-title { font-size: 22px; }
         .story-quote { font-size: 15px; }
+
+        /* Principal's message: a compact inline header instead of a tall stack. */
+        .principal-figure { flex-direction: row; align-items: center; gap: 12px; }
+        .principal-photo, .principal-photo-initials { width: 64px; height: 64px; border-width: 3px; font-size: 22px; }
+        .principal-caption { align-items: flex-start; text-align: left; }
+        .story-copy { align-items: flex-start; text-align: left; gap: 8px; }
+        .principal-quote { padding-left: 22px; }
+        .principal-mark { font-size: 42px; top: -10px; }
+        .principal-quote p { font-size: 14px; line-height: 1.6; }
         .announcement-loop-shell { padding: 12px; }
         .announcement-card { min-width: 240px; min-height: auto; }
 
@@ -5115,7 +5324,7 @@ function Styles() {
           border-image: linear-gradient(90deg, #E65100, #0284C7, #059669, #8B5CF6) 1;
         }
         .auth-brand-header { gap: 10px; }
-        .auth-brand-panel .brand-logo-img { width: 76px; height: 76px; max-width: 76px; max-height: 76px; }
+        .auth-brand-panel .brand-logo-frame--full { width: 92px; }
         .auth-brand-institution { margin-top: 16px; }
         .institution-name { font-size: 12px; }
         .institution-meta { font-size: 9.5px; }
@@ -5124,8 +5333,7 @@ function Styles() {
         .auth-tab { flex: 1; text-align: center; }
         .auth-title { font-size: 23px; }
         .auth-sub { font-size: 13px; }
-        .role-selector-wrap { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-        .role-tab { justify-content: center; padding: 0 6px; font-size: 12px; }
+        .role-tab { justify-content: center; padding: 9px 6px; font-size: 12px; min-height: 38px; }
 
         /* App shell */
         .app-header-inner { padding: 8px 14px; gap: 10px; }
@@ -5162,14 +5370,15 @@ function Styles() {
         .hero-alison { padding: 18px 12px 28px; }
         .nav-marketing { padding: 9px 12px; }
         .landing-brand-tag { display: none; }
-        .nav-actions .btn { padding: 0 10px; font-size: 12.5px; }
-        .brand-logo-img { width: 36px; height: 36px; max-width: 36px; max-height: 36px; }
+        .nav-actions .btn { padding: 8px 12px; font-size: 12.5px; min-height: 36px; }
+        .nav-staff-link { padding: 6px 8px; font-size: 11.5px; }
+        .brand-logo-frame--nav { width: 36px; height: 36px; }
         .top-announcement-name { font-size: 10.5px; }
         .story-shell { padding: 20px 14px; }
         .story-title { font-size: 20px; }
         .story-quote { font-size: 14px; }
         .auth-brand-panel { padding: 22px 16px 18px; }
-        .auth-brand-panel .brand-logo-img { width: 66px; height: 66px; max-width: 66px; max-height: 66px; }
+        .auth-brand-panel .brand-logo-frame--full { width: 80px; }
         .auth-form-panel { padding: 22px 14px calc(30px + env(safe-area-inset-bottom)); }
         .role-tab { font-size: 11px; gap: 4px; }
         .dash-grid, .profile-page { width: calc(100% - 18px); }
@@ -5187,14 +5396,14 @@ function Styles() {
         .section-title { font-size: 20px; }
         .nav-actions { width: 100%; margin-left: 0; }
         .nav-actions .btn { flex: 1 1 0; justify-content: center; }
-        .role-selector-wrap { grid-template-columns: 1fr; }
+        .role-selector-staff { flex-direction: column; }
         .profile-metrics-row { flex-direction: column; align-items: flex-start; }
       }
 
       /* --- Short landscape phones: keep the login panel from eating the screen --- */
       @media (max-height: 520px) and (orientation: landscape) and (max-width: 900px) {
         .auth-brand-panel { padding: 16px; }
-        .auth-brand-panel .brand-logo-img { width: 54px; height: 54px; max-width: 54px; max-height: 54px; }
+        .auth-brand-panel .brand-logo-frame--full { width: 64px; }
         .auth-brand-institution { margin-top: 10px; }
       }
 
@@ -5235,6 +5444,24 @@ function Styles() {
       }
       .resource-note svg { flex: 0 0 auto; margin-top: 1px; }
 
+      .scholarship-contact {
+        display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
+        margin-top: 16px; padding: 18px 20px;
+        background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 16px;
+      }
+      .scholarship-contact-avatar {
+        width: 68px; height: 68px; border-radius: 50%; overflow: hidden; flex: 0 0 auto;
+        display: flex; align-items: center; justify-content: center;
+        background: var(--abc-blue); color: #fff;
+      }
+      .scholarship-contact-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+      .scholarship-contact-body { min-width: 0; }
+      .scholarship-contact-label { font-size: 12.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); }
+      .scholarship-contact-name { margin-top: 4px; font-size: 19px; font-weight: 700; color: var(--abc-navy); }
+      .scholarship-contact-role { margin-top: 2px; font-size: 14.5px; color: var(--text-subtle); }
+      .scholarship-contact-meta { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 8px; font-size: 13.5px; color: var(--text-muted); }
+      .scholarship-contact-meta span { display: inline-flex; align-items: center; gap: 6px; }
+
       /* Breadcrumb */
       .crumbs { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 22px 0 16px; }
       .crumb {
@@ -5269,7 +5496,7 @@ function Styles() {
         font-size: 12.5px; font-weight: 600; color: var(--abc-blue);
       }
 
-      .resource-empty { margin-top: 24px; color: var(--text-muted); font-size: 14px; }
+      .resource-empty { margin-top: 24px; padding: 16px; color: var(--text-muted); font-size: 14px; background: #F8FAFC; border: 1px solid var(--border-light); border-radius: 12px; }
 
       /* Toolbar: subject search + session filter */
       .resource-toolbar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 18px; }
@@ -5353,16 +5580,25 @@ function Styles() {
       .scheme-eligibility { margin-top: 10px; font-size: 13.5px; color: var(--text-subtle); line-height: 1.6; }
       .scheme-meta { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 12px; font-size: 12.5px; color: var(--text-muted); }
       .scheme-meta span { display: inline-flex; align-items: center; gap: 6px; }
+      .scheme-note {
+        display: flex; gap: 10px; align-items: flex-start;
+        margin-top: 12px; padding: 14px 16px;
+        background: #FFF7ED; border: 1px solid #FED7AA; border-radius: 10px;
+        color: #9A4E00; font-size: 13px; line-height: 1.7;
+      }
+      .scheme-note svg { flex: 0 0 auto; margin-top: 2px; }
+      .scheme-note--global { margin: 20px 0 20px; }
       .scheme-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
 
-      .doc-list { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; padding-top: 16px; border-top: 1px dashed var(--border-light); list-style: none; }
-      .doc-list li { display: flex; align-items: flex-start; gap: 8px; font-size: 13.5px; color: var(--text-subtle); line-height: 1.5; }
+      .doc-list { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; padding-top: 16px; border-top: 1px dashed var(--border-light); list-style: none; }
+      .doc-list li { display: flex; align-items: flex-start; gap: 9px; font-size: 13.5px; color: var(--text-subtle); line-height: 1.6; }
       .doc-list svg { flex: 0 0 auto; margin-top: 2px; color: var(--abc-emerald); }
-      .doc-list--two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 24px; }
+      .doc-list--two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 24px; }
 
       .doc-summary { margin-top: 26px; padding: 22px; background: #F8FAFC; border: 1px solid var(--border-light); border-radius: 14px; }
       .doc-summary h2 { display: flex; align-items: center; gap: 8px; font-size: 18px; color: var(--abc-navy); }
       .doc-summary > p { margin-top: 6px; font-size: 13px; color: var(--text-muted); }
+      .doc-summary > .btn { margin-top: 14px; }
 
       @media (max-width: 900px) {
         .resource-page { width: min(100% - 32px, 1080px); }
@@ -5393,18 +5629,33 @@ function Styles() {
         .paper-name { grid-area: name; }
         .paper-download { grid-area: dl; width: 100%; justify-content: center; margin-top: 4px; }
 
-        .category-summary { padding: 14px; }
-        .scheme-card { padding: 16px; }
+        .resource-page { width: calc(100% - 32px); }
+        .resource-head { gap: 14px; }
+        .resource-head-copy { display: flex; flex-direction: column; gap: 6px; }
+        .resource-note { margin-top: 22px; }
+        .scholarship-contact { margin-top: 18px; }
+        .category-row { margin: 24px 0 16px; }
+        .resource-empty { margin-top: 12px; }
+        .category-summary { padding: 16px; margin-top: 22px; flex-direction: column; align-items: flex-start; gap: 8px; }
+        .scheme-note--global { margin: 20px 0 6px; }
+        .scheme-list { gap: 18px; margin-top: 6px; }
+        .scheme-card { padding: 18px 16px; }
+        .scheme-head { gap: 10px; }
         .scheme-actions .btn { flex: 1 1 100%; justify-content: center; }
-        .doc-summary { padding: 18px 16px; }
+        .doc-summary { margin-top: 30px; padding: 18px 16px; }
+        .doc-summary > .btn { width: 100%; justify-content: center; }
+        .doc-list--two { grid-template-columns: 1fr; }
       }
 
       /* ------------------------- Backend status messages ------------------------- */
 
       .app-notice {
-        position: fixed; top: 12px; left: 50%; transform: translateX(-50%); z-index: 200;
+        position: fixed;
+        top: calc(80px + env(safe-area-inset-top, 0px));
+        left: 50%; transform: translateX(-50%); z-index: 200;
         display: flex; align-items: center; gap: 10px;
-        max-width: min(560px, calc(100% - 24px)); padding: 11px 14px;
+        width: min(440px, calc(100% - 24px)); max-width: calc(100% - 24px);
+        box-sizing: border-box; padding: 11px 14px;
         background: #FFF7ED; border: 1px solid #FED7AA; border-radius: 12px;
         box-shadow: var(--shadow-md); color: #9A4E00; font-size: 13.5px; line-height: 1.5;
         animation: noticeIn 0.2s ease-out;
@@ -5418,7 +5669,10 @@ function Styles() {
         background: rgba(154, 78, 0, 0.1); color: inherit; cursor: pointer;
       }
       .app-notice button:hover { background: rgba(154, 78, 0, 0.2); }
-      .app-notice--setup { max-width: min(640px, calc(100% - 24px)); }
+      .app-notice--setup { width: min(640px, calc(100% - 24px)); max-width: calc(100% - 24px); }
+      @media (max-width: 640px) {
+        .app-notice { top: calc(72px + env(safe-area-inset-top, 0px)); font-size: 13px; padding: 10px 12px; }
+      }
       .app-notice--setup code {
         padding: 1px 5px; border-radius: 5px;
         background: rgba(154, 78, 0, 0.12);

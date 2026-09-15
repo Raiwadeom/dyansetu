@@ -88,6 +88,24 @@ function showFatal(label, detail) {
     `border-radius:8px;overflow:auto;white-space:pre-wrap">${detail}</pre></div>`;
 }
 
+/* A phone's on-screen keyboard covers the bottom of the screen without
+   reliably shrinking window.innerHeight or firing a visualViewport resize —
+   plenty of mobile browsers (and every DevTools device-toolbar keyboard
+   preview) never signal it at all. Detecting the covered area is not
+   reliable, so this always brings the focused field into a comfortable
+   position near the top of the screen on focus instead of waiting for a
+   signal that may never come. Harmless on desktop: the field is normally
+   in view already, so there is nothing to scroll. */
+if (typeof window !== "undefined") {
+  document.addEventListener("focusin", (e) => {
+    const el = e.target;
+    if (!el || !["INPUT", "TEXTAREA", "SELECT"].includes(el.tagName)) return;
+    window.setTimeout(() => {
+      el.scrollIntoView({ block: "center", behavior: "smooth" });
+    }, 300);
+  });
+}
+
 window.addEventListener("error", (e) => {
   showFatal("Script error", e.message + (e.filename ? `\n  at ${e.filename}:${e.lineno}` : ""));
 });

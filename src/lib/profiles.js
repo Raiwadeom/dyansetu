@@ -14,6 +14,7 @@
 import {
   createUserWithEmailAndPassword, signInWithEmailAndPassword,
   signOut as fbSignOut, onAuthStateChanged, updateProfile as updateAuthProfile,
+  sendPasswordResetEmail,
 } from "firebase/auth";
 import {
   doc, getDoc, setDoc, updateDoc, collection, query, where,
@@ -103,6 +104,20 @@ export async function signIn({ email, password }) {
   try {
     await signInWithEmailAndPassword(auth, email.trim().toLowerCase(), password);
     return { success: true, message: "Login successful." };
+  } catch (error) {
+    return { success: false, message: friendlyError(error) };
+  }
+}
+
+/* Works for a student, faculty or admin account alike — Firebase Auth does
+   not distinguish role, and the reset email/link is the same for all three.
+   Firebase never reveals whether the address is actually registered, so the
+   caller should show one neutral message regardless of the result. */
+export async function resetPassword({ email }) {
+  if (!isBackendConfigured) return { success: false, message: "Accounts are not configured yet." };
+  try {
+    await sendPasswordResetEmail(auth, (email || "").trim().toLowerCase());
+    return { success: true, message: "If an account exists for that email, a reset link is on its way." };
   } catch (error) {
     return { success: false, message: friendlyError(error) };
   }
