@@ -35,7 +35,7 @@ import {
   Code2, Compass, MessageSquare, LogOut, MapPin, X, Loader2, Target, Shield, ExternalLink,
   FileText, Edit3, Trash2, Ban, Sparkles, BookOpen, ImagePlus, BarChart3,
   Info, Facebook, Instagram, CalendarDays, Search, Droplet, ClipboardList, ListChecks, Coins, HandHeart,
-  ScrollText, NotebookPen, Download, ChevronRight, FileDown, AlertTriangle, Newspaper
+  ScrollText, NotebookPen, Download, ChevronRight, FileDown, AlertTriangle, Newspaper, Megaphone
 } from "lucide-react";
 
 /* ============================================================================
@@ -127,6 +127,17 @@ const RAKTSETU_APP_URL = "";
    card turns into a live link automatically, same as RaktSetu above. */
 const CSM_NEWS_DESK_URL = "https://csmnewsdesk.com/";
 
+/* ---------------------------- Notice Board -----------------------------------
+   Homepage "Notices & Announcements" strip, styled like a college/government
+   site notice board. Newest first; mark an entry isNew to show the blinking
+   New tag (keep it to the 2-3 most recent so it stays meaningful). */
+const NOTICE_BOARD = [
+  { id: "n1", date: "18 Sep 2026", title: "Odd-semester examination timetable released — check the notice board outside the exam cell.", isNew: true },
+  { id: "n2", date: "15 Sep 2026", title: "Last date to apply for Post-Matric Scholarship extended to 30 Sep 2026.", isNew: true },
+  { id: "n3", date: "10 Sep 2026", title: "NAAC A+ re-accreditation report published on the college website.", isNew: false },
+  { id: "n4", date: "05 Sep 2026", title: "Annual sports meet registrations open at the Physical Education department.", isNew: false },
+  { id: "n5", date: "01 Sep 2026", title: "Library extended hours during the examination period: 8 AM – 8 PM.", isNew: false },
+];
 
 /* ------------------------- Landing Hubs (Study / Career / Social) -------------------------
    One catalog drives three things: the landing hub sections, the nav search index,
@@ -659,9 +670,31 @@ function Landing({ goAuth, onOpenAbout, onOpenPage }) {
         </div>
       </header>
 
+      {/* Notice Board — government/college-site style scrolling announcements */}
+      <section className="section section-notice-board anim-fade-up">
+        <div className="notice-board">
+          <div className="notice-board-head">
+            <Megaphone size={16} />
+            <h2>Notices &amp; Announcements</h2>
+          </div>
+          <div className="notice-board-body">
+            <div className="notice-board-track">
+              {NOTICE_BOARD.concat(NOTICE_BOARD).map((item, index) => (
+                <div className="notice-row" key={`${item.id}-${index}`}>
+                  <span className="notice-date">{item.date}</span>
+                  <span className="notice-title">{item.title}</span>
+                  {item.isNew && <span className="notice-new-tag">New</span>}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Study · Career · Social Services hubs — also the targets of the nav search */}
       {LANDING_HUBS.map((hub) => {
         const HubIcon = hub.icon;
+        const isScheme = hub.id === "social";
         return (
           <section
             className={`section section-hub section-hub--${hub.id} ${highlightId === `hub-${hub.id}` ? "is-highlighted" : ""}`}
@@ -674,12 +707,47 @@ function Landing({ goAuth, onOpenAbout, onOpenPage }) {
               <p className="hub-intro">{hub.intro}</p>
             </div>
 
-            <div className="hub-grid">
-              {hub.items.map((item) => {
+            <div className={isScheme ? "scheme-list" : "hub-grid"}>
+              {hub.items.map((item, index) => {
                 const ItemIcon = item.icon;
                 const cardId = `hub-${hub.id}-${item.id}`;
                 const isLive = Boolean(item.href);
-                return (
+                const btnClass = isScheme ? "scheme-row-btn" : "hub-card-link";
+                const action = item.page ? (
+                  <button className={btnClass} type="button" onClick={() => onOpenPage(item.page)}>
+                    Open <ArrowRight size={14} />
+                  </button>
+                ) : item.href !== undefined ? (
+                  isLive ? (
+                    <a className={btnClass} href={item.href} target="_blank" rel="noreferrer">
+                      {item.cta || "Open"} <ExternalLink size={14} />
+                    </a>
+                  ) : (
+                    <span className={isScheme ? "scheme-row-pending" : "hub-card-pending"}>
+                      {item.pendingNote || "Coming soon"}
+                    </span>
+                  )
+                ) : (
+                  <button className={btnClass} type="button" onClick={() => goAuth("signup")}>
+                    Open <ArrowRight size={14} />
+                  </button>
+                );
+
+                return isScheme ? (
+                  <article
+                    className={`scheme-row ${highlightId === cardId ? "is-highlighted" : ""}`}
+                    id={cardId}
+                    key={item.id}
+                  >
+                    <span className="scheme-row-index">{String(index + 1).padStart(2, "0")}</span>
+                    <span className="scheme-row-icon"><ItemIcon size={18} /></span>
+                    <div className="scheme-row-body">
+                      <h3>{item.name}</h3>
+                      <p>{item.blurb}</p>
+                    </div>
+                    <div className="scheme-row-action">{action}</div>
+                  </article>
+                ) : (
                   <article
                     className={`hub-card ${highlightId === cardId ? "is-highlighted" : ""}`}
                     id={cardId}
@@ -689,24 +757,7 @@ function Landing({ goAuth, onOpenAbout, onOpenPage }) {
                     <div className="hub-card-body">
                       <h3>{item.name}</h3>
                       <p>{item.blurb}</p>
-
-                      {item.page ? (
-                        <button className="hub-card-link" type="button" onClick={() => onOpenPage(item.page)}>
-                          Open <ArrowRight size={14} />
-                        </button>
-                      ) : item.href !== undefined ? (
-                        isLive ? (
-                          <a className="hub-card-link" href={item.href} target="_blank" rel="noreferrer">
-                            {item.cta || "Open"} <ExternalLink size={14} />
-                          </a>
-                        ) : (
-                          <span className="hub-card-pending">{item.pendingNote || "Coming soon"}</span>
-                        )
-                      ) : (
-                        <button className="hub-card-link" type="button" onClick={() => goAuth("signup")}>
-                          Open <ArrowRight size={14} />
-                        </button>
-                      )}
+                      {action}
                     </div>
                   </article>
                 );
@@ -3867,40 +3918,147 @@ function Styles() {
       .section-alt { background: #F1F5F9; border-y: 1px solid var(--border-light); }
       .section-eyebrow { font-family: 'JetBrains Mono', monospace; font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--abc-blue); margin-bottom: 10px; display: flex; align-items: center; justify-content: center; gap: 6px; font-weight: 600; }
       .section-title { font-size: 28px; font-weight: 700; margin-bottom: 24px; color: var(--abc-navy); text-align: center; font-family: 'Space Grotesk', sans-serif; letter-spacing: -0.02em; }
-      .announcement-loop-shell {
-        overflow: hidden;
-        border-radius: 22px;
-        border: 1px solid rgba(15,23,42,0.08);
-        background: linear-gradient(135deg, #FFFFFF 0%, #F8FBFF 100%);
-        box-shadow: 0 16px 36px rgba(15, 23, 42, 0.06);
-        padding: 18px;
-      }
-      .announcement-loop-track {
-        display: flex;
-        gap: 14px;
-        width: max-content;
-        animation: announceScroll 18s linear infinite;
-      }
-      .announcement-card {
-        width: min(280px, calc(100vw - 72px));
-        flex: 0 0 auto;
-        padding: 18px;
-        border: 1px solid var(--border-light);
+      /* Notice Board — government/college-site style scrolling announcements */
+      .section-notice-board { padding-top: 8px; padding-bottom: 8px; }
+      .notice-board {
+        max-width: 900px;
+        margin: 0 auto;
+        border: 1px solid rgba(15,23,42,0.09);
         border-radius: 16px;
+        overflow: hidden;
         background: #FFFFFF;
-        box-shadow: var(--shadow-sm);
-        min-height: 170px;
+        box-shadow: 0 6px 18px rgba(15, 23, 42, 0.05);
       }
-      .announcement-loop-shell:hover .announcement-loop-track {
-        animation-play-state: paused;
+      .notice-board-head {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 12px 20px;
+        background: linear-gradient(90deg, var(--abc-navy), var(--abc-navy-light));
+        color: #FFFFFF;
       }
-      .announcement-meta { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--abc-saffron); margin-bottom: 8px; }
-      .announcement-card h3 { margin: 0 0 8px; font-size: 16px; color: var(--abc-navy); }
-      .announcement-card p { margin: 0; font-size: 13px; line-height: 1.6; color: var(--text-subtle); }
-      @keyframes announceScroll {
-        from { transform: translateX(0); }
-        to { transform: translateX(-50%); }
+      .notice-board-head h2 { margin: 0; font-size: 14.5px; font-weight: 700; letter-spacing: 0.02em; }
+      .notice-board-body { position: relative; height: 172px; overflow: hidden; padding: 0 20px; }
+      .notice-board-body::after {
+        content: "";
+        position: absolute;
+        left: 0; right: 0; bottom: 0;
+        height: 26px;
+        background: linear-gradient(180deg, rgba(255,255,255,0), #FFFFFF);
+        pointer-events: none;
       }
+      .notice-board-track { animation: noticeScroll 16s linear infinite; }
+      .notice-board-body:hover .notice-board-track { animation-play-state: paused; }
+      .notice-row {
+        display: flex;
+        align-items: baseline;
+        gap: 12px;
+        padding: 12px 0;
+        border-bottom: 1px dashed var(--border-light);
+      }
+      .notice-row:last-child { border-bottom: none; }
+      .notice-date {
+        flex: 0 0 auto;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--abc-saffron);
+        white-space: nowrap;
+      }
+      .notice-title { flex: 1; font-size: 13.5px; line-height: 1.5; color: var(--abc-navy); text-align: left; }
+      .notice-new-tag {
+        flex: 0 0 auto;
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: 0.05em;
+        color: #FFFFFF;
+        background: #DC2626;
+        padding: 2px 7px;
+        border-radius: 999px;
+        animation: noticeBlink 1.2s ease-in-out infinite;
+      }
+      @keyframes noticeBlink { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+      @keyframes noticeScroll {
+        from { transform: translateY(0); }
+        to { transform: translateY(-50%); }
+      }
+
+      /* Social Services — official "scheme list" layout */
+      .scheme-list {
+        display: flex;
+        flex-direction: column;
+        border: 1px solid rgba(15,23,42,0.09);
+        border-radius: 16px;
+        overflow: hidden;
+        background: #FFFFFF;
+        box-shadow: 0 6px 18px rgba(15,23,42,0.05);
+      }
+      .scheme-row {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 20px 22px;
+        text-align: left;
+        border-bottom: 1px solid rgba(15,23,42,0.08);
+        border-left: 4px solid transparent;
+        transition: border-color 0.2s ease, background 0.2s ease;
+        scroll-margin-top: 110px;
+      }
+      .scheme-row:last-child { border-bottom: none; }
+      .scheme-row:hover { border-left-color: var(--abc-saffron); background: var(--abc-saffron-bg); }
+      .scheme-row-index {
+        flex: 0 0 auto;
+        width: 26px;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 12px;
+        font-weight: 700;
+        color: var(--abc-saffron);
+      }
+      .scheme-row-icon {
+        flex: 0 0 auto;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        background: linear-gradient(145deg, rgba(11,30,46,0.09), rgba(11,30,46,0.03));
+        color: var(--abc-navy);
+      }
+      .scheme-row-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+      .scheme-row-body h3 { font-size: 15.5px; font-weight: 700; color: var(--text-dark); line-height: 1.35; }
+      .scheme-row-body p { font-size: 13px; line-height: 1.6; color: var(--text-muted); }
+      .scheme-row-action { flex: 0 0 auto; }
+      .scheme-row-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 16px;
+        border-radius: 999px;
+        border: 1.5px solid var(--abc-navy);
+        background: var(--abc-navy);
+        color: #FFFFFF;
+        font-family: inherit;
+        font-size: 12.5px;
+        font-weight: 700;
+        text-decoration: none;
+        cursor: pointer;
+        white-space: nowrap;
+        transition: background 0.2s ease, transform 0.2s ease;
+      }
+      .scheme-row-btn:hover { background: var(--abc-navy-light); transform: translateY(-1px); }
+      .scheme-row-pending {
+        display: inline-flex;
+        padding: 7px 14px;
+        border-radius: 999px;
+        border: 1.5px dashed rgba(15,23,42,0.25);
+        font-size: 11.5px;
+        font-weight: 700;
+        color: var(--text-muted);
+        white-space: nowrap;
+      }
+      .scheme-row.is-highlighted { animation: searchFlash 2.4s ease-out; }
+
       .stream-cards-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; align-items: stretch; justify-items: center; margin-top: 8px; }
 
       .section-story { padding-top: 20px; }
@@ -5323,6 +5481,15 @@ function Styles() {
         .hub-card p { font-size: 12.5px; line-height: 1.5; }
         .hub-card-link { margin-top: 4px; }
         .hub-card:hover { transform: none; }
+
+        .notice-board-head h2 { font-size: 13px; }
+        .notice-board-body { height: 152px; padding: 0 14px; }
+
+        .scheme-row { flex-wrap: wrap; padding: 14px 16px; gap: 10px; }
+        .scheme-row-index { display: none; }
+        .scheme-row-icon { width: 36px; height: 36px; }
+        .scheme-row-action { width: 100%; }
+        .scheme-row-btn, .scheme-row-pending { width: 100%; justify-content: center; }
 
         .story-shell { padding: 24px 18px; gap: 18px; }
         .story-title { font-size: 22px; }
