@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, Suspense, lazy } from "react";
 import logo from "./img/dyansetu-logo.png";
 import collegeLogo from "./img/college-logo.jpg";
-import clgLogo from "../media/clg logo.png";
 import principalPhoto from "./img/principal.jpg";
 import heroOne from "../media/slideshow 1.jpeg";
 import heroTwo from "../media/slideshow 2.jpeg";
@@ -30,12 +29,14 @@ import { NOTE_STREAMS, SEMESTERS, ACCEPTED_NOTE_TYPES, formatBytes } from "./dat
 import {
   SCHOLARSHIP_CATEGORIES, SCHOLARSHIP_CONTACT, scholarshipsFor, documentsFor, expandDocuments,
 } from "./data/resources";
+import { LANG_KEY, LangContext, useLang, makeTr } from "./lib/i18n";
 import {
   Mail, Phone, Lock, User, ArrowRight, ArrowLeft, CheckCircle2, Users, Award, Linkedin, GraduationCap,
   Code2, Compass, MessageSquare, LogOut, MapPin, X, Loader2, Target, Shield, ExternalLink,
   FileText, Edit3, Trash2, Ban, Sparkles, BookOpen, ImagePlus, BarChart3,
   Info, Facebook, Instagram, CalendarDays, Search, Droplet, ClipboardList, ListChecks, Coins, HandHeart,
-  ScrollText, NotebookPen, Download, ChevronRight, FileDown, AlertTriangle, Newspaper, Megaphone
+  ScrollText, NotebookPen, Download, ChevronRight, FileDown, AlertTriangle, Newspaper, Megaphone,
+  Languages, Menu,
 } from "lucide-react";
 
 /* ============================================================================
@@ -72,9 +73,12 @@ const DEMO_ADMIN_PASSWORD = "pass@123";
 const PRINCIPAL = {
   name: "Dr. R. M. Manjre",
   title: "Principal",
+  titleMr: "प्राचार्य",
   photo: principalPhoto,
   quote:
     "Education underpins all social progress. Our aim is to harness technology to make learning, assessment and skill growth visible to anyone, anywhere — in a way that is practical, explainable and free to access.",
+  quoteMr:
+    "शिक्षण हा सर्व सामाजिक प्रगतीचा पाया आहे. अध्ययन, मूल्यमापन आणि कौशल्य विकास कोणालाही, कोठूनही, व्यावहारिक, समजण्यास सोप्या आणि मोफत पद्धतीने उपलब्ध करून देण्यासाठी तंत्रज्ञानाचा वापर करणे हे आमचे ध्येय आहे.",
 };
 
 /* The college's own question paper archive. It covers UG and PG across every
@@ -107,11 +111,17 @@ function mayOpenView(view, profile) {
 
 const INSTITUTION = {
   trust: "Kisan Shikshan Prasarak Mandal's",
+  trustMr: "किसान शिक्षण प्रसारक मंडळाचे",
   name: "Chhatrapati Shivajiraje Mahavidyalaya, Udgir",
+  nameMr: "छत्रपती शिवाजीराजे महाविद्यालय, उदगीर",
   short: "Chhatrapati Shivajiraje Mahavidyalaya",
+  shortMr: "छत्रपती शिवाजीराजे महाविद्यालय",
   formerly: "Formerly Shivaji Mahavidyalaya, Udgir",
+  formerlyMr: "पूर्वीचे शिवाजी महाविद्यालय, उदगीर",
   place: "Udgir, Dist. Latur, Maharashtra",
+  placeMr: "उदगीर, जि. लातूर, महाराष्ट्र",
   affiliation: "Affiliated to SRTM University",
+  affiliationMr: "एस.आर.टी.एम. विद्यापीठाशी संलग्न",
   accreditation: "NAAC A+ (3.27)",
   established: "1968",
   website: "https://shivajicollegeudgir.in/",
@@ -135,6 +145,7 @@ const NOTICE_BOARD = [
   {
     id: "csm-news-desk",
     title: "CSM News Desk is live — college announcements, events and press coverage in one feed.",
+    titleMr: "सीएसएम न्यूज डेस्क सुरू झाले आहे — महाविद्यालयाच्या सूचना, कार्यक्रम आणि प्रसिद्धी एकाच ठिकाणी.",
     date: "18 Sep 2026",
     status: "live",
     href: CSM_NEWS_DESK_URL,
@@ -142,6 +153,7 @@ const NOTICE_BOARD = [
   {
     id: "raktsetu",
     title: "RaktSetu, our student blood-donation network, is coming soon.",
+    titleMr: "रक्तसेतू, आमचे विद्यार्थी रक्तदान नेटवर्क, लवकरच सुरू होत आहे.",
     date: "18 Sep 2026",
     status: "soon",
   },
@@ -155,34 +167,46 @@ const LANDING_HUBS = [
   {
     id: "study",
     label: "Study",
+    labelMr: "अभ्यास",
     eyebrow: "Study Hub",
+    eyebrowMr: "अभ्यास केंद्र",
     icon: BookOpen,
     title: "Everything you need to actually study, in one place",
+    titleMr: "अभ्यासासाठी लागणारे सर्व काही, एकाच ठिकाणी",
     intro:
       "Notes, papers and practice built around your syllabus — so revision starts with the right material instead of a search for it.",
+    introMr:
+      "तुमच्या अभ्यासक्रमानुसार नोट्स, प्रश्नपत्रिका आणि सराव — त्यामुळे उजळणी शोधण्यात वेळ न घालवता योग्य साहित्यानेच सुरू होते.",
     items: [
       {
         id: "subject-notes",
         name: "Subject-wise Notes",
+        nameMr: "विषयनिहाय नोट्स",
         icon: NotebookPen,
         blurb: "Unit-wise notes uploaded by your faculty, sorted by branch, semester and subject.",
+        blurbMr: "तुमच्या प्राध्यापकांनी अपलोड केलेल्या युनिटनिहाय नोट्स, शाखा, सत्र आणि विषयानुसार वर्गीकृत.",
         keywords: "notes subject unit chapter syllabus handwritten study material pdf download bsc bca bcom ba",
         page: "notes",
       },
       {
         id: "question-papers",
         name: "Question Papers",
+        nameMr: "प्रश्नपत्रिका",
         icon: ScrollText,
         blurb: "Previous-year university papers sorted by subject and semester.",
+        blurbMr: "मागील वर्षांच्या विद्यापीठ प्रश्नपत्रिका, विषय आणि सत्रानुसार वर्गीकृत.",
         keywords: "question paper previous year pyq semester exam university srtmun",
         page: "pyq",
       },
       {
         id: "quizzes",
         name: "Quiz & Practice Tests",
+        nameMr: "क्विझ आणि सराव चाचण्या",
         icon: ClipboardList,
         blurb:
           "Beginner, Intermediate and Advanced practice sets for your year and branch — clear all three to unlock the final exam.",
+        blurbMr:
+          "तुमच्या वर्ष आणि शाखेसाठी नवशिक्या, मध्यम आणि प्रगत पातळीचे सराव संच — तिन्ही उत्तीर्ण झाल्यावर अंतिम परीक्षा खुली होते.",
         keywords:
           "quiz quizzes practice test practice set mcq objective multiple choice online test mock exam beginner intermediate advanced level bsc bca bcom computer science",
         page: "quiz",
@@ -192,37 +216,52 @@ const LANDING_HUBS = [
   {
     id: "social",
     label: "Social Services",
+    labelMr: "सामाजिक सेवा",
     eyebrow: "Social Services",
+    eyebrowMr: "सामाजिक सेवा",
     icon: HandHeart,
     title: "Campus support that goes beyond the classroom",
+    titleMr: "वर्गाच्या पलीकडे जाणारी विद्यार्थी मदत",
     intro:
       "Student-led service and financial support, so nobody drops off the path for reasons that have nothing to do with ability.",
+    introMr:
+      "विद्यार्थ्यांनी चालवलेली सेवा आणि आर्थिक मदत, जेणेकरून क्षमतेशिवाय इतर कोणत्याही कारणाने कोणाचीही शिक्षणाची वाट अडू नये.",
     items: [
       {
         id: "raktsetu",
         name: "RaktSetu",
+        nameMr: "रक्तसेतू",
         icon: Droplet,
         blurb: "Our student blood-donation network — connect donors to urgent requests.",
+        blurbMr: "आमचे विद्यार्थी रक्तदान नेटवर्क — रक्तदात्यांना तातडीच्या गरजांशी जोडते.",
         keywords: "raktsetu blood donation donor rakt setu emergency camp health",
         href: RAKTSETU_APP_URL,
         cta: "Open RaktSetu app",
+        ctaMr: "रक्तसेतू अ‍ॅप उघडा",
         pendingNote: "App link coming soon",
+        pendingNoteMr: "अ‍ॅपची लिंक लवकरच उपलब्ध होईल",
       },
       {
         id: "csm-news-desk",
         name: "CSM News Desk",
+        nameMr: "सीएसएम न्यूज डेस्क",
         icon: Newspaper,
         blurb: "College announcements, events and press coverage in one feed.",
+        blurbMr: "महाविद्यालयाच्या सूचना, कार्यक्रम आणि प्रसिद्धी एकाच फीडमध्ये.",
         keywords: "csm news desk announcements events press college updates",
         href: CSM_NEWS_DESK_URL,
         cta: "Open CSM News Desk",
+        ctaMr: "सीएसएम न्यूज डेस्क उघडा",
         pendingNote: "Coming soon",
+        pendingNoteMr: "लवकरच उपलब्ध होईल",
       },
       {
         id: "scholarships",
         name: "Scholarships",
+        nameMr: "शिष्यवृत्ती",
         icon: Coins,
         blurb: "Government and institutional scholarships with eligibility and deadlines.",
+        blurbMr: "पात्रता आणि अंतिम तारखांसह शासकीय आणि संस्थात्मक शिष्यवृत्ती.",
         keywords: "scholarship scholarships financial aid fee waiver freeship stipend grant",
         page: "scholarships",
       },
@@ -476,17 +515,20 @@ function CollegeCrest({ size = 34, className = "" }) {
   );
 }
 
-/* Crest + institution name, used in the landing banner, auth panel and footer. */
-function InstitutionLockup({ size = 34, tone = "light", showMeta = true, className = "" }) {
+/* Crest + institution name, used in the landing banner, auth panel and footer.
+   `tr` is optional — pages outside the three translated views (see lib/i18n.js)
+   simply omit it and get the English copy, same as before. */
+function InstitutionLockup({ size = 34, tone = "light", showMeta = true, className = "", tr }) {
+  const t = tr || ((en) => en);
   return (
     <span className={`institution-lockup institution-lockup--${tone} ${className}`.trim()}>
       <CollegeCrest size={size} />
       <span className="institution-lockup-copy">
-        <small className="institution-trust">{INSTITUTION.trust}</small>
-        <strong className="institution-name">{INSTITUTION.name}</strong>
+        <small className="institution-trust">{t(INSTITUTION.trust, INSTITUTION.trustMr)}</small>
+        <strong className="institution-name">{t(INSTITUTION.name, INSTITUTION.nameMr)}</strong>
         {showMeta && (
           <small className="institution-meta">
-            {INSTITUTION.place} · {INSTITUTION.affiliation}
+            {t(INSTITUTION.place, INSTITUTION.placeMr)} · {t(INSTITUTION.affiliation, INSTITUTION.affiliationMr)}
           </small>
         )}
       </span>
@@ -497,10 +539,13 @@ function InstitutionLockup({ size = 34, tone = "light", showMeta = true, classNa
 /* =============================== VIEW: Landing Page ============================== */
 
 function Landing({ goAuth, onOpenAbout, onOpenPage }) {
+  const { lang, setLang } = useLang();
+  const tr = makeTr(lang);
   const [activeHeroSlide, setActiveHeroSlide] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
   const [highlightId, setHighlightId] = useState(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const searchWrapRef = useRef(null);
   const searchResults = searchLanding(searchQuery);
 
@@ -547,35 +592,62 @@ function Landing({ goAuth, onOpenAbout, onOpenPage }) {
         <span className="landing-orb landing-orb-3" />
       </div>
 
-      {/* Host institution strip */}
-      <div className="top-announcement anim-fade-up">
-        <span className="top-announcement-inner">
-          <span className="top-announcement-crest">
-            <img src={clgLogo} alt={`${INSTITUTION.name} emblem`} draggable={false} />
-          </span>
-          <span className="top-announcement-copy">
-            <span className="top-announcement-trust">{INSTITUTION.trust}</span>
-            <span className="top-announcement-name">{INSTITUTION.name}</span>
-          </span>
+      <div className="nav-topstrip">
+        <span className="nav-topstrip-text">
+          <span className="nav-topstrip-trust">{tr(INSTITUTION.trust, INSTITUTION.trustMr)}</span>
+          <span className="nav-topstrip-dot" aria-hidden="true" />
+          <span className="nav-topstrip-name">{tr(INSTITUTION.name, INSTITUTION.nameMr)}</span>
         </span>
       </div>
 
       <nav className="nav-marketing anim-nav-enter">
-        <div className="brand brand-logo-inline landing-brand-wrap" aria-label="DyanSetu brand">
-          <BrandLogo variant="nav" />
-          <div className="landing-brand-copy">
-            <span className="landing-brand-name">DyanSetu</span>
-            <span className="landing-brand-tag">connecting futures</span>
+        <div className="nav-gov-brand">
+          <CollegeCrest size={38} />
+          <span className="landing-brand-divider" aria-hidden="true" />
+          <div className="brand brand-logo-inline landing-brand-wrap" aria-label="DyanSetu brand">
+            <BrandLogo variant="nav" />
+            <div className="landing-brand-copy">
+              <span className="landing-brand-name">DyanSetu</span>
+              <span className="landing-brand-tag">connecting futures</span>
+            </div>
           </div>
         </div>
 
+        <div className="nav-lang-switch" role="group" aria-label="Choose language / भाषा निवडा">
+          <button
+            type="button"
+            className={`nav-lang-btn ${lang === "en" ? "is-active" : ""}`}
+            onClick={() => setLang("en")}
+          >
+            EN
+          </button>
+          <button
+            type="button"
+            className={`nav-lang-btn ${lang === "mr" ? "is-active" : ""}`}
+            onClick={() => setLang("mr")}
+          >
+            मराठी
+          </button>
+        </div>
+
+        <button
+          type="button"
+          className="nav-menu-toggle"
+          aria-expanded={mobileMenuOpen}
+          aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
+          onClick={() => setMobileMenuOpen((v) => !v)}
+        >
+          {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+        </button>
+
+        <div className={`nav-collapse ${mobileMenuOpen ? "is-open" : ""}`}>
         <div className="nav-search" ref={searchWrapRef}>
           <div className={`nav-search-field ${searchOpen && searchResults.length ? "is-open" : ""}`}>
             <Search size={16} className="nav-search-icon" />
             <input
               type="text"
               className="nav-search-input"
-              placeholder="What do you want to search for?"
+              placeholder={tr("What do you want to search for?", "तुम्हाला काय शोधायचे आहे?")}
               aria-label="Search notes, papers, careers and services"
               value={searchQuery}
               onChange={(e) => {
@@ -627,7 +699,10 @@ function Landing({ goAuth, onOpenAbout, onOpenPage }) {
                 })
               ) : (
                 <div className="nav-search-empty">
-                  No match for “{searchQuery.trim()}”. Try notes, PDFs, quizzes, scholarships or exams.
+                  {tr(
+                    `No match for "${searchQuery.trim()}". Try notes, PDFs, quizzes, scholarships or exams.`,
+                    `"${searchQuery.trim()}" साठी काहीही सापडले नाही. नोट्स, पीडीएफ, क्विझ, शिष्यवृत्ती किंवा परीक्षा शोधून पहा.`,
+                  )}
                 </div>
               )}
             </div>
@@ -635,15 +710,27 @@ function Landing({ goAuth, onOpenAbout, onOpenPage }) {
         </div>
 
         <div className="nav-actions">
-          <button type="button" className="nav-staff-link" onClick={() => goAuth("login", "staff")}>
-            <Shield size={13} /> <span>Staff Login</span>
+          <button type="button" className="nav-staff-link" onClick={() => { setMobileMenuOpen(false); goAuth("login", "staff"); }}>
+            <Shield size={13} /> <span>{tr("Staff Login", "कर्मचारी लॉगिन")}</span>
           </button>
-          <button className="btn btn-primary" onClick={() => goAuth("login")}>Log in</button>
+          <button className="btn btn-primary" onClick={() => { setMobileMenuOpen(false); goAuth("login"); }}>{tr("Log in", "लॉग इन")}</button>
+        </div>
         </div>
       </nav>
 
       {/* Hero Section */}
       <header className="hero hero-alison">
+        <div className="hero-welcome anim-fade-up">
+          <span className="hero-welcome-eyebrow">
+            <Sparkles size={13} /> {tr("Your gateway to learning", "अध्ययनाचे प्रवेशद्वार")}
+          </span>
+          <h1 className="hero-welcome-title">
+            {tr("Welcome to ", "आपले स्वागत आहे ")}
+            <span className="hero-welcome-brand">DyanSetu</span>
+          </h1>
+          <span className="hero-welcome-rule" aria-hidden="true" />
+        </div>
+
         <div className="hero-slider anim-fade-up anim-delay-1">
           <div className="hero-slider-frame">
             {HERO_SLIDES.map((slide, index) => (
@@ -678,7 +765,7 @@ function Landing({ goAuth, onOpenAbout, onOpenPage }) {
 
         <div className="hero-actions anim-fade-up anim-delay-3">
           <button className="btn btn-primary btn-lg" onClick={() => goAuth("signup")}>
-            Get Started <ArrowRight size={18} />
+            {tr("Get Started", "सुरुवात करा")} <ArrowRight size={18} />
           </button>
         </div>
       </header>
@@ -688,7 +775,7 @@ function Landing({ goAuth, onOpenAbout, onOpenPage }) {
         <div className="notice-board">
           <div className="notice-board-head">
             <Megaphone size={16} />
-            <h2>Notices &amp; Announcements</h2>
+            <h2>{tr("Notices & Announcements", "सूचना आणि घोषणा")}</h2>
           </div>
           <div className="notice-board-list">
             {NOTICE_BOARD.map((item) => {
@@ -700,10 +787,10 @@ function Landing({ goAuth, onOpenAbout, onOpenPage }) {
                   {...(item.href ? { href: item.href, target: "_blank", rel: "noreferrer" } : {})}
                 >
                   <span className={`notice-status notice-status--${item.status}`}>
-                    {item.status === "live" ? "Live" : "Coming soon"}
+                    {item.status === "live" ? tr("Live", "सुरू") : tr("Coming soon", "लवकरच")}
                   </span>
                   <span className="notice-item-body">
-                    <span className="notice-item-title">{item.title}</span>
+                    <span className="notice-item-title">{tr(item.title, item.titleMr)}</span>
                     <span className="notice-item-date">{item.date}</span>
                   </span>
                   {item.href && <ExternalLink size={14} className="notice-item-arrow" />}
@@ -725,9 +812,9 @@ function Landing({ goAuth, onOpenAbout, onOpenPage }) {
             key={hub.id}
           >
             <div className="hub-header">
-              <p className="section-eyebrow"><HubIcon size={14} /> {hub.eyebrow}</p>
-              <h2 className="section-title hub-title">{hub.title}</h2>
-              <p className="hub-intro">{hub.intro}</p>
+              <p className="section-eyebrow"><HubIcon size={14} /> {tr(hub.eyebrow, hub.eyebrowMr)}</p>
+              <h2 className="section-title hub-title">{tr(hub.title, hub.titleMr)}</h2>
+              <p className="hub-intro">{tr(hub.intro, hub.introMr)}</p>
             </div>
 
             <div className={isScheme ? "service-list" : "hub-grid"}>
@@ -736,23 +823,24 @@ function Landing({ goAuth, onOpenAbout, onOpenPage }) {
                 const cardId = `hub-${hub.id}-${item.id}`;
                 const isLive = Boolean(item.href);
                 const btnClass = isScheme ? "service-row-btn" : "hub-card-link";
+                const openLabel = tr("Open", "उघडा");
                 const action = item.page ? (
                   <button className={btnClass} type="button" onClick={() => onOpenPage(item.page)}>
-                    Open <ArrowRight size={14} />
+                    {openLabel} <ArrowRight size={14} />
                   </button>
                 ) : item.href !== undefined ? (
                   isLive ? (
                     <a className={btnClass} href={item.href} target="_blank" rel="noreferrer">
-                      {item.cta || "Open"} <ExternalLink size={14} />
+                      {tr(item.cta, item.ctaMr) || openLabel} <ExternalLink size={14} />
                     </a>
                   ) : (
                     <span className={isScheme ? "service-row-pending" : "hub-card-pending"}>
-                      {item.pendingNote || "Coming soon"}
+                      {tr(item.pendingNote, item.pendingNoteMr) || tr("Coming soon", "लवकरच")}
                     </span>
                   )
                 ) : (
                   <button className={btnClass} type="button" onClick={() => goAuth("signup")}>
-                    Open <ArrowRight size={14} />
+                    {openLabel} <ArrowRight size={14} />
                   </button>
                 );
 
@@ -765,8 +853,8 @@ function Landing({ goAuth, onOpenAbout, onOpenPage }) {
                     <span className="service-row-index">{String(index + 1).padStart(2, "0")}</span>
                     <span className="service-row-icon"><ItemIcon size={18} /></span>
                     <div className="service-row-body">
-                      <h3>{item.name}</h3>
-                      <p>{item.blurb}</p>
+                      <h3>{tr(item.name, item.nameMr)}</h3>
+                      <p>{tr(item.blurb, item.blurbMr)}</p>
                     </div>
                     <div className="service-row-action">{action}</div>
                   </article>
@@ -778,8 +866,8 @@ function Landing({ goAuth, onOpenAbout, onOpenPage }) {
                   >
                     <div className="hub-card-icon"><ItemIcon size={20} /></div>
                     <div className="hub-card-body">
-                      <h3>{item.name}</h3>
-                      <p>{item.blurb}</p>
+                      <h3>{tr(item.name, item.nameMr)}</h3>
+                      <p>{tr(item.blurb, item.blurbMr)}</p>
                       {action}
                     </div>
                   </article>
@@ -803,18 +891,18 @@ function Landing({ goAuth, onOpenAbout, onOpenPage }) {
             )}
             <figcaption className="principal-caption">
               <strong>{PRINCIPAL.name}</strong>
-              <span>{PRINCIPAL.title}</span>
-              <small>{INSTITUTION.short}</small>
+              <span>{tr(PRINCIPAL.title, PRINCIPAL.titleMr)}</span>
+              <small>{tr(INSTITUTION.short, INSTITUTION.shortMr)}</small>
             </figcaption>
           </figure>
 
           <div className="story-copy">
             <div className="story-badge">
-              <Sparkles size={14} /> From the Principal
+              <Sparkles size={14} /> {tr("From the Principal", "प्राचार्यांकडून")}
             </div>
             <blockquote className="principal-quote">
               <span className="principal-mark" aria-hidden="true">&ldquo;</span>
-              <p>{PRINCIPAL.quote}</p>
+              <p>{tr(PRINCIPAL.quote, PRINCIPAL.quoteMr)}</p>
             </blockquote>
           </div>
         </div>
@@ -838,23 +926,23 @@ function Landing({ goAuth, onOpenAbout, onOpenPage }) {
             <div className="footer-college">
               <CollegeCrest size={46} />
               <div className="footer-college-copy">
-                <small>{INSTITUTION.trust}</small>
-                <strong>{INSTITUTION.name}</strong>
-                <small>{INSTITUTION.affiliation} · {INSTITUTION.accreditation}</small>
+                <small>{tr(INSTITUTION.trust, INSTITUTION.trustMr)}</small>
+                <strong>{tr(INSTITUTION.name, INSTITUTION.nameMr)}</strong>
+                <small>{tr(INSTITUTION.affiliation, INSTITUTION.affiliationMr)} · {INSTITUTION.accreditation}</small>
               </div>
             </div>
           </div>
 
           <div className="footer-columns">
             <nav className="footer-col" aria-label="Support">
-              <h4>Support</h4>
-              <button type="button" className="footer-link" onClick={onOpenAbout}>About DyanSetu</button>
-              <button type="button" className="footer-link" onClick={() => onOpenPage("privacy")}>Privacy Policy</button>
-              <button type="button" className="footer-link" onClick={() => onOpenPage("terms")}>Terms of Service</button>
+              <h4>{tr("Support", "सहाय्य")}</h4>
+              <button type="button" className="footer-link" onClick={onOpenAbout}>{tr("About DyanSetu", "डायनसेतू विषयी")}</button>
+              <button type="button" className="footer-link" onClick={() => onOpenPage("privacy")}>{tr("Privacy Policy", "गोपनीयता धोरण")}</button>
+              <button type="button" className="footer-link" onClick={() => onOpenPage("terms")}>{tr("Terms of Service", "सेवा अटी")}</button>
             </nav>
 
             <address className="footer-col">
-              <h4>Contact</h4>
+              <h4>{tr("Contact", "संपर्क")}</h4>
               <a href="mailto:smuiqac@gmail.com" className="footer-link">
                 <Mail size={14} /> smuiqac@gmail.com
               </a>
@@ -865,12 +953,12 @@ function Landing({ goAuth, onOpenAbout, onOpenPage }) {
                 <ExternalLink size={14} /> shivajicollegeudgir.in
               </a>
               <span className="footer-link is-static">
-                <MapPin size={14} /> {INSTITUTION.place}
+                <MapPin size={14} /> {tr(INSTITUTION.place, INSTITUTION.placeMr)}
               </span>
             </address>
 
             <div className="footer-col">
-              <h4>Connect &amp; Social</h4>
+              <h4>{tr("Connect & Social", "जोडा आणि सोशल")}</h4>
               {/* Paste the real accounts into SOCIAL_LINKS near the top of this file. */}
               <div className="footer-socials">
                 <a href={SOCIAL_LINKS.facebook} target="_blank" rel="noreferrer" className="footer-social social-fb" aria-label="Facebook">
@@ -888,9 +976,12 @@ function Landing({ goAuth, onOpenAbout, onOpenPage }) {
         </div>
 
         <div className="site-footer-bar">
-          <span>© 2026–2027 DyanSetu · {INSTITUTION.name}. All rights reserved.</span>
+          <span>{tr(
+            `DyanSetu · ${INSTITUTION.name}. All rights reserved.`,
+            `डायनसेतू · ${INSTITUTION.nameMr}. सर्व हक्क राखीव.`,
+          )}</span>
           <span className="footer-author">
-            Built by{" "}
+            {tr("Built by", "यांनी तयार केले")}{" "}
             <a
               href="https://portfolio-zeta-one-nhmx6ncw7b.vercel.app/"
               target="_blank"
@@ -912,30 +1003,43 @@ function Landing({ goAuth, onOpenAbout, onOpenPage }) {
 /* =============================== VIEW: About Page ============================== */
 
 function AboutPage({ onBack }) {
+  const { lang } = useLang();
+  const tr = makeTr(lang);
   return (
     <div className="about-page-shell">
       <div className="about-page-hero">
         <button className="btn btn-ghost about-page-back" type="button" onClick={onBack}>
-          <ArrowLeft size={16} /> Back to Home
+          <ArrowLeft size={16} /> {tr("Back to Home", "मुख्यपृष्ठावर परत जा")}
         </button>
 
         <div className="about-page-hero-grid">
           <div className="about-page-copy">
-            <p className="section-eyebrow"><Info size={14} /> About DyanSetu</p>
-            <h1>Everything a student needs to revise, in one place — put there by their own faculty.</h1>
+            <p className="section-eyebrow"><Info size={14} /> {tr("About DyanSetu", "डायनसेतू विषयी")}</p>
+            <h1>{tr(
+              "Everything a student needs to revise, in one place — put there by their own faculty.",
+              "विद्यार्थ्याला उजळणीसाठी लागणारे सर्व काही एका ठिकाणी — त्यांच्याच प्राध्यापकांनी तिथे ठेवलेले.",
+            )}</h1>
             <p>
-              DyanSetu brings a college's study material and self-assessment into one place: subject notes uploaded by faculty, previous-year question papers, level-based practice tests, and the scholarship information students most often miss.
+              {tr(
+                "DyanSetu brings a college's study material and self-assessment into one place: subject notes uploaded by faculty, previous-year question papers, level-based practice tests, and the scholarship information students most often miss.",
+                "डायनसेतू महाविद्यालयाचे अभ्यास साहित्य आणि स्वयं-मूल्यमापन एकाच ठिकाणी आणते: प्राध्यापकांनी अपलोड केलेल्या विषय नोट्स, मागील वर्षांचे प्रश्नपत्रिका, स्तरानुसार सराव चाचण्या, आणि विद्यार्थ्यांना बहुधा चुकणारी शिष्यवृत्तीची माहिती.",
+              )}
             </p>
             <div className="about-page-pill-row">
-              <span className="badge-pill">Subject notes</span>
-              <span className="badge-pill">Practice tests</span>
-              <span className="badge-pill">Question papers</span>
+              <span className="badge-pill">{tr("Subject notes", "विषय नोट्स")}</span>
+              <span className="badge-pill">{tr("Practice tests", "सराव चाचण्या")}</span>
+              <span className="badge-pill">{tr("Question papers", "प्रश्नपत्रिका")}</span>
             </div>
           </div>
 
           <div className="about-page-visual-card">
             <img src="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&q=80&w=900" alt="Students and faculty using DyanSetu together" />
-            <div className="about-page-visual-caption">Notes, papers and practice built around the SRTM University NEP 2020 syllabus.</div>
+            <div className="about-page-visual-caption">
+              {tr(
+                "Notes, papers and practice built around the SRTM University NEP 2020 syllabus.",
+                "एस.आर.टी.एम. विद्यापीठाच्या एनईपी २०२० अभ्यासक्रमाभोवती तयार केलेल्या नोट्स, प्रश्नपत्रिका आणि सराव.",
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -944,18 +1048,27 @@ function AboutPage({ onBack }) {
         <div className="about-page-card-grid">
           <article className="about-page-card">
             <div className="about-page-icon"><GraduationCap size={18} /></div>
-            <h3>For students</h3>
-            <p>Download notes and past papers for your branch and semester, then test yourself with practice sets that get harder as you clear each level.</p>
+            <h3>{tr("For students", "विद्यार्थ्यांसाठी")}</h3>
+            <p>{tr(
+              "Download notes and past papers for your branch and semester, then test yourself with practice sets that get harder as you clear each level.",
+              "तुमच्या शाखा आणि सत्रासाठी नोट्स व मागील प्रश्नपत्रिका डाउनलोड करा, नंतर प्रत्येक स्तर पार केल्यावर अधिक कठीण होणाऱ्या सराव संचांसह स्वतःची चाचणी घ्या.",
+            )}</p>
           </article>
           <article className="about-page-card">
             <div className="about-page-icon"><Users size={18} /></div>
-            <h3>For faculty</h3>
-            <p>Share notes with your class in a few clicks — PDFs or photographs of handwritten pages — and withdraw anything you upload by mistake.</p>
+            <h3>{tr("For faculty", "प्राध्यापकांसाठी")}</h3>
+            <p>{tr(
+              "Share notes with your class in a few clicks — PDFs or photographs of handwritten pages — and withdraw anything you upload by mistake.",
+              "काही क्लिकमध्ये तुमच्या वर्गासोबत नोट्स शेअर करा — पीडीएफ किंवा हाताने लिहिलेल्या पानांचे फोटो — आणि चुकून अपलोड केलेले काहीही मागे घ्या.",
+            )}</p>
           </article>
           <article className="about-page-card">
             <div className="about-page-icon"><BarChart3 size={18} /></div>
-            <h3>For institutions</h3>
-            <p>See every student and faculty account in one directory, export the register to a spreadsheet, and control access when you need to.</p>
+            <h3>{tr("For institutions", "संस्थांसाठी")}</h3>
+            <p>{tr(
+              "See every student and faculty account in one directory, export the register to a spreadsheet, and control access when you need to.",
+              "प्रत्येक विद्यार्थी आणि प्राध्यापक खाते एका निर्देशिकेत पहा, नोंदवही स्प्रेडशीटमध्ये निर्यात करा, आणि आवश्यकतेनुसार प्रवेश नियंत्रित करा.",
+            )}</p>
           </article>
         </div>
       </section>
@@ -963,33 +1076,45 @@ function AboutPage({ onBack }) {
       <section className="about-page-section">
         <div className="about-page-flow-card">
           <div className="about-page-flow-head">
-            <p className="section-eyebrow"><Compass size={14} /> How DyanSetu works</p>
-            <h2>From signing up to sitting the exam, in four steps.</h2>
+            <p className="section-eyebrow"><Compass size={14} /> {tr("How DyanSetu works", "डायनसेतू कसे कार्य करते")}</p>
+            <h2>{tr("From signing up to sitting the exam, in four steps.", "नोंदणीपासून परीक्षा देण्यापर्यंत, चार टप्प्यांत.")}</h2>
           </div>
 
           <div className="about-page-flow-steps">
             <div className="about-page-flow-step">
               <div className="about-page-flow-icon"><User size={18} /></div>
-              <h3>1. Create your account</h3>
-              <p>Sign up as a student or as a member of faculty. It takes an email address and a password — nothing else.</p>
+              <h3>{tr("1. Create your account", "१. तुमचे खाते तयार करा")}</h3>
+              <p>{tr(
+                "Sign up as a student or as a member of faculty. It takes an email address and a password — nothing else.",
+                "विद्यार्थी किंवा प्राध्यापक म्हणून नोंदणी करा. यासाठी फक्त ईमेल पत्ता आणि पासवर्ड लागतो — आणखी काही नाही.",
+              )}</p>
             </div>
             <div className="about-page-flow-arrow">→</div>
             <div className="about-page-flow-step">
               <div className="about-page-flow-icon"><BookOpen size={18} /></div>
-              <h3>2. Open your subject</h3>
-              <p>Notes and question papers uploaded by your own teachers, filed by stream, semester and subject.</p>
+              <h3>{tr("2. Open your subject", "२. तुमचा विषय उघडा")}</h3>
+              <p>{tr(
+                "Notes and question papers uploaded by your own teachers, filed by stream, semester and subject.",
+                "तुमच्याच शिक्षकांनी अपलोड केलेल्या नोट्स आणि प्रश्नपत्रिका, शाखा, सत्र आणि विषयानुसार वर्गीकृत.",
+              )}</p>
             </div>
             <div className="about-page-flow-arrow">→</div>
             <div className="about-page-flow-step">
               <div className="about-page-flow-icon"><Target size={18} /></div>
-              <h3>3. Practise by level</h3>
-              <p>Work through Beginner, Intermediate and Advanced sets of fifteen questions, then unlock the final exam.</p>
+              <h3>{tr("3. Practise by level", "३. स्तरानुसार सराव करा")}</h3>
+              <p>{tr(
+                "Work through Beginner, Intermediate and Advanced sets of fifteen questions, then unlock the final exam.",
+                "नवशिक्या, मध्यम आणि प्रगत अशा पंधरा प्रश्नांच्या संचांतून जा, नंतर अंतिम परीक्षा अनलॉक करा.",
+              )}</p>
             </div>
             <div className="about-page-flow-arrow">→</div>
             <div className="about-page-flow-step">
               <div className="about-page-flow-icon"><CheckCircle2 size={18} /></div>
-              <h3>4. Keep your record</h3>
-              <p>Every attempt is saved to your profile, so you can see how you did and retake anything as often as you like.</p>
+              <h3>{tr("4. Keep your record", "४. तुमची नोंद जपून ठेवा")}</h3>
+              <p>{tr(
+                "Every attempt is saved to your profile, so you can see how you did and retake anything as often as you like.",
+                "प्रत्येक प्रयत्न तुमच्या प्रोफाइलमध्ये जतन केला जातो, त्यामुळे तुम्ही कसे केले हे पाहू शकता आणि हवे तितक्या वेळा पुन्हा देऊ शकता.",
+              )}</p>
             </div>
           </div>
         </div>
@@ -998,43 +1123,64 @@ function AboutPage({ onBack }) {
       <section className="about-page-section">
         <div className="about-page-flow-card">
           <div className="about-page-flow-head">
-            <p className="section-eyebrow"><MessageSquare size={14} /> Frequently asked questions</p>
-            <h2>Everything students and faculty tend to ask.</h2>
+            <p className="section-eyebrow"><MessageSquare size={14} /> {tr("Frequently asked questions", "वारंवार विचारले जाणारे प्रश्न")}</p>
+            <h2>{tr("Everything students and faculty tend to ask.", "विद्यार्थी आणि प्राध्यापक सहसा विचारतात ते सर्व काही.")}</h2>
           </div>
 
           <div className="faq-list">
             <details className="faq-item">
-              <summary>Is DyanSetu free to use?</summary>
-              <p>Yes. It is free for students and faculty of the college. There is no payment step and no card is ever asked for.</p>
+              <summary>{tr("Is DyanSetu free to use?", "डायनसेतू वापरण्यासाठी मोफत आहे का?")}</summary>
+              <p>{tr(
+                "Yes. It is free for students and faculty of the college. There is no payment step and no card is ever asked for.",
+                "होय. महाविद्यालयाच्या विद्यार्थी आणि प्राध्यापकांसाठी हे मोफत आहे. कोणतीही पेमेंट पायरी नाही आणि कधीही कार्ड मागितले जात नाही.",
+              )}</p>
             </details>
             <details className="faq-item">
-              <summary>Who can use the platform?</summary>
-              <p>Any student of the college can sign up and start straight away. Faculty accounts can additionally upload notes and question papers, and an administrator looks after accounts.</p>
+              <summary>{tr("Who can use the platform?", "हे व्यासपीठ कोण वापरू शकते?")}</summary>
+              <p>{tr(
+                "Any student of the college can sign up and start straight away. Faculty accounts can additionally upload notes and question papers, and an administrator looks after accounts.",
+                "महाविद्यालयातील कोणताही विद्यार्थी नोंदणी करून लगेच सुरुवात करू शकतो. प्राध्यापक खाती अतिरिक्त नोट्स आणि प्रश्नपत्रिका अपलोड करू शकतात, आणि प्रशासक खात्यांची देखभाल करतो.",
+              )}</p>
             </details>
             <details className="faq-item">
-              <summary>Where do the notes and question papers come from?</summary>
-              <p>Your own teachers upload them. Nothing here is scraped or bought in — a file appears in the library because a member of the faculty put it there, under their name.</p>
+              <summary>{tr("Where do the notes and question papers come from?", "नोट्स आणि प्रश्नपत्रिका कोठून येतात?")}</summary>
+              <p>{tr(
+                "Your own teachers upload them. Nothing here is scraped or bought in — a file appears in the library because a member of the faculty put it there, under their name.",
+                "तुमचेच शिक्षक त्या अपलोड करतात. येथे काहीही परस्पर गोळा केलेले किंवा विकत घेतलेले नाही — एखादी फाईल ग्रंथालयात दिसते कारण एका प्राध्यापकाने ती त्यांच्या नावाने तिथे ठेवली आहे.",
+              )}</p>
             </details>
             <details className="faq-item">
-              <summary>How do the practice tests work?</summary>
-              <p>A practice set is fifteen questions and you pass at eight. The final exam is thirty questions and you pass at twelve. Every question is worth one mark, nothing is deducted for a wrong answer, and you can retake as often as you like — the questions are drawn fresh each time.</p>
+              <summary>{tr("How do the practice tests work?", "सराव चाचण्या कशा काम करतात?")}</summary>
+              <p>{tr(
+                "A practice set is fifteen questions and you pass at eight. The final exam is thirty questions and you pass at twelve. Every question is worth one mark, nothing is deducted for a wrong answer, and you can retake as often as you like — the questions are drawn fresh each time.",
+                "सराव संचात पंधरा प्रश्न असतात आणि आठ गुणांवर तुम्ही उत्तीर्ण होता. अंतिम परीक्षेत तीस प्रश्न असतात आणि बारा गुणांवर उत्तीर्ण होता. प्रत्येक प्रश्नाला एक गुण असतो, चुकीच्या उत्तरासाठी काहीही वजा केले जात नाही, आणि तुम्ही हवे तितक्या वेळा पुन्हा देऊ शकता — दर वेळी प्रश्न नव्याने निवडले जातात.",
+              )}</p>
             </details>
             <details className="faq-item">
-              <summary>Which syllabus are the questions based on?</summary>
-              <p>The SRTM University NEP 2020 syllabus, organised by year and branch across B.Sc., B.Sc. Computer Science, BCA and B.Com. A few subject banks are still being written, and any that is not ready yet says so on the card rather than showing you an empty test.</p>
+              <summary>{tr("Which syllabus are the questions based on?", "प्रश्न कोणत्या अभ्यासक्रमावर आधारित आहेत?")}</summary>
+              <p>{tr(
+                "The SRTM University NEP 2020 syllabus, organised by year and branch across B.Sc., B.Sc. Computer Science, BCA and B.Com. A few subject banks are still being written, and any that is not ready yet says so on the card rather than showing you an empty test.",
+                "एस.आर.टी.एम. विद्यापीठाचा एनईपी २०२० अभ्यासक्रम, बी.एस्सी., बी.एस्सी. कॉम्प्युटर सायन्स, बीसीए आणि बी.कॉम. मध्ये वर्ष व शाखेनुसार वर्गीकृत. काही विषय बँक अजून तयार होत आहेत, आणि जी तयार नाही ती रिकामी चाचणी दाखवण्याऐवजी कार्डवर तसे स्पष्ट सांगते.",
+              )}</p>
             </details>
             <details className="faq-item">
-              <summary>Is my work saved if I sign in somewhere else?</summary>
-              <p>Yes. Attempts are stored against your account, not the device, so your record follows you to any browser you sign in from.</p>
+              <summary>{tr("Is my work saved if I sign in somewhere else?", "मी दुसरीकडे साइन इन केल्यास माझे काम जतन राहते का?")}</summary>
+              <p>{tr(
+                "Yes. Attempts are stored against your account, not the device, so your record follows you to any browser you sign in from.",
+                "होय. प्रयत्न तुमच्या खात्याविरुद्ध साठवले जातात, डिव्हाइसविरुद्ध नाही, त्यामुळे तुम्ही ज्या कोणत्याही ब्राउझरवरून साइन इन कराल तिथे तुमची नोंद येते.",
+              )}</p>
             </details>
           </div>
         </div>
       </section>
 
       <section className="about-page-section about-page-cta">
-        <h2>Everything for your semester, in one place.</h2>
-        <p>Your teachers&apos; notes, the college&apos;s past papers, and practice tests for your own syllabus — free, and open to every student here.</p>
-        <button className="btn btn-primary" type="button" onClick={onBack}>Return to landing page</button>
+        <h2>{tr("Everything for your semester, in one place.", "तुमच्या सत्रासाठी सर्व काही, एका ठिकाणी.")}</h2>
+        <p>{tr(
+          "Your teachers' notes, the college's past papers, and practice tests for your own syllabus — free, and open to every student here.",
+          "तुमच्या शिक्षकांच्या नोट्स, महाविद्यालयाच्या मागील प्रश्नपत्रिका, आणि तुमच्याच अभ्यासक्रमासाठी सराव चाचण्या — मोफत, आणि येथील प्रत्येक विद्यार्थ्यासाठी खुल्या.",
+        )}</p>
+        <button className="btn btn-primary" type="button" onClick={onBack}>{tr("Return to landing page", "मुख्यपृष्ठावर परत जा")}</button>
       </section>
     </div>
   );
@@ -1422,13 +1568,15 @@ function PyqPage({ onBack }) {
 /* =============================== VIEW: Scholarships ============================== */
 
 function ScholarshipsPage({ onBack, onRegisterBack }) {
+  const { lang } = useLang();
+  const tr = makeTr(lang);
   const [categoryId, setCategoryId] = useState(null);
   const [openDocs, setOpenDocs] = useState(null);
   const [showAllDocs, setShowAllDocs] = useState(false);
 
   const category = SCHOLARSHIP_CATEGORIES.find((c) => c.id === categoryId) || null;
   const matches = category ? scholarshipsFor(category.id) : [];
-  const allDocs = category ? documentsFor(category.id) : [];
+  const allDocs = category ? documentsFor(category.id, lang) : [];
 
   /* Closes the documents panel first, then the category, and only then
      reports it had nothing left to unwind — true/false rather than calling
@@ -1454,14 +1602,16 @@ function ScholarshipsPage({ onBack, onRegisterBack }) {
     <main className="resource-page">
       <div className="resource-head">
         <button type="button" className="btn btn-ghost btn-sm" onClick={handleBackClick}>
-          <ArrowLeft size={16} /> Back
+          <ArrowLeft size={16} /> {tr("Back", "मागे")}
         </button>
         <div className="resource-head-copy">
-          <p className="section-eyebrow"><Coins size={14} /> Scholarships</p>
-          <h1 className="resource-title">Find the scholarships you can actually apply for</h1>
+          <p className="section-eyebrow"><Coins size={14} /> {tr("Scholarships", "शिष्यवृत्ती")}</p>
+          <h1 className="resource-title">{tr("Find the scholarships you can actually apply for", "तुम्ही प्रत्यक्षात अर्ज करू शकता अशा शिष्यवृत्ती शोधा")}</h1>
           <p className="resource-sub">
-            Choose the category on your certificate. You will see only the schemes open to that
-            category, with the documents each one asks for.
+            {tr(
+              "Choose the category on your certificate. You will see only the schemes open to that category, with the documents each one asks for.",
+              "तुमच्या प्रमाणपत्रावरील प्रवर्ग निवडा. तुम्हाला फक्त त्या प्रवर्गासाठी खुल्या असलेल्या योजना दिसतील, प्रत्येकीसाठी आवश्यक कागदपत्रांसह.",
+            )}
           </p>
         </div>
       </div>
@@ -1469,8 +1619,10 @@ function ScholarshipsPage({ onBack, onRegisterBack }) {
       <p className="resource-note">
         <Info size={15} />
         <span>
-          Scheme details are indicative and pending verification against the current government
-          notifications. Always confirm amounts and deadlines on the official portal before applying.
+          {tr(
+            "Scheme details are indicative and pending verification against the current government notifications. Always confirm amounts and deadlines on the official portal before applying.",
+            "योजनेचा तपशील सूचक असून सध्याच्या शासकीय अधिसूचनांनुसार पडताळणी प्रलंबित आहे. अर्ज करण्यापूर्वी नेहमी अधिकृत पोर्टलवर रक्कम व अंतिम तारखांची खात्री करा.",
+          )}
         </span>
       </p>
 
@@ -1481,9 +1633,9 @@ function ScholarshipsPage({ onBack, onRegisterBack }) {
             : <User size={30} />}
         </div>
         <div className="scholarship-contact-body">
-          <p className="scholarship-contact-label">For scholarship queries, contact</p>
+          <p className="scholarship-contact-label">{tr("For scholarship queries, contact", "शिष्यवृत्तीसंबंधी प्रश्नांसाठी संपर्क करा")}</p>
           <p className="scholarship-contact-name">{SCHOLARSHIP_CONTACT.name}</p>
-          <p className="scholarship-contact-role">{SCHOLARSHIP_CONTACT.designation}</p>
+          <p className="scholarship-contact-role">{tr(SCHOLARSHIP_CONTACT.designation, SCHOLARSHIP_CONTACT.designationMr)}</p>
           {(SCHOLARSHIP_CONTACT.phone || SCHOLARSHIP_CONTACT.email) && (
             <p className="scholarship-contact-meta">
               {SCHOLARSHIP_CONTACT.phone && <span><Phone size={13} /> {SCHOLARSHIP_CONTACT.phone}</span>}
@@ -1501,28 +1653,35 @@ function ScholarshipsPage({ onBack, onRegisterBack }) {
             className={`category-chip ${categoryId === item.id ? "is-active" : ""}`}
             onClick={() => { setCategoryId(item.id); setOpenDocs(null); setShowAllDocs(false); }}
           >
-            {item.name}
+            {tr(item.name, item.nameMr)}
           </button>
         ))}
       </div>
 
       {!category && (
-        <p className="resource-empty">Select your category above to see the schemes open to you.</p>
+        <p className="resource-empty">{tr("Select your category above to see the schemes open to you.", "तुमच्यासाठी खुल्या असलेल्या योजना पाहण्यासाठी वरील प्रवर्ग निवडा.")}</p>
       )}
 
       {category && (
         <>
           <div className="category-summary">
             <div>
-              <h2>{category.name}</h2>
-              <p>{category.note}</p>
+              <h2>{tr(category.name, category.nameMr)}</h2>
+              <p>{tr(category.note, category.noteMr)}</p>
             </div>
-            <span className="category-count">{matches.length} scheme{matches.length === 1 ? "" : "s"} available</span>
+            <span className="category-count">
+              {tr(
+                `${matches.length} scheme${matches.length === 1 ? "" : "s"} available`,
+                `${matches.length} योजना उपलब्ध`,
+              )}
+            </span>
           </div>
 
           <p className="scheme-note scheme-note--global">
-            <Info size={13} /> Only one scholarship can be sanctioned by the government — if you have
-            already applied for one, you cannot apply for another.
+            <Info size={13} /> {tr(
+              "Only one scholarship can be sanctioned by the government — if you have already applied for one, you cannot apply for another.",
+              "शासनाकडून फक्त एकच शिष्यवृत्ती मंजूर केली जाऊ शकते — जर तुम्ही आधीच एकासाठी अर्ज केला असेल, तर तुम्ही दुसऱ्यासाठी अर्ज करू शकत नाही.",
+            )}
           </p>
 
           <div className="scheme-list">
@@ -1531,15 +1690,15 @@ function ScholarshipsPage({ onBack, onRegisterBack }) {
               return (
                 <article className="scheme-card" key={scheme.id}>
                   <div className="scheme-head">
-                    <h3>{scheme.name}</h3>
-                    <span className="scheme-amount">{scheme.amount}</span>
+                    <h3>{tr(scheme.name, scheme.nameMr)}</h3>
+                    <span className="scheme-amount">{tr(scheme.amount, scheme.amountMr)}</span>
                   </div>
-                  <p className="scheme-provider">{scheme.provider}</p>
-                  <p className="scheme-eligibility">{scheme.eligibility}</p>
+                  <p className="scheme-provider">{tr(scheme.provider, scheme.providerMr)}</p>
+                  <p className="scheme-eligibility">{tr(scheme.eligibility, scheme.eligibilityMr)}</p>
 
                   <div className="scheme-meta">
-                    <span><CalendarDays size={14} /> {scheme.window}</span>
-                    <span><ListChecks size={14} /> {scheme.documents.length} documents</span>
+                    <span><CalendarDays size={14} /> {tr(scheme.window, scheme.windowMr)}</span>
+                    <span><ListChecks size={14} /> {tr(`${scheme.documents.length} documents`, `${scheme.documents.length} कागदपत्रे`)}</span>
                   </div>
 
                   <div className="scheme-actions">
@@ -1549,16 +1708,18 @@ function ScholarshipsPage({ onBack, onRegisterBack }) {
                       aria-expanded={isOpen}
                       onClick={() => setOpenDocs(isOpen ? null : scheme.id)}
                     >
-                      <ListChecks size={15} /> {isOpen ? "Click here to hide documents" : "Click here for documents required"}
+                      <ListChecks size={15} /> {isOpen
+                        ? tr("Click here to hide documents", "कागदपत्रे लपवण्यासाठी येथे क्लिक करा")
+                        : tr("Click here for documents required", "आवश्यक कागदपत्रांसाठी येथे क्लिक करा")}
                     </button>
                     <a className="btn btn-primary btn-sm" href={scheme.portal} target="_blank" rel="noreferrer">
-                      Apply on portal <ExternalLink size={14} />
+                      {tr("Apply on portal", "पोर्टलवर अर्ज करा")} <ExternalLink size={14} />
                     </a>
                   </div>
 
                   {isOpen && (
                     <ul className="doc-list">
-                      {expandDocuments(scheme.documents).map((doc) => (
+                      {expandDocuments(scheme.documents, lang).map((doc) => (
                         <li key={doc}><CheckCircle2 size={15} /> {doc}</li>
                       ))}
                     </ul>
@@ -1570,15 +1731,22 @@ function ScholarshipsPage({ onBack, onRegisterBack }) {
 
           {allDocs.length > 0 && (
             <section className="doc-summary">
-              <h2><FileDown size={18} /> Everything you may be asked for</h2>
-              <p>Across all {matches.length} schemes open to {category.name}. Keep scans of these ready before you start an application.</p>
+              <h2><FileDown size={18} /> {tr("Everything you may be asked for", "तुम्हाला जे काही विचारले जाऊ शकते")}</h2>
+              <p>
+                {tr(
+                  `Across all ${matches.length} schemes open to ${category.name}. Keep scans of these ready before you start an application.`,
+                  `${category.nameMr} साठी खुल्या असलेल्या सर्व ${matches.length} योजनांमध्ये. अर्ज सुरू करण्यापूर्वी यांचे स्कॅन तयार ठेवा.`,
+                )}
+              </p>
               <button
                 type="button"
                 className="btn btn-outline btn-sm"
                 aria-expanded={showAllDocs}
                 onClick={() => setShowAllDocs((v) => !v)}
               >
-                <ListChecks size={15} /> {showAllDocs ? "Click here to hide the full list" : `Click here for all ${allDocs.length} documents`}
+                <ListChecks size={15} /> {showAllDocs
+                  ? tr("Click here to hide the full list", "संपूर्ण यादी लपवण्यासाठी येथे क्लिक करा")
+                  : tr(`Click here for all ${allDocs.length} documents`, `सर्व ${allDocs.length} कागदपत्रांसाठी येथे क्लिक करा`)}
               </button>
               {showAllDocs && (
                 <ul className="doc-list doc-list--two">
@@ -2624,6 +2792,25 @@ export default function App() {
   const [adminLock, setAdminLock] = useState("idle");
   const adminSessionRef = useRef(null);
 
+  /* Language for the public-facing pages (landing, about, scholarships).
+     The picker is asked on every fresh load of the site (not just the first
+     ever visit) — the last choice only pre-selects the language the page
+     renders in behind the picker, so there's no flash of the wrong language
+     while it's up. */
+  const [lang, setLangState] = useState("en");
+  const [askLang, setAskLang] = useState(false);
+  useEffect(() => {
+    let saved = null;
+    try { saved = localStorage.getItem(LANG_KEY); } catch { /* storage blocked */ }
+    if (saved === "en" || saved === "mr") setLangState(saved);
+    setAskLang(true);
+  }, []);
+  const setLang = (value) => {
+    setLangState(value);
+    setAskLang(false);
+    try { localStorage.setItem(LANG_KEY, value); } catch { /* storage blocked */ }
+  };
+
   /* With no backend keys the app still runs, on the original seed data, so
      the interface can be worked on before the backend exists. Accounts,
      uploads and cross-device progress are the parts that need the real thing. */
@@ -3025,8 +3212,11 @@ export default function App() {
     && ["profile", "faculty-portal", "admin-portal", "notes", "quiz", "pyq", "scholarships"].includes(view);
 
   return (
+    <LangContext.Provider value={{ lang, setLang }}>
     <div className="arcsas">
       <Styles />
+
+      {askLang && <LanguagePicker onChoose={setLang} />}
 
       {/* Without backend keys the app runs on seed data, which is easy to miss
           until a signup silently fails to persist. Say so plainly. */}
@@ -3124,6 +3314,35 @@ export default function App() {
       {view === "admin-portal" && (adminLock === "held" || adminLock === "idle") && (
         <AdminPortal users={users} onUpdateUser={handleUpdateUser} onDeleteUser={handleDeleteUser} />
       )}
+    </div>
+    </LangContext.Provider>
+  );
+}
+
+/* =============================== Language Picker ============================== */
+
+function LanguagePicker({ onChoose }) {
+  return (
+    <div className="lang-picker-overlay" role="dialog" aria-modal="true" aria-label="Choose your language">
+      <div className="lang-picker-card">
+        <div className="lang-picker-icon"><Languages size={22} /></div>
+        <h2 className="lang-picker-title">
+          <span>Choose your language</span>
+          <span>आपली भाषा निवडा</span>
+        </h2>
+        <p className="lang-picker-sub">
+          <span>You can change this anytime from the navigation bar.</span>
+          <span>तुम्ही ही भाषा नेव्हिगेशन बारमधून केव्हाही बदलू शकता.</span>
+        </p>
+        <div className="lang-picker-actions">
+          <button type="button" className="btn btn-primary lang-picker-btn" onClick={() => onChoose("en")}>
+            English
+          </button>
+          <button type="button" className="btn btn-outline lang-picker-btn" onClick={() => onChoose("mr")}>
+            मराठी
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -3265,7 +3484,7 @@ function Styles() {
       .anim-section-reveal { animation: sectionReveal 0.85s cubic-bezier(0.22, 1, 0.36, 1) both; animation-delay: 0.35s; }
 
       @media (prefers-reduced-motion: reduce) {
-        .anim-fade-up, .anim-nav-enter, .anim-float, .anim-section-reveal, .brand-logo-frame, .top-announcement, .pulse-icon, .landing-orb, .stream-box, .landing-brand-tag {
+        .anim-fade-up, .anim-nav-enter, .anim-float, .anim-section-reveal, .brand-logo-frame, .pulse-icon, .landing-orb, .stream-box, .landing-brand-tag {
           animation: none !important;
         }
       }
@@ -3274,48 +3493,6 @@ function Styles() {
       .spin { animation: spin 1s linear infinite; }
       @keyframes spin { to { transform: rotate(360deg); } }
 
-      /* Top Banner */
-      /* Host-institution strip: crest, institution name, hairline rule, then the tagline. */
-      .top-announcement {
-        background: linear-gradient(90deg, #08182A 0%, #10273D 50%, #08182A 100%);
-        border-bottom: 1px solid rgba(148, 197, 255, 0.16);
-        box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.04);
-        color: #FFFFFF;
-        padding: 6px 16px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-      }
-      .top-announcement-inner { display: flex; align-items: center; gap: 10px; min-width: 0; }
-      .top-announcement-crest {
-        width: 26px; height: 26px; flex: 0 0 26px;
-        border-radius: 50%;
-        background: #FFFFFF;
-        box-shadow: 0 0 0 1px rgba(255,255,255,0.55), 0 1px 4px rgba(0,0,0,0.35);
-        display: inline-flex; align-items: center; justify-content: center;
-        overflow: hidden;
-      }
-      .top-announcement-crest img { width: 100%; height: 100%; object-fit: contain; display: block; }
-      /* Trust line above the college name, so the strip carries the full legal
-         title. Kept to two tight lines rather than one long run, which would
-         push the tagline off the strip on a laptop. */
-      .top-announcement-copy {
-        display: flex; flex-direction: column; justify-content: center;
-        line-height: 1.25; min-width: 0;
-      }
-      .top-announcement-trust {
-        font-size: 9.5px; font-weight: 600; color: rgba(226, 240, 255, 0.72);
-        letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap;
-      }
-      .top-announcement-name {
-        font-size: 12.5px; font-weight: 700; color: #FFFFFF;
-        letter-spacing: 0.015em; white-space: nowrap;
-      }
-      .top-announcement-rule { width: 1px; height: 14px; background: rgba(255,255,255,0.28); flex: 0 0 1px; }
-      .top-announcement-tag {
-        font-size: 10.5px; font-weight: 600; color: rgba(226, 240, 255, 0.78);
-        letter-spacing: 0.10em; text-transform: uppercase; white-space: nowrap;
-      }
 
       .alison-landing {
         position: relative;
@@ -3369,16 +3546,54 @@ function Styles() {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        padding: 12px 28px;
-        background: rgba(255, 255, 255, 0.82);
-        backdrop-filter: blur(16px) saturate(1.4);
-        -webkit-backdrop-filter: blur(16px) saturate(1.4);
+        gap: 20px;
+        padding: 10px 28px;
+        background: #FFFFFF;
         position: sticky;
         top: 0;
         z-index: 50;
-        border-bottom: 1px solid rgba(15,23,42,0.06);
-        box-shadow: 0 8px 32px rgba(15, 23, 42, 0.05);
-        transition: box-shadow 0.3s ease, background 0.3s ease;
+        border-bottom: 3px solid var(--abc-navy, #0B1E2E);
+        box-shadow: 0 2px 10px rgba(15, 23, 42, 0.06);
+        transition: box-shadow 0.3s ease;
+      }
+      .nav-gov-brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 14px;
+        min-width: 0;
+        flex: 0 1 auto;
+      }
+      /* Slim identity strip above the main nav — carries the college's full
+         legal name, the way a government site's top bar carries "Government
+         of India", so the crest in the row below doesn't have to. A tricolor
+         hairline on top gives it the same civic, official read as the rest
+         of the government-style header. */
+      .nav-topstrip {
+        position: relative;
+        display: flex; align-items: center; justify-content: center; gap: 10px;
+        background: linear-gradient(90deg, #0B1E2E 0%, #143753 50%, #0B1E2E 100%);
+        padding: 7px 20px;
+        text-align: center;
+        overflow: hidden;
+      }
+      .nav-topstrip::before {
+        content: "";
+        position: absolute; top: 0; left: 0; right: 0; height: 3px;
+        background: linear-gradient(90deg, #E65100 0%, #E65100 33%, #FFFFFF 33%, #FFFFFF 66%, #059669 66%, #059669 100%);
+      }
+      .nav-topstrip-text {
+        font-size: 11.5px;
+        font-weight: 600;
+        letter-spacing: 0.01em;
+      }
+      .nav-topstrip-trust { color: #FFB74D; }
+      .nav-topstrip-name { color: #FFFFFF; font-weight: 700; margin-left: 6px; }
+      .nav-topstrip-dot {
+        display: inline-block;
+        width: 4px; height: 4px; margin: 0 2px;
+        border-radius: 50%;
+        background: #4CAF7D;
+        vertical-align: middle;
       }
       .nav-marketing .brand, .nav-app .brand {
         display: inline-flex;
@@ -3773,7 +3988,49 @@ function Styles() {
 
       /* Hero Section */
       .hero-alison { display: grid; grid-template-columns: 1fr; gap: 28px; justify-items: center; align-items: center; padding: 72px 48px 72px; max-width: 1200px; margin: 0 auto; position: relative; }
-      
+
+      .hero-welcome { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 14px; }
+      .hero-welcome-eyebrow {
+        display: inline-flex; align-items: center; gap: 6px;
+        padding: 6px 14px;
+        border-radius: 999px;
+        background: rgba(230, 81, 0, 0.1);
+        color: var(--abc-saffron);
+        font-size: 12px; font-weight: 700;
+        letter-spacing: 0.04em; text-transform: uppercase;
+        animation: heroWelcomeIn 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+      }
+      .hero-welcome-title {
+        font-family: 'Space Grotesk', 'Segoe UI', sans-serif;
+        font-size: clamp(1.8rem, 4vw, 3rem);
+        font-weight: 800;
+        letter-spacing: -0.02em;
+        color: var(--abc-navy);
+        animation: heroWelcomeIn 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+        animation-delay: 0.08s;
+      }
+      /* A static gradient fill (no animated background-position) — animating
+         a background-clip:text layer can cause a visible solid-color flash
+         while the compositor catches up in some Chromium builds. */
+      .hero-welcome-brand {
+        background: linear-gradient(90deg, #E65100 0%, #0284C7 55%, #8B5CF6 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+      .hero-welcome-rule {
+        display: block;
+        width: 84px; height: 4px;
+        border-radius: 999px;
+        background: linear-gradient(90deg, #E65100, #0284C7, #059669, #8B5CF6);
+        animation: heroWelcomeIn 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+        animation-delay: 0.16s;
+      }
+      @keyframes heroWelcomeIn {
+        from { opacity: 0; transform: translateY(18px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+
       .hero-accent { 
         background: linear-gradient(90deg, #E65100, #0284C7, #059669, #8B5CF6, #E65100);
         background-size: 300% 300%;
@@ -4512,6 +4769,49 @@ function Styles() {
         text-align: center;
       }
       .nav-actions { display: flex; align-items: center; gap: 8px; }
+      .nav-lang-switch {
+        display: inline-flex;
+        align-items: center;
+        gap: 2px;
+        padding: 3px;
+        border-radius: 999px;
+        background: #EEF2F6;
+        border: 1px solid rgba(15, 23, 42, 0.08);
+        flex: 0 0 auto;
+      }
+      .nav-lang-btn {
+        border: none;
+        background: transparent;
+        padding: 7px 13px;
+        border-radius: 999px;
+        font-size: 12.5px;
+        font-weight: 700;
+        letter-spacing: 0.01em;
+        color: var(--text-subtle);
+        cursor: pointer;
+        transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+      }
+      .nav-lang-btn:hover { color: var(--abc-navy); }
+      .nav-lang-btn.is-active {
+        background: linear-gradient(135deg, var(--abc-saffron) 0%, #FF8F3D 100%);
+        color: #FFFFFF;
+        box-shadow: 0 3px 10px rgba(230, 81, 0, 0.32);
+      }
+      /* Hamburger toggle + collapsible group: invisible plumbing on desktop
+         (search and actions sit inline exactly as before via display:contents),
+         becomes a real dropdown panel once .nav-menu-toggle appears — see the
+         <=900px rules below. */
+      .nav-menu-toggle {
+        display: none;
+        align-items: center; justify-content: center;
+        width: 40px; height: 40px; flex: 0 0 auto;
+        border: 1px solid var(--border-strong, rgba(15,23,42,0.14));
+        border-radius: 10px;
+        background: #FFFFFF;
+        color: var(--abc-navy);
+        cursor: pointer;
+      }
+      .nav-collapse { display: contents; }
       .nav-staff-link {
         display: inline-flex; align-items: center; gap: 6px;
         border: 1px solid var(--border-strong); background: #FFFFFF; cursor: pointer;
@@ -5014,6 +5314,38 @@ function Styles() {
       .social-badge-email { background: #F1F5F9; color: var(--text-subtle); border: 1px solid var(--border-strong); }
 
 
+      /* Language picker — blocking, first-visit only (see App() effect that
+         sets askLang when nothing is saved yet). Sits above everything else,
+         including the sticky nav. */
+      .lang-picker-overlay {
+        position: fixed; inset: 0; z-index: 300;
+        background: rgba(11, 30, 46, 0.62);
+        backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+        display: flex; align-items: center; justify-content: center;
+        padding: 24px;
+      }
+      .lang-picker-card {
+        background: #FFFFFF;
+        border-top: 4px solid var(--abc-saffron);
+        border-radius: var(--radius);
+        width: 100%; max-width: 440px;
+        padding: 36px 32px 32px;
+        box-shadow: var(--shadow-lg);
+        text-align: center;
+      }
+      .lang-picker-icon {
+        width: 52px; height: 52px; margin: 0 auto 20px;
+        border-radius: 50%;
+        background: rgba(29, 78, 216, 0.1);
+        color: var(--abc-blue, #1D4ED8);
+        display: flex; align-items: center; justify-content: center;
+      }
+      .lang-picker-title { display: flex; flex-direction: column; gap: 10px; font-size: 20px; font-weight: 700; color: var(--abc-navy); line-height: 1.4; margin: 0 0 18px; }
+      .lang-picker-title span:last-child { font-size: 19px; }
+      .lang-picker-sub { display: flex; flex-direction: column; gap: 8px; font-size: 13.5px; color: var(--text-subtle); line-height: 1.6; margin: 0 0 36px; }
+      .lang-picker-actions { display: flex; gap: 14px; justify-content: center; }
+      .lang-picker-btn { flex: 1; max-width: 160px; }
+
       /* Modals & Tables */
       .modal-overlay { position: fixed; inset: 0; background: rgba(11, 30, 46, 0.6); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 100; padding: 24px; }
       .modal-card { background: #FFFFFF; border: 1px solid var(--border-light); border-top: 4px solid var(--abc-saffron); width: 100%; max-width: 500px; border-radius: var(--radius); padding: 28px; box-shadow: var(--shadow-lg); }
@@ -5482,10 +5814,36 @@ function Styles() {
         .video-grid, .module-grid-three { grid-template-columns: repeat(2, minmax(0, 1fr)); }
         .two-col { grid-template-columns: 1fr; }
 
-        /* Marketing nav becomes two rows: brand + actions, then search. */
-        .nav-marketing { flex-wrap: wrap; gap: 12px; padding: 12px 20px; }
-        .nav-search { order: 3; width: 100%; margin: 0; min-width: 0; max-width: 100%; }
-        .nav-actions { margin-left: auto; gap: 8px; }
+        /* Marketing nav collapses to brand + hamburger; search and actions
+           move into a dropdown panel opened by the hamburger (see App() /
+           Landing()'s mobileMenuOpen state). */
+        .nav-marketing { padding: 12px 20px; position: relative; }
+        .nav-gov-brand { min-width: 0; flex: 1 1 auto; }
+        .landing-brand-wrap { min-width: 0; flex: 0 1 auto; }
+        .landing-brand-copy { min-width: 0; overflow: hidden; }
+        .nav-topstrip-text { font-size: 10.5px; }
+        .nav-menu-toggle { display: inline-flex; }
+        .nav-collapse { display: none; }
+        .nav-collapse.is-open {
+          display: flex; flex-direction: column; gap: 14px; align-items: stretch;
+          position: absolute; top: 100%; left: 0; right: 0;
+          margin-top: 1px;
+          background: #FFFFFF;
+          padding: 16px 20px 20px;
+          box-shadow: 0 16px 28px rgba(15, 23, 42, 0.12);
+          border-bottom: 3px solid var(--abc-navy);
+          max-height: 80vh;
+          overflow-y: auto;
+        }
+        /* .nav-search's desktop flex-basis (420px) is a WIDTH in the normal
+           row layout, but flex-basis tracks the main axis — which is height
+           once the dropdown switches to flex-direction:column. Left alone it
+           reserves ~420px of vertical space after the search field. Reset it
+           to content-sized here. */
+        .nav-collapse.is-open .nav-search { flex: 0 0 auto; width: 100%; max-width: 100%; margin: 0; }
+        .nav-collapse.is-open .nav-actions { flex-direction: column; align-items: stretch; justify-content: flex-start; gap: 10px; }
+        .nav-collapse.is-open .nav-staff-link,
+        .nav-collapse.is-open .nav-actions .btn { width: 100%; justify-content: center; }
 
         /* App shell: nav drops to its own scrollable row under the brand. */
         .app-header { height: auto; }
@@ -5504,20 +5862,19 @@ function Styles() {
         .section-title { font-size: 22px; line-height: 1.25; margin-bottom: 18px; }
         .section-eyebrow { font-size: 11px; }
 
-        /* Institution strip: emblem + name only, name allowed to wrap. */
-        .top-announcement { padding: 7px 12px; }
-        .top-announcement-inner { gap: 8px; }
-        .top-announcement-crest { width: 22px; height: 22px; flex: 0 0 22px; }
-        .top-announcement-name { font-size: 11px; white-space: normal; text-align: left; }
-        .top-announcement-trust { font-size: 9px; white-space: normal; }
-
-        /* Marketing nav */
-        .nav-marketing { padding: 10px 16px; gap: 10px; }
+        /* Marketing nav — the college's full name lives in .nav-topstrip
+           above, so this row only has to fit the crest, the DyanSetu
+           wordmark, the language switch and the hamburger. */
+        .nav-marketing { padding: 10px 14px; gap: 8px; }
+        .nav-gov-brand { gap: 8px; min-width: 0; flex: 0 1 auto; }
         .landing-brand-wrap { min-width: 0; }
-        .landing-brand-name { font-size: 20px; }
+        .landing-brand-name { font-size: 19px; }
         .landing-brand-tag { font-size: 9px; }
-        .brand-logo-frame--nav { width: 40px; height: 40px; }
-        .nav-actions { margin-left: auto; gap: 6px; }
+        .landing-brand-divider { display: none; }
+        .brand-logo-frame--nav { width: 36px; height: 36px; }
+        .nav-lang-switch { flex: 0 0 auto; gap: 3px; }
+        .nav-lang-btn { padding: 6px 10px; font-size: 11.5px; }
+        .nav-actions { gap: 6px; justify-content: flex-end; }
         .nav-actions .btn { padding: 9px 14px; font-size: 13px; min-height: 38px; }
         .nav-search-panel { max-height: 60vh; overflow-y: auto; }
 
@@ -5625,7 +5982,6 @@ function Styles() {
         .nav-actions .btn { padding: 8px 12px; font-size: 12.5px; min-height: 36px; }
         .nav-staff-link { padding: 6px 8px; font-size: 11.5px; }
         .brand-logo-frame--nav { width: 36px; height: 36px; }
-        .top-announcement-name { font-size: 10.5px; }
         .story-shell { padding: 20px 14px; }
         .story-title { font-size: 20px; }
         .story-quote { font-size: 14px; }
