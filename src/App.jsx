@@ -3955,7 +3955,7 @@ function Styles() {
         background: linear-gradient(90deg, var(--abc-navy), var(--abc-navy-light));
         color: #FFFFFF;
       }
-      .notice-board-head h2 { margin: 0; font-size: 14.5px; font-weight: 700; letter-spacing: 0.02em; }
+      .notice-board-head h2 { margin: 0; font-size: 14.5px; font-weight: 700; letter-spacing: 0.02em; color: #FFFFFF; }
       .notice-board-list { display: flex; flex-direction: column; }
       .notice-item {
         display: flex;
