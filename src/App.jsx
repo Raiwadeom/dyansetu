@@ -125,7 +125,7 @@ const RAKTSETU_APP_URL = "";
 
 /* CSM News Desk. Paste the published site link here once it's live and the
    card turns into a live link automatically, same as RaktSetu above. */
-const CSM_NEWS_DESK_URL = "";
+const CSM_NEWS_DESK_URL = "https://csmnewsdesk.com/";
 
 
 /* ------------------------- Landing Hubs (Study / Career / Social) -------------------------
