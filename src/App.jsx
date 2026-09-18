@@ -546,8 +546,18 @@ function Landing({ goAuth, onOpenAbout, onOpenPage }) {
   const [searchOpen, setSearchOpen] = useState(false);
   const [highlightId, setHighlightId] = useState(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
   const searchWrapRef = useRef(null);
   const searchResults = searchLanding(searchQuery);
+
+  /* Nav floats free of the top edge once the page has scrolled past the
+     identity strip, the way ux4g.gov.in's nav condenses on scroll. */
+  useEffect(() => {
+    const onScroll = () => setIsScrolled(window.scrollY > 24);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   /* Jump to a hub card, then flash it so the eye lands in the right place. */
   const scrollToCard = (targetId) => {
@@ -592,7 +602,7 @@ function Landing({ goAuth, onOpenAbout, onOpenPage }) {
         <span className="landing-orb landing-orb-3" />
       </div>
 
-      <div className="nav-topstrip">
+      <div className={`nav-topstrip ${isScrolled ? "is-collapsed" : ""}`}>
         <span className="nav-topstrip-text">
           <span className="nav-topstrip-trust">{tr(INSTITUTION.trust, INSTITUTION.trustMr)}</span>
           <span className="nav-topstrip-dot" aria-hidden="true" />
@@ -600,7 +610,7 @@ function Landing({ goAuth, onOpenAbout, onOpenPage }) {
         </span>
       </div>
 
-      <nav className="nav-marketing anim-nav-enter">
+      <nav className={`nav-marketing anim-nav-enter ${isScrolled ? "is-floating" : ""}`}>
         <div className="nav-gov-brand">
           <CollegeCrest size={38} />
           <span className="landing-brand-divider" aria-hidden="true" />
@@ -2793,17 +2803,24 @@ export default function App() {
   const adminSessionRef = useRef(null);
 
   /* Language for the public-facing pages (landing, about, scholarships).
-     The picker is asked on every fresh load of the site (not just the first
-     ever visit) — the last choice only pre-selects the language the page
-     renders in behind the picker, so there's no flash of the wrong language
-     while it's up. */
+     The picker is asked again on a genuine page load — first-ever visit or
+     an actual refresh (F5 / pull-to-refresh) — but not when a visitor just
+     switches tabs or apps and comes back, which never re-runs this effect
+     unless the browser reports the return as a real "reload" navigation. */
   const [lang, setLangState] = useState("en");
   const [askLang, setAskLang] = useState(false);
   useEffect(() => {
     let saved = null;
     try { saved = localStorage.getItem(LANG_KEY); } catch { /* storage blocked */ }
     if (saved === "en" || saved === "mr") setLangState(saved);
-    setAskLang(true);
+
+    let navType = "navigate";
+    try {
+      const [entry] = performance.getEntriesByType("navigation");
+      navType = entry?.type || (performance.navigation?.type === 1 ? "reload" : "navigate");
+    } catch { /* Navigation Timing unsupported — fall back to "navigate" */ }
+
+    if (!saved || navType === "reload") setAskLang(true);
   }, []);
   const setLang = (value) => {
     setLangState(value);
@@ -3554,7 +3571,18 @@ function Styles() {
         z-index: 50;
         border-bottom: 3px solid var(--abc-navy, #0B1E2E);
         box-shadow: 0 2px 10px rgba(15, 23, 42, 0.06);
-        transition: box-shadow 0.3s ease;
+        margin: 0;
+        border-radius: 0;
+        transition: box-shadow 0.3s ease, top 0.3s ease, margin 0.3s ease, border-radius 0.3s ease;
+      }
+      /* Once the identity strip above has folded away on scroll, the nav
+         detaches from the very top edge and reads as a floating bar. */
+      .nav-marketing.is-floating {
+        top: 12px;
+        margin: 0 16px;
+        border-radius: 14px;
+        border-bottom: none;
+        box-shadow: 0 14px 32px rgba(15, 23, 42, 0.18);
       }
       .nav-gov-brand {
         display: inline-flex;
@@ -3575,6 +3603,17 @@ function Styles() {
         padding: 7px 20px;
         text-align: center;
         overflow: hidden;
+        max-height: 40px;
+        opacity: 1;
+        transition: max-height 0.32s ease, padding 0.32s ease, opacity 0.24s ease;
+      }
+      /* Folds away once the page scrolls, so the nav below can float free of
+         the top edge the way ux4g.gov.in's condenses on scroll. */
+      .nav-topstrip.is-collapsed {
+        max-height: 0;
+        padding-top: 0;
+        padding-bottom: 0;
+        opacity: 0;
       }
       .nav-topstrip::before {
         content: "";
