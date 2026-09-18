@@ -129,14 +129,22 @@ const CSM_NEWS_DESK_URL = "https://csmnewsdesk.com/";
 
 /* ---------------------------- Notice Board -----------------------------------
    Homepage "Notices & Announcements" strip, styled like a college/government
-   site notice board. Newest first; mark an entry isNew to show the blinking
-   New tag (keep it to the 2-3 most recent so it stays meaningful). */
+   site notice board. status is "live" (green, links to href) or "soon" (amber,
+   no link). Add real notices here as they come up. */
 const NOTICE_BOARD = [
-  { id: "n1", date: "18 Sep 2026", title: "Odd-semester examination timetable released — check the notice board outside the exam cell.", isNew: true },
-  { id: "n2", date: "15 Sep 2026", title: "Last date to apply for Post-Matric Scholarship extended to 30 Sep 2026.", isNew: true },
-  { id: "n3", date: "10 Sep 2026", title: "NAAC A+ re-accreditation report published on the college website.", isNew: false },
-  { id: "n4", date: "05 Sep 2026", title: "Annual sports meet registrations open at the Physical Education department.", isNew: false },
-  { id: "n5", date: "01 Sep 2026", title: "Library extended hours during the examination period: 8 AM – 8 PM.", isNew: false },
+  {
+    id: "csm-news-desk",
+    title: "CSM News Desk is live — college announcements, events and press coverage in one feed.",
+    date: "18 Sep 2026",
+    status: "live",
+    href: CSM_NEWS_DESK_URL,
+  },
+  {
+    id: "raktsetu",
+    title: "RaktSetu, our student blood-donation network, is coming soon.",
+    date: "18 Sep 2026",
+    status: "soon",
+  },
 ];
 
 /* ------------------------- Landing Hubs (Study / Career / Social) -------------------------
@@ -670,23 +678,33 @@ function Landing({ goAuth, onOpenAbout, onOpenPage }) {
         </div>
       </header>
 
-      {/* Notice Board — government/college-site style scrolling announcements */}
+      {/* Notice Board — government/college-site style announcements */}
       <section className="section section-notice-board anim-fade-up">
         <div className="notice-board">
           <div className="notice-board-head">
             <Megaphone size={16} />
             <h2>Notices &amp; Announcements</h2>
           </div>
-          <div className="notice-board-body">
-            <div className="notice-board-track">
-              {NOTICE_BOARD.concat(NOTICE_BOARD).map((item, index) => (
-                <div className="notice-row" key={`${item.id}-${index}`}>
-                  <span className="notice-date">{item.date}</span>
-                  <span className="notice-title">{item.title}</span>
-                  {item.isNew && <span className="notice-new-tag">New</span>}
-                </div>
-              ))}
-            </div>
+          <div className="notice-board-list">
+            {NOTICE_BOARD.map((item) => {
+              const Row = item.href ? "a" : "div";
+              return (
+                <Row
+                  className="notice-item"
+                  key={item.id}
+                  {...(item.href ? { href: item.href, target: "_blank", rel: "noreferrer" } : {})}
+                >
+                  <span className={`notice-status notice-status--${item.status}`}>
+                    {item.status === "live" ? "Live" : "Coming soon"}
+                  </span>
+                  <span className="notice-item-body">
+                    <span className="notice-item-title">{item.title}</span>
+                    <span className="notice-item-date">{item.date}</span>
+                  </span>
+                  {item.href && <ExternalLink size={14} className="notice-item-arrow" />}
+                </Row>
+              );
+            })}
           </div>
         </div>
       </section>
@@ -3918,7 +3936,7 @@ function Styles() {
       .section-alt { background: #F1F5F9; border-y: 1px solid var(--border-light); }
       .section-eyebrow { font-family: 'JetBrains Mono', monospace; font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--abc-blue); margin-bottom: 10px; display: flex; align-items: center; justify-content: center; gap: 6px; font-weight: 600; }
       .section-title { font-size: 28px; font-weight: 700; margin-bottom: 24px; color: var(--abc-navy); text-align: center; font-family: 'Space Grotesk', sans-serif; letter-spacing: -0.02em; }
-      /* Notice Board — government/college-site style scrolling announcements */
+      /* Notice Board — government/college-site style announcement strip */
       .section-notice-board { padding-top: 8px; padding-bottom: 8px; }
       .notice-board {
         max-width: 900px;
@@ -3938,50 +3956,49 @@ function Styles() {
         color: #FFFFFF;
       }
       .notice-board-head h2 { margin: 0; font-size: 14.5px; font-weight: 700; letter-spacing: 0.02em; }
-      .notice-board-body { position: relative; height: 172px; overflow: hidden; padding: 0 20px; }
-      .notice-board-body::after {
-        content: "";
-        position: absolute;
-        left: 0; right: 0; bottom: 0;
-        height: 26px;
-        background: linear-gradient(180deg, rgba(255,255,255,0), #FFFFFF);
-        pointer-events: none;
-      }
-      .notice-board-track { animation: noticeScroll 16s linear infinite; }
-      .notice-board-body:hover .notice-board-track { animation-play-state: paused; }
-      .notice-row {
+      .notice-board-list { display: flex; flex-direction: column; }
+      .notice-item {
         display: flex;
-        align-items: baseline;
-        gap: 12px;
-        padding: 12px 0;
-        border-bottom: 1px dashed var(--border-light);
+        align-items: center;
+        gap: 14px;
+        padding: 16px 20px;
+        text-align: left;
+        text-decoration: none;
+        border-bottom: 1px solid rgba(15,23,42,0.08);
+        transition: background 0.2s ease;
       }
-      .notice-row:last-child { border-bottom: none; }
-      .notice-date {
+      .notice-item:last-child { border-bottom: none; }
+      a.notice-item:hover { background: var(--abc-saffron-bg); }
+      .notice-status {
         flex: 0 0 auto;
-        font-family: 'JetBrains Mono', monospace;
+        display: inline-flex;
+        align-items: center;
         font-size: 11px;
-        font-weight: 700;
-        color: var(--abc-saffron);
+        font-weight: 800;
+        letter-spacing: 0.03em;
+        padding: 5px 10px 5px 8px;
+        border-radius: 999px;
         white-space: nowrap;
       }
-      .notice-title { flex: 1; font-size: 13.5px; line-height: 1.5; color: var(--abc-navy); text-align: left; }
-      .notice-new-tag {
-        flex: 0 0 auto;
-        font-size: 10px;
-        font-weight: 800;
-        letter-spacing: 0.05em;
-        color: #FFFFFF;
-        background: #DC2626;
-        padding: 2px 7px;
-        border-radius: 999px;
-        animation: noticeBlink 1.2s ease-in-out infinite;
+      .notice-status--live { background: #DCFCE7; color: #15803D; }
+      .notice-status--live::before {
+        content: "";
+        width: 6px; height: 6px;
+        margin-right: 6px;
+        border-radius: 50%;
+        background: #22C55E;
+        animation: liveDotPulse 1.4s ease-in-out infinite;
       }
-      @keyframes noticeBlink { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
-      @keyframes noticeScroll {
-        from { transform: translateY(0); }
-        to { transform: translateY(-50%); }
+      .notice-status--soon { background: #FEF3C7; color: #92400E; }
+      @keyframes liveDotPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+      .notice-item-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+      .notice-item-title { font-size: 13.5px; line-height: 1.5; color: var(--abc-navy); font-weight: 600; }
+      .notice-item-date {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 10.5px;
+        color: var(--text-muted);
       }
+      .notice-item-arrow { flex: 0 0 auto; color: var(--abc-saffron); }
 
       /* Social Services — official "scheme list" layout */
       .scheme-list {
@@ -5483,7 +5500,8 @@ function Styles() {
         .hub-card:hover { transform: none; }
 
         .notice-board-head h2 { font-size: 13px; }
-        .notice-board-body { height: 152px; padding: 0 14px; }
+        .notice-item { flex-wrap: wrap; padding: 14px 16px; gap: 8px; }
+        .notice-item-title { font-size: 13px; }
 
         .scheme-row { flex-wrap: wrap; padding: 14px 16px; gap: 10px; }
         .scheme-row-index { display: none; }
