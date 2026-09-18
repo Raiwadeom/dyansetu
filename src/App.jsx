@@ -656,6 +656,11 @@ function Landing({ goAuth, onOpenAbout, onOpenPage }) {
               />
             ))}
 
+            <div className="hero-slider-caption">
+              <span className="hero-slider-caption-count">
+                {String(activeHeroSlide + 1).padStart(2, "0")} / {String(HERO_SLIDES.length).padStart(2, "0")}
+              </span>
+            </div>
           </div>
 
           <div className="hero-slider-dots">
@@ -3777,16 +3782,15 @@ function Styles() {
         -webkit-text-fill-color: transparent;
       }
 
-      .hero-slider { width: 100%; max-width: 1140px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; }
+      .hero-slider { width: 100%; max-width: 1140px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px; }
       .hero-slider-frame {
         position: relative;
         width: 100%;
         aspect-ratio: 16 / 9;
-        border-radius: 20px;
+        border-radius: 4px;
         overflow: hidden;
         background: #0F172A;
-        border: 1px solid rgba(15, 23, 42, 0.08);
-        box-shadow: 0 18px 44px rgba(15, 23, 42, 0.16);
+        border: 1px solid rgba(15, 23, 42, 0.22);
       }
       .hero-slide {
         position: absolute;
@@ -3799,15 +3803,35 @@ function Styles() {
         transition: opacity 0.7s ease, transform 0.7s ease;
       }
       .hero-slide.is-active { opacity: 1; transform: scale(1); }
-      .hero-slider-dots { display: flex; justify-content: center; gap: 8px; }
+      /* Official photo-gallery style counter strip, like a PIB/gov.in press gallery */
+      .hero-slider-caption {
+        position: absolute;
+        left: 0; right: 0; bottom: 0;
+        z-index: 2;
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        padding: 8px 16px;
+        background: linear-gradient(0deg, rgba(11,30,46,0.94), rgba(11,30,46,0.8));
+        border-top: 3px solid var(--abc-saffron);
+      }
+      .hero-slider-caption-count {
+        flex: 0 0 auto;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--abc-saffron);
+        white-space: nowrap;
+      }
+      .hero-slider-dots { display: flex; justify-content: center; gap: 6px; }
       .hero-slider-dot {
-        width: 8px; height: 8px; padding: 0;
-        border-radius: 999px; border: 0;
-        background: rgba(15, 23, 42, 0.2);
+        width: 18px; height: 4px; padding: 0;
+        border-radius: 2px; border: 0;
+        background: rgba(15, 23, 42, 0.22);
         cursor: pointer;
         transition: width 0.25s ease, background 0.25s ease;
       }
-      .hero-slider-dot.is-active { width: 22px; background: var(--abc-saffron); }
+      .hero-slider-dot.is-active { width: 30px; background: var(--abc-saffron); }
       .hero-actions { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 8px; justify-content: center; }
 
       .about-page-shell { padding: 32px 24px 64px; max-width: 1200px; margin: 0 auto; }
@@ -5498,7 +5522,7 @@ function Styles() {
         .nav-search-panel { max-height: 60vh; overflow-y: auto; }
 
         .hero-alison { padding: 24px 16px 34px; gap: 18px; }
-        .hero-slider-frame { border-radius: 16px; }
+        .hero-slider-caption { padding: 6px 12px; }
         .hero-actions { flex-direction: column; width: 100%; }
         .hero-actions .btn-lg { width: 100%; justify-content: center; }
 
