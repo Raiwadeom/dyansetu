@@ -3559,8 +3559,10 @@ function Styles() {
         z-index: 1;
       }
       /* The rule above outranks .nav-marketing on specificity, which would drop the
-         nav (and its search dropdown) behind the hero. Lift the nav back on top. */
-      .alison-landing > .nav-marketing { z-index: 60; }
+         nav (and its search dropdown) behind the hero AND silently downgrade its
+         position:sticky back to relative — the actual reason the nav never
+         stuck to the top while scrolling. Restore both here. */
+      .alison-landing > .nav-marketing { position: sticky; z-index: 60; }
       
       .nav-marketing {
         display: flex;
