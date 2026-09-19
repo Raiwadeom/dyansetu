@@ -2803,24 +2803,23 @@ export default function App() {
   const adminSessionRef = useRef(null);
 
   /* Language for the public-facing pages (landing, about, scholarships).
-     The picker is asked again on a genuine page load — first-ever visit or
-     an actual refresh (F5 / pull-to-refresh) — but not when a visitor just
-     switches tabs or apps and comes back, which never re-runs this effect
-     unless the browser reports the return as a real "reload" navigation. */
+     The picker is asked again on every genuine page load — opening the site
+     fresh (a shared/bookmarked link, a new tab) or an actual refresh (F5 /
+     pull-to-refresh) — never a one-time thing. This effect's empty deps
+     array already means it only runs once per real browser page load (there
+     is no client-side router keeping App mounted across a navigation away
+     from the site), so no navigation-type check is needed to tell "fresh
+     load" apart from a tab switch — a plain tab switch never remounts App
+     in the first place. An earlier version gated this on the Navigation
+     Timing API reporting a "reload", which meant opening the site via a
+     link (type "navigate") skipped the picker whenever a language was
+     already saved from a previous visit — only F5 actually triggered it. */
   const [lang, setLangState] = useState("en");
-  const [askLang, setAskLang] = useState(false);
+  const [askLang, setAskLang] = useState(true);
   useEffect(() => {
     let saved = null;
     try { saved = localStorage.getItem(LANG_KEY); } catch { /* storage blocked */ }
     if (saved === "en" || saved === "mr") setLangState(saved);
-
-    let navType = "navigate";
-    try {
-      const [entry] = performance.getEntriesByType("navigation");
-      navType = entry?.type || (performance.navigation?.type === 1 ? "reload" : "navigate");
-    } catch { /* Navigation Timing unsupported — fall back to "navigate" */ }
-
-    if (!saved || navType === "reload") setAskLang(true);
   }, []);
   const setLang = (value) => {
     setLangState(value);
@@ -3513,7 +3512,11 @@ function Styles() {
 
       .alison-landing {
         position: relative;
-        overflow: hidden;
+        /* NOT overflow:hidden — that establishes this as .nav-marketing's
+           nearest scrolling ancestor and silently breaks position:sticky
+           (the nav stops pinning and just scrolls away with the page).
+           .landing-bg-mesh below already clips the decorative orbs on its
+           own, so nothing here actually needs the clipping. */
       }
       .landing-bg-mesh {
         position: absolute;
@@ -5353,9 +5356,9 @@ function Styles() {
       .social-badge-email { background: #F1F5F9; color: var(--text-subtle); border: 1px solid var(--border-strong); }
 
 
-      /* Language picker — blocking, first-visit only (see App() effect that
-         sets askLang when nothing is saved yet). Sits above everything else,
-         including the sticky nav. */
+      /* Language picker — blocking, shown on every fresh page load (see
+         App()'s askLang state). Sits above everything else, including the
+         sticky nav. */
       .lang-picker-overlay {
         position: fixed; inset: 0; z-index: 300;
         background: rgba(11, 30, 46, 0.62);
@@ -5855,8 +5858,10 @@ function Styles() {
 
         /* Marketing nav collapses to brand + hamburger; search and actions
            move into a dropdown panel opened by the hamburger (see App() /
-           Landing()'s mobileMenuOpen state). */
-        .nav-marketing { padding: 12px 20px; position: relative; }
+           Landing()'s mobileMenuOpen state). Stays position:sticky from the
+           base rule below 900px too — the .relative override here used to
+           kill the sticky-on-scroll behavior on phones/tablets. */
+        .nav-marketing { padding: 12px 20px; }
         .nav-gov-brand { min-width: 0; flex: 1 1 auto; }
         .landing-brand-wrap { min-width: 0; flex: 0 1 auto; }
         .landing-brand-copy { min-width: 0; overflow: hidden; }
