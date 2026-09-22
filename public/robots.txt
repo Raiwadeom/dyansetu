@@ -1,2 +1,4 @@
 User-agent: *
 Allow: /
+
+Sitemap: https://dyansetu.vercel.app/sitemap.xml

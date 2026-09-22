@@ -1,0 +1,16 @@
+{
+  "name": "DnyanSetu",
+  "short_name": "DnyanSetu",
+  "description": "Study material, practice quizzes, scholarships, and student services.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f5f7fb",
+  "theme_color": "#f5f7fb",
+  "icons": [
+    {
+      "src": "/src/img/dnyansetu-logo.png",
+      "sizes": "160x160",
+      "type": "image/png"
+    }
+  ]
+}
