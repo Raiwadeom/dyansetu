@@ -1,5 +1,5 @@
 /* ============================================================================
-   DyanSetu — guided setup
+   DnyanSetu — guided setup
 
    Paste the Firebase config block straight from the console and answer three
    short questions. This works out which value belongs to which variable, checks
@@ -166,7 +166,7 @@ async function checkPreset(cloudName, apiKey, apiSecret, preset) {
 
 /* --------------------------------- main ---------------------------------- */
 
-say("\n  DyanSetu setup\n  ==============\n");
+say("\n  DnyanSetu setup\n  ==============\n");
 
 const pasted = await readPastedBlock();
 const config = parseFirebaseConfig(pasted);
@@ -187,8 +187,8 @@ say("\n  Now Cloudinary (dashboard -> Settings -> API Keys).\n");
 const cloudName = await ask("  Cloud name");
 const cldKey = await ask("  API Key");
 const cldSecret = await ask("  API Secret");
-const preset = (await ask("  Upload preset [dyansetu_signed]", { required: false }))
-  || "dyansetu_signed";
+const preset = (await ask("  Upload preset [dnyansetu_signed]", { required: false }))
+  || "dnyansetu_signed";
 
 say("\n  Checking Cloudinary...");
 const cld = await checkCloudinary(cloudName, cldKey, cldSecret);

@@ -1,5 +1,5 @@
 /* ============================================================================
-   DyanSetu — Cloudinary upload signature endpoint
+   DnyanSetu — Cloudinary upload signature endpoint
 
    Why this exists
    ---------------
@@ -32,7 +32,7 @@ const GOOGLE_CERTS_URL =
 
 /* Cloudinary folders this endpoint is willing to sign for. A caller cannot ask
    for an arbitrary path. */
-const ALLOWED_FOLDERS = new Set(["dyansetu/notes", "dyansetu/papers", "dyansetu/avatars"]);
+const ALLOWED_FOLDERS = new Set(["dnyansetu/notes", "dnyansetu/papers", "dnyansetu/avatars"]);
 
 /* ------------------------------ certificate cache ------------------------- */
 

@@ -1,4 +1,4 @@
-# Setting up DyanSetu
+# Setting up DnyanSetu
 
 Two free accounts, about twenty-five minutes. Until you finish, the app runs on
 offline seed data and says so in a banner — so you can keep working meanwhile.
@@ -71,8 +71,8 @@ From the Cloudinary dashboard:
 | Setting | Value |
 | --- | --- |
 | Signing mode | **Signed** |
-| Preset name | `dyansetu_signed` |
-| Folder | `dyansetu` |
+| Preset name | `dnyansetu_signed` |
+| Folder | `dnyansetu` |
 | Allowed formats | `pdf,jpg,jpeg,png,webp` |
 | Max file size | `15000000` |
 
@@ -161,7 +161,7 @@ Add the same environment variables in the host's dashboard. Keep the split: the
 | Quiz attempts | Firestore `profiles/{uid}/attempts` |
 | Faculty notes | Firestore `notes` |
 | Question paper records | Firestore `pyqPapers` |
-| Note and paper files | Cloudinary `dyansetu/` |
+| Note and paper files | Cloudinary `dnyansetu/` |
 | The 9,938 quiz questions | Bundled in the code |
 
 The question banks stay bundled deliberately — reading 10,000 documents per quiz
@@ -199,7 +199,7 @@ Media Library when you want the space back.
 3. Take a practice test → a document appears under that profile's **attempts**.
 4. Sign up a second account as **Faculty** → **Upload Notes** → attach a PDF.
    You should see a progress bar, then the note in **Cloudinary → Media Library
-   → dyansetu/notes**.
+   → dnyansetu/notes**.
 5. Open **Subject-wise Notes** while signed out — the note should download.
 6. Delete it from the faculty portal — it should vanish for students.
 7. Log in from another browser; quiz progress should follow you.

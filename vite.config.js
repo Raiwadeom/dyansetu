@@ -44,7 +44,7 @@ function readEnvFiles(mode, dir) {
    picked up as a serverless function by Vercel, Netlify or similar. */
 function apiRoutes(mode) {
   return {
-    name: "dyansetu-api-routes",
+    name: "dnyansetu-api-routes",
     configureServer(server) {
       /* The handler reads its secrets from process.env. The unprefixed values
          are the ones Vite deliberately keeps out of the client bundle — that is

@@ -1,5 +1,5 @@
 /* ============================================================================
-   DyanSetu — Profiles and authentication (Firebase Auth + Firestore)
+   DnyanSetu — Profiles and authentication (Firebase Auth + Firestore)
 
    The React app works with one flat user object. Firestore holds the same
    shape, with the fields the admin directory filters on kept at the top level

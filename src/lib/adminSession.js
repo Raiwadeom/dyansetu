@@ -1,5 +1,5 @@
 /* ============================================================================
-   DyanSetu — single administrator session
+   DnyanSetu — single administrator session
 
    The administrator account may be open in exactly one place at a time. The
    lock is a single Firestore document, so it holds across tabs, windows,

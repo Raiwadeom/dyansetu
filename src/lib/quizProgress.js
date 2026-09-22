@@ -1,5 +1,5 @@
 /* ============================================================================
-   DyanSetu — Quiz progress (Firestore)
+   DnyanSetu — Quiz progress (Firestore)
 
    The quiz sits on the public landing page, so it has to work for a visitor
    who is not signed in. Two backends therefore:

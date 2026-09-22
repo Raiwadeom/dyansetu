@@ -1,5 +1,5 @@
 /* ============================================================================
-   DyanSetu — Spreadsheet export
+   DnyanSetu — Spreadsheet export
 
    Produces a CSV that Excel opens cleanly. The byte-order mark matters: without
    it Excel reads the file as the local codepage and mangles any name with an

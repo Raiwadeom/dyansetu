@@ -10,7 +10,7 @@ import { downloadUrl } from "../lib/cloudinary.js";
 import { isBackendConfigured } from "../lib/firebase.js";
 
 /* ============================================================================
-   DyanSetu — Subject-wise notes library
+   DnyanSetu — Subject-wise notes library
 
    Students pick their stream, then browse what faculty have uploaded, grouped
    by subject. The search box works across every stream at once, so a student

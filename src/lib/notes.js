@@ -1,5 +1,5 @@
 /* ============================================================================
-   DyanSetu — Notes library (Firestore + Cloudinary)
+   DnyanSetu — Notes library (Firestore + Cloudinary)
 
    Faculty upload a note as one or more PDFs or images; students browse and
    download. Deleting a note removes the Firestore record, so it disappears
@@ -71,7 +71,7 @@ export async function uploadNote({ streamId, subject, semester, title, descripti
   if (!files?.length) throw new Error("Attach at least one PDF or image.");
   if (files.length > MAX_NOTE_FILES) throw new Error(`Please attach at most ${MAX_NOTE_FILES} files per note.`);
 
-  const uploaded = await uploadFiles(files, { folder: "dyansetu/notes", onProgress });
+  const uploaded = await uploadFiles(files, { folder: "dnyansetu/notes", onProgress });
 
   try {
     const ref = await addDoc(collection(db, COLLECTION), {

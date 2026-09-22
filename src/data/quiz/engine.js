@@ -1,5 +1,5 @@
 /* ============================================================================
-   DyanSetu — Quiz engine
+   DnyanSetu — Quiz engine
 
    Everything that turns a question bank into a sitting: drawing a paper without
    repeating what the student has already seen, scoring it, and remembering

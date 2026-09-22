@@ -1,5 +1,5 @@
 /* ============================================================================
-   DyanSetu — Quiz curriculum (SRTM University, NEP 2020)
+   DnyanSetu — Quiz curriculum (SRTM University, NEP 2020)
 
    Streams offered for practice tests and the final exam. B.A. is deliberately
    excluded: this module serves B.Sc., B.Sc. CS, BCA and B.Com only.

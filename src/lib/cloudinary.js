@@ -1,5 +1,5 @@
 /* ============================================================================
-   DyanSetu — Cloudinary uploads (signed)
+   DnyanSetu — Cloudinary uploads (signed)
 
    The browser cannot upload on its own. Every upload runs in two steps:
 
@@ -61,7 +61,7 @@ async function requestSignature(folder) {
 }
 
 /* Uploads one file and returns the details stored alongside the record. */
-export async function uploadFile(file, { folder = "dyansetu/notes", onProgress } = {}) {
+export async function uploadFile(file, { folder = "dnyansetu/notes", onProgress } = {}) {
   if (!isCloudinaryConfigured) {
     throw new Error("File uploads are not configured yet. See SETUP.md.");
   }

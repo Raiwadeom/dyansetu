@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, Suspense, lazy } from "react";
-import logo from "./img/dyansetu-logo.png";
+import logo from "./img/dnyansetu-logo.png";
 import collegeLogo from "./img/college-logo.jpg";
 import principalPhoto from "./img/principal.jpg";
 import heroOne from "../media/slideshow 1.jpeg";
@@ -40,7 +40,7 @@ import {
 } from "lucide-react";
 
 /* ============================================================================
-   DyanSetu — Career Readiness & Skills Assessment Platform
+   DnyanSetu — Career Readiness & Skills Assessment Platform
    Hackathon 2026-27 · Chhatrapati Shivajiraje Mahavidyalaya, Udgir
    ABC Portal Inspired Color Palette & Multi-Color Animations
    ========================================================================== */
@@ -96,7 +96,7 @@ const MEMBERS_ONLY_PAGES = new Set(["notes", "quiz"]);
    survives a reload; the view did not, so a refresh dropped everyone back on
    the landing page and looked like being signed out. Per-tab (sessionStorage)
    rather than shared, so two tabs do not fight over one another's position. */
-const VIEW_KEY = "dyansetu:view";
+const VIEW_KEY = "dnyansetu:view";
 
 /* A restored view still has to be one this account may actually open — a stale
    entry must never hand out a portal the user has no right to. */
@@ -494,7 +494,7 @@ function SelectField({ label, icon: Icon, options, ...props }) {
   );
 }
 
-function BrandLogo({ variant = "mark", className = "", alt = "DyanSetu logo" }) {
+function BrandLogo({ variant = "mark", className = "", alt = "DnyanSetu logo" }) {
   return (
     <span className={`brand-logo-frame brand-logo-frame--${variant} ${className}`.trim()}>
       <img src={logo} alt={alt} className="brand-logo-image" draggable={false} />
@@ -614,10 +614,10 @@ function Landing({ goAuth, onOpenAbout, onOpenPage }) {
         <div className="nav-gov-brand">
           <CollegeCrest size={38} />
           <span className="landing-brand-divider" aria-hidden="true" />
-          <div className="brand brand-logo-inline landing-brand-wrap" aria-label="DyanSetu brand">
+          <div className="brand brand-logo-inline landing-brand-wrap" aria-label="DnyanSetu brand">
             <BrandLogo variant="nav" />
             <div className="landing-brand-copy">
-              <span className="landing-brand-name">DyanSetu</span>
+              <span className="landing-brand-name">DnyanSetu</span>
               <span className="landing-brand-tag">connecting futures</span>
             </div>
           </div>
@@ -736,7 +736,7 @@ function Landing({ goAuth, onOpenAbout, onOpenPage }) {
           </span>
           <h1 className="hero-welcome-title">
             {tr("Welcome to ", "आपले स्वागत आहे ")}
-            <span className="hero-welcome-brand">DyanSetu</span>
+            <span className="hero-welcome-brand">DnyanSetu</span>
           </h1>
           <span className="hero-welcome-rule" aria-hidden="true" />
         </div>
@@ -928,7 +928,7 @@ function Landing({ goAuth, onOpenAbout, onOpenPage }) {
             <div className="footer-brand">
               <BrandLogo variant="footer" />
               <div className="footer-brand-copy">
-                <span className="footer-brand-name">DyanSetu</span>
+                <span className="footer-brand-name">DnyanSetu</span>
                 <span className="footer-brand-slogan">connecting futures</span>
               </div>
             </div>
@@ -946,7 +946,7 @@ function Landing({ goAuth, onOpenAbout, onOpenPage }) {
           <div className="footer-columns">
             <nav className="footer-col" aria-label="Support">
               <h4>{tr("Support", "सहाय्य")}</h4>
-              <button type="button" className="footer-link" onClick={onOpenAbout}>{tr("About DyanSetu", "डायनसेतू विषयी")}</button>
+              <button type="button" className="footer-link" onClick={onOpenAbout}>{tr("About DnyanSetu", "डायनसेतू विषयी")}</button>
               <button type="button" className="footer-link" onClick={() => onOpenPage("privacy")}>{tr("Privacy Policy", "गोपनीयता धोरण")}</button>
               <button type="button" className="footer-link" onClick={() => onOpenPage("terms")}>{tr("Terms of Service", "सेवा अटी")}</button>
             </nav>
@@ -987,7 +987,7 @@ function Landing({ goAuth, onOpenAbout, onOpenPage }) {
 
         <div className="site-footer-bar">
           <span>{tr(
-            `DyanSetu · ${INSTITUTION.name}. All rights reserved.`,
+            `DnyanSetu · ${INSTITUTION.name}. All rights reserved.`,
             `डायनसेतू · ${INSTITUTION.nameMr}. सर्व हक्क राखीव.`,
           )}</span>
           <span className="footer-author">
@@ -1024,14 +1024,14 @@ function AboutPage({ onBack }) {
 
         <div className="about-page-hero-grid">
           <div className="about-page-copy">
-            <p className="section-eyebrow"><Info size={14} /> {tr("About DyanSetu", "डायनसेतू विषयी")}</p>
+            <p className="section-eyebrow"><Info size={14} /> {tr("About DnyanSetu", "डायनसेतू विषयी")}</p>
             <h1>{tr(
               "Everything a student needs to revise, in one place — put there by their own faculty.",
               "विद्यार्थ्याला उजळणीसाठी लागणारे सर्व काही एका ठिकाणी — त्यांच्याच प्राध्यापकांनी तिथे ठेवलेले.",
             )}</h1>
             <p>
               {tr(
-                "DyanSetu brings a college's study material and self-assessment into one place: subject notes uploaded by faculty, previous-year question papers, level-based practice tests, and the scholarship information students most often miss.",
+                "DnyanSetu brings a college's study material and self-assessment into one place: subject notes uploaded by faculty, previous-year question papers, level-based practice tests, and the scholarship information students most often miss.",
                 "डायनसेतू महाविद्यालयाचे अभ्यास साहित्य आणि स्वयं-मूल्यमापन एकाच ठिकाणी आणते: प्राध्यापकांनी अपलोड केलेल्या विषय नोट्स, मागील वर्षांचे प्रश्नपत्रिका, स्तरानुसार सराव चाचण्या, आणि विद्यार्थ्यांना बहुधा चुकणारी शिष्यवृत्तीची माहिती.",
               )}
             </p>
@@ -1043,7 +1043,7 @@ function AboutPage({ onBack }) {
           </div>
 
           <div className="about-page-visual-card">
-            <img src="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&q=80&w=900" alt="Students and faculty using DyanSetu together" />
+            <img src="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&q=80&w=900" alt="Students and faculty using DnyanSetu together" />
             <div className="about-page-visual-caption">
               {tr(
                 "Notes, papers and practice built around the SRTM University NEP 2020 syllabus.",
@@ -1086,7 +1086,7 @@ function AboutPage({ onBack }) {
       <section className="about-page-section">
         <div className="about-page-flow-card">
           <div className="about-page-flow-head">
-            <p className="section-eyebrow"><Compass size={14} /> {tr("How DyanSetu works", "डायनसेतू कसे कार्य करते")}</p>
+            <p className="section-eyebrow"><Compass size={14} /> {tr("How DnyanSetu works", "डायनसेतू कसे कार्य करते")}</p>
             <h2>{tr("From signing up to sitting the exam, in four steps.", "नोंदणीपासून परीक्षा देण्यापर्यंत, चार टप्प्यांत.")}</h2>
           </div>
 
@@ -1139,7 +1139,7 @@ function AboutPage({ onBack }) {
 
           <div className="faq-list">
             <details className="faq-item">
-              <summary>{tr("Is DyanSetu free to use?", "डायनसेतू वापरण्यासाठी मोफत आहे का?")}</summary>
+              <summary>{tr("Is DnyanSetu free to use?", "डायनसेतू वापरण्यासाठी मोफत आहे का?")}</summary>
               <p>{tr(
                 "Yes. It is free for students and faculty of the college. There is no payment step and no card is ever asked for.",
                 "होय. महाविद्यालयाच्या विद्यार्थी आणि प्राध्यापकांसाठी हे मोफत आहे. कोणतीही पेमेंट पायरी नाही आणि कधीही कार्ड मागितले जात नाही.",
@@ -1919,7 +1919,7 @@ function StudentProfile({ profile, onSaveProfile }) {
               <Edit3 size={17} />
             </div>
             <p className="profile-about">
-              {profile.about || "Computer science student building academic foundations, practical skills, and career readiness through DyanSetu."}
+              {profile.about || "Computer science student building academic foundations, practical skills, and career readiness through DnyanSetu."}
             </p>
           </section>
 
@@ -1997,7 +1997,7 @@ function FacultyPortal({ profile, onSaveProfile }) {
     setPfpBusy(true);
     setPfpError("");
     try {
-      const uploaded = await uploadFile(file, { folder: "dyansetu/avatars" });
+      const uploaded = await uploadFile(file, { folder: "dnyansetu/avatars" });
       await onSaveProfile({ ...profile, pfp: uploaded.url });
     } catch (err) {
       setPfpError(err.message || "Could not upload that photo.");
@@ -2493,7 +2493,7 @@ function AdminPortal({ users, onUpdateUser, onDeleteUser }) {
   ];
 
   const exportRows = (rows, label) =>
-    downloadCsv(timestampedName(`dyansetu-${label}`), rows, exportColumns);
+    downloadCsv(timestampedName(`dnyansetu-${label}`), rows, exportColumns);
 
   /* One stacked card per account rather than a wide table. A six-column grid
      forced sideways scrolling and read as landscape even on a desktop; a
@@ -2698,7 +2698,7 @@ function TopNavApp({ view, go, onLogout, user }) {
           <span className="app-brand-mark">
             <BrandLogo variant="mark" />
           </span>
-          <span>DyanSetu</span>
+          <span>DnyanSetu</span>
           <span className="app-brand-divider" aria-hidden="true" />
           <span className="app-brand-college">{INSTITUTION.short}</span>
         </button>
@@ -3216,7 +3216,7 @@ export default function App() {
     return (
       <div className="arcsas">
         <Styles />
-        <div className="boot-screen"><Loader2 size={20} className="spin" /> Loading DyanSetu Platform…</div>
+        <div className="boot-screen"><Loader2 size={20} className="spin" /> Loading DnyanSetu Platform…</div>
       </div>
     );
   }
@@ -5402,7 +5402,7 @@ function Styles() {
       .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 
       /* ================================================================
-         DyanSetu LAYOUT REPAIR / APP SHELL
+         DnyanSetu LAYOUT REPAIR / APP SHELL
          These rules intentionally come last so they override legacy
          dashboard styles without breaking the other views.
          ================================================================ */
@@ -5813,20 +5813,20 @@ function Styles() {
          ================================================================ */
 
       /* --- Foundations that apply at every width --- */
-      .dyansetu { overflow-x: clip; }
-      .dyansetu img, .dyansetu svg { max-width: 100%; }
-      .dyansetu :where(button, a, input, select, textarea) { -webkit-tap-highlight-color: rgba(29, 78, 216, 0.12); }
+      .dnyansetu { overflow-x: clip; }
+      .dnyansetu img, .dnyansetu svg { max-width: 100%; }
+      .dnyansetu :where(button, a, input, select, textarea) { -webkit-tap-highlight-color: rgba(29, 78, 216, 0.12); }
 
       @media (hover: none) and (pointer: coarse) {
         /* Touch targets: nothing interactive smaller than a fingertip. */
-        .dyansetu :where(.btn, .app-nav-item, .auth-tab, .role-tab, .hub-card-link, .header-logout) {
+        .dnyansetu :where(.btn, .app-nav-item, .auth-tab, .role-tab, .hub-card-link, .header-logout) {
           min-height: 44px;
         }
         .hero-slider-dot { height: 12px; width: 12px; }
         .hero-slider-dot.is-active { width: 26px; }
         /* iOS zooms the page when a focused input is under 16px. */
-        .dyansetu :where(input, select, textarea) { font-size: 16px; }
-        .dyansetu :where(.btn, .stream-box, .hub-card, .app-nav-item) { touch-action: manipulation; }
+        .dnyansetu :where(input, select, textarea) { font-size: 16px; }
+        .dnyansetu :where(.btn, .stream-box, .hub-card, .app-nav-item) { touch-action: manipulation; }
       }
 
       /* ---------------------------- <= 1120px ---------------------------- */
@@ -5909,7 +5909,7 @@ function Styles() {
         .section-eyebrow { font-size: 11px; }
 
         /* Marketing nav — the college's full name lives in .nav-topstrip
-           above, so this row only has to fit the crest, the DyanSetu
+           above, so this row only has to fit the crest, the DnyanSetu
            wordmark, the language switch and the hamburger. */
         .nav-marketing { padding: 10px 14px; gap: 8px; }
         .nav-gov-brand { gap: 8px; min-width: 0; flex: 0 1 auto; }

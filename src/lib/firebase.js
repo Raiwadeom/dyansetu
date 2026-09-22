@@ -1,5 +1,5 @@
 /* ============================================================================
-   DyanSetu — Firebase client
+   DnyanSetu — Firebase client
 
    Configuration comes from .env.local (see .env.example). When the keys are
    missing the app falls back to offline seed data so the interface still runs;
@@ -41,7 +41,7 @@ export const db = app ? getFirestore(app) : null;
 
 if (!isBackendConfigured && import.meta.env.DEV) {
   console.info(
-    "[DyanSetu] Firebase is not configured — running on local seed data. " +
+    "[DnyanSetu] Firebase is not configured — running on local seed data. " +
       "Copy .env.example to .env.local and add your project keys to enable accounts.",
   );
 }

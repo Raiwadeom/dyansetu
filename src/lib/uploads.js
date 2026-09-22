@@ -1,5 +1,5 @@
 /* ============================================================================
-   DyanSetu — Previous-year question papers
+   DnyanSetu — Previous-year question papers
 
    The PDF itself goes to Cloudinary; the record of which paper it is lives in
    Firestore, keyed so that re-uploading the same year and session replaces the
@@ -23,7 +23,7 @@ export async function uploadPaper({ streamId, subjectId, year, session, file, up
   if (!file) throw new Error("Choose a PDF to upload.");
   if (file.type !== "application/pdf") throw new Error("Question papers must be PDF files.");
 
-  const uploaded = await uploadFile(file, { folder: "dyansetu/papers" });
+  const uploaded = await uploadFile(file, { folder: "dnyansetu/papers" });
 
   try {
     const id = paperId({ streamId, subjectId, year, session });

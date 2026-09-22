@@ -1,5 +1,5 @@
 /* ============================================================================
-   DyanSetu — Subject-wise notes
+   DnyanSetu — Subject-wise notes
 
    Faculty upload against a stream and semester; students browse the same
    structure. Unlike the quiz, B.A. is included here — notes are for every

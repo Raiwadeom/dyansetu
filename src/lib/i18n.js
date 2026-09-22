@@ -4,7 +4,7 @@ import { createContext, useContext } from "react";
    About page and the Scholarships page are translated; every signed-in
    portal stays English, so this never gets threaded past those three. */
 
-export const LANG_KEY = "dyansetu-lang";
+export const LANG_KEY = "dnyansetu-lang";
 
 export const LangContext = createContext({ lang: "en", setLang: () => {} });
 

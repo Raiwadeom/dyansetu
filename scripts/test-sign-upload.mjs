@@ -21,27 +21,27 @@ delete process.env.CLOUDINARY_API_KEY;
 delete process.env.CLOUDINARY_API_SECRET;
 delete process.env.FIREBASE_PROJECT_ID;
 
-let res = await handleSignUpload({ idToken: "x", folder: "dyansetu/notes" });
+let res = await handleSignUpload({ idToken: "x", folder: "dnyansetu/notes" });
 check("refuses to sign", res.status === 503, `got ${res.status}`);
 
 /* ------------------------------ configured ------------------------------- */
 process.env.CLOUDINARY_API_KEY = "123456789";
 process.env.CLOUDINARY_API_SECRET = "test-secret";
-process.env.CLOUDINARY_UPLOAD_PRESET = "dyansetu_signed";
+process.env.CLOUDINARY_UPLOAD_PRESET = "dnyansetu_signed";
 process.env.FIREBASE_PROJECT_ID = "demo-project";
 
 console.log("\nrequest validation:");
 
-res = await handleSignUpload({ folder: "dyansetu/notes" });
+res = await handleSignUpload({ folder: "dnyansetu/notes" });
 check("no token is rejected", res.status === 401, `got ${res.status}`);
 
 res = await handleSignUpload({ idToken: "abc", folder: "etc/passwd" });
 check("arbitrary folder is rejected", res.status === 400, `got ${res.status}`);
 
-res = await handleSignUpload({ idToken: "abc", folder: "dyansetu/../secret" });
+res = await handleSignUpload({ idToken: "abc", folder: "dnyansetu/../secret" });
 check("path traversal is rejected", res.status === 400, `got ${res.status}`);
 
-res = await handleSignUpload({ idToken: "not.a.token", folder: "dyansetu/notes" });
+res = await handleSignUpload({ idToken: "not.a.token", folder: "dnyansetu/notes" });
 check("malformed token is rejected", res.status === 401, `got ${res.status}`);
 
 /* A structurally valid but unsigned token — the shape an attacker would forge. */
@@ -58,7 +58,7 @@ const forged = [
   Buffer.from("fake-signature").toString("base64url"),
 ].join(".");
 
-res = await handleSignUpload({ idToken: forged, folder: "dyansetu/notes" });
+res = await handleSignUpload({ idToken: forged, folder: "dnyansetu/notes" });
 check("forged token is rejected", res.status === 401, `got ${res.status}`);
 
 const alg = [
@@ -66,14 +66,14 @@ const alg = [
   b64({ aud: "demo-project", sub: "attacker" }),
   "",
 ].join(".");
-res = await handleSignUpload({ idToken: alg, folder: "dyansetu/notes" });
+res = await handleSignUpload({ idToken: alg, folder: "dnyansetu/notes" });
 check("alg=none is rejected", res.status === 401, `got ${res.status}`);
 
 /* --------------------------- signature algorithm -------------------------- */
 console.log("\nsignature algorithm:");
 
 const timestamp = 1700000000;
-const params = { folder: "dyansetu/notes", timestamp, upload_preset: "dyansetu_signed" };
+const params = { folder: "dnyansetu/notes", timestamp, upload_preset: "dnyansetu_signed" };
 const expected = crypto
   .createHash("sha1")
   .update(
@@ -85,7 +85,7 @@ const expected = crypto
    appended, SHA-1 hex. Confirm the shape we build matches. */
 const built = Object.keys(params).sort().map((k) => `${k}=${params[k]}`).join("&");
 check("params are sorted alphabetically",
-  built === "folder=dyansetu/notes&timestamp=1700000000&upload_preset=dyansetu_signed", built);
+  built === "folder=dnyansetu/notes&timestamp=1700000000&upload_preset=dnyansetu_signed", built);
 check("signature is 40 hex characters", /^[0-9a-f]{40}$/.test(expected), expected);
 
 /* ------------------------------ secret safety ----------------------------- */

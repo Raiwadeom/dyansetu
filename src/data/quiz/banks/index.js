@@ -1,5 +1,5 @@
 /* ============================================================================
-   DyanSetu — Question bank registry
+   DnyanSetu — Question bank registry
 
    Every bank module exports { beginner, intermediate, advanced }, each an array
    of [prompt, optA, optB, optC, optD, correctIndex] tuples.

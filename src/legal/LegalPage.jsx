@@ -2,7 +2,7 @@ import React, { useEffect } from "react";
 import { ArrowLeft, Shield, FileText, Mail } from "lucide-react";
 
 /* ============================================================================
-   DyanSetu — Privacy Policy and Terms of Service
+   DnyanSetu — Privacy Policy and Terms of Service
 
    Both documents share a layout, so they share a component. The content is
    written to describe what the platform actually does: accounts held in
@@ -16,7 +16,7 @@ const PRIVACY = {
   icon: Shield,
   title: "How we handle your information",
   intro:
-    "This policy explains what DyanSetu collects, why it is collected, and the control you have over it. It applies to every student, faculty member and administrator who uses the platform.",
+    "This policy explains what DnyanSetu collects, why it is collected, and the control you have over it. It applies to every student, faculty member and administrator who uses the platform.",
   sections: [
     {
       heading: "What we collect",
@@ -73,9 +73,9 @@ const PRIVACY = {
 const TERMS = {
   eyebrow: "Terms of Service",
   icon: FileText,
-  title: "The terms you agree to when you use DyanSetu",
+  title: "The terms you agree to when you use DnyanSetu",
   intro:
-    "DyanSetu is an academic platform operated for the students and faculty of the institution. By creating an account or using the platform you accept these terms.",
+    "DnyanSetu is an academic platform operated for the students and faculty of the institution. By creating an account or using the platform you accept these terms.",
   sections: [
     {
       heading: "Who may use the platform",

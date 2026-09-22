@@ -1,5 +1,5 @@
 /* ============================================================================
-   DyanSetu — Quiz progress shape
+   DnyanSetu — Quiz progress shape
 
    The three helpers here describe how a student's progress is stored. They are
    deliberately kept out of engine.js, which imports every question bank: the
@@ -10,7 +10,7 @@
 
 import { LEVEL_IDS } from "./curriculum.js";
 
-export const PROGRESS_KEY = "dyansetu-quiz-progress-v1";
+export const PROGRESS_KEY = "dnyansetu-quiz-progress-v1";
 
 export function subjectKey(streamId, year, subjectId) {
   return `${streamId}/${year}/${subjectId}`;

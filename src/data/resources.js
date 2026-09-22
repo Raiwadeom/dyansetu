@@ -1,5 +1,5 @@
 /* ============================================================================
-   DyanSetu — Student resource data (PYQ papers + scholarships)
+   DnyanSetu — Student resource data (PYQ papers + scholarships)
 
    PLACEHOLDER CONTENT. The structure is final; the values are representative
    examples so the pages are fully functional today. Replace them with the

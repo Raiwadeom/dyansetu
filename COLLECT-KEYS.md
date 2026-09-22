@@ -22,7 +22,7 @@ Open your Firebase project in a tab, click the Claude extension, and paste:
 Read the values I need to configure a web app, from two consoles I am logged
 into. Do not change any setting — only read.
 
-**In the Firebase console**, for my DyanSetu project, go to
+**In the Firebase console**, for my DnyanSetu project, go to
 Project Settings → General → Your apps → the Web app, and read the
 `firebaseConfig` block.
 
@@ -59,7 +59,7 @@ Both are clicks in a dashboard, and both matter:
 1. **Firestore → Rules** — paste all of `firestore.rules`, press Publish.
    Without this your database is open.
 2. **Cloudinary → Settings → Upload** — create an upload preset named
-   `dyansetu_signed` with signing mode **Signed**.
+   `dnyansetu_signed` with signing mode **Signed**.
 
 ## A note on the secret
 

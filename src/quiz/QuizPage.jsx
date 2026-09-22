@@ -20,7 +20,7 @@ import {
 } from "../lib/quizProgress.js";
 
 /* ============================================================================
-   DyanSetu — Quiz & Practice Tests
+   DnyanSetu — Quiz & Practice Tests
 
    Flow: year -> branch -> subject -> level -> practice test -> result.
 

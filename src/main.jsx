@@ -43,7 +43,7 @@ class ErrorBoundary extends React.Component {
   }
 
   componentDidCatch(error, info) {
-    console.error("[DyanSetu] render failed:", error, info);
+    console.error("[DnyanSetu] render failed:", error, info);
   }
 
   render() {
@@ -52,7 +52,7 @@ class ErrorBoundary extends React.Component {
 
     return (
       <div style={panel.wrap}>
-        <span style={panel.tag}>DyanSetu could not start</span>
+        <span style={panel.tag}>DnyanSetu could not start</span>
         <h2 style={{ margin: "14px 0 4px", fontSize: 21 }}>{error.name || "Error"}</h2>
         <div style={panel.msg}>{error.message || String(error)}</div>
         {error.stack && <div style={panel.stack}>{error.stack}</div>}

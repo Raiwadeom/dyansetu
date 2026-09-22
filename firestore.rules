@@ -1,7 +1,7 @@
 rules_version = '2';
 
 // ============================================================================
-// DyanSetu — Firestore security rules
+// DnyanSetu — Firestore security rules
 //
 // Paste this whole file into: Firebase console -> Firestore Database -> Rules
 // -> Publish.
