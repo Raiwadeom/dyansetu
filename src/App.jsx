@@ -27,7 +27,7 @@ import {
 } from "./lib/adminSession";
 import { NOTE_STREAMS, SEMESTERS, ACCEPTED_NOTE_TYPES, formatBytes } from "./data/notes";
 import {
-  SCHOLARSHIP_CATEGORIES, SCHOLARSHIP_CONTACT, scholarshipsFor, documentsFor, expandDocuments,
+  SCHOLARSHIP_CATEGORIES, scholarshipsFor, documentsFor, expandDocuments,
 } from "./data/resources";
 import { LANG_KEY, LangContext, useLang, makeTr } from "./lib/i18n";
 import {
@@ -1635,25 +1635,6 @@ function ScholarshipsPage({ onBack, onRegisterBack }) {
           )}
         </span>
       </p>
-
-      <div className="scholarship-contact">
-        <div className="scholarship-contact-avatar">
-          {SCHOLARSHIP_CONTACT.photo
-            ? <img src={SCHOLARSHIP_CONTACT.photo} alt={SCHOLARSHIP_CONTACT.name} />
-            : <User size={30} />}
-        </div>
-        <div className="scholarship-contact-body">
-          <p className="scholarship-contact-label">{tr("For scholarship queries, contact", "शिष्यवृत्तीसंबंधी प्रश्नांसाठी संपर्क करा")}</p>
-          <p className="scholarship-contact-name">{SCHOLARSHIP_CONTACT.name}</p>
-          <p className="scholarship-contact-role">{tr(SCHOLARSHIP_CONTACT.designation, SCHOLARSHIP_CONTACT.designationMr)}</p>
-          {(SCHOLARSHIP_CONTACT.phone || SCHOLARSHIP_CONTACT.email) && (
-            <p className="scholarship-contact-meta">
-              {SCHOLARSHIP_CONTACT.phone && <span><Phone size={13} /> {SCHOLARSHIP_CONTACT.phone}</span>}
-              {SCHOLARSHIP_CONTACT.email && <span><Mail size={13} /> {SCHOLARSHIP_CONTACT.email}</span>}
-            </p>
-          )}
-        </div>
-      </div>
 
       <div className="category-row" role="group" aria-label="Select your category">
         {SCHOLARSHIP_CATEGORIES.map((item) => (

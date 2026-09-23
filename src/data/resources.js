@@ -112,18 +112,6 @@ export function papersFor(stream, subject) {
 
 /* ------------------------------ Scholarships ------------------------------ */
 
-/* Who a student should contact with scholarship questions. Placeholder — swap
-   in the real name, designation and photo (import it like principalPhoto in
-   App.jsx and set `photo` below) as soon as they're confirmed. */
-export const SCHOLARSHIP_CONTACT = {
-  name: "To be added",
-  designation: "Scholarship Coordinator",
-  designationMr: "शिष्यवृत्ती समन्वयक",
-  photo: null,
-  phone: "",
-  email: "",
-};
-
 export const SCHOLARSHIP_CATEGORIES = [
   { id: "open", name: "Open / General", nameMr: "खुला / सर्वसाधारण", note: "No caste-based reservation claimed.", noteMr: "जातीवर आधारित आरक्षणाचा दावा नाही." },
   { id: "ews", name: "EWS", nameMr: "ईडब्ल्यूएस", note: "Economically Weaker Section, general category.", noteMr: "आर्थिकदृष्ट्या दुर्बल घटक, सर्वसाधारण प्रवर्ग." },
