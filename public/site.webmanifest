@@ -8,7 +8,7 @@
   "theme_color": "#f5f7fb",
   "icons": [
     {
-      "src": "/src/img/dnyansetu-logo.png",
+      "src": "/dnyansetu-logo.png",
       "sizes": "160x160",
       "type": "image/png"
     }
