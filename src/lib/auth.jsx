@@ -235,3 +235,52 @@ export function RequireAuth({ children, fallback = null }) {
   if (loading || !user) return fallback;
   return children;
 }
+
+/* ----------------------------------------------------------------------------
+   2-step verification (authenticator app, TOTP) — required for the admin.
+   The database refuses admin actions unless the session is "aal2", i.e. the
+   6-digit code was checked in this login.
+   ------------------------------------------------------------------------- */
+
+/* { current: "aal1" | "aal2", next: "aal1" | "aal2" } — next is aal2 when an
+   authenticator is already set up but this login has not been confirmed. */
+export async function getAssuranceLevel() {
+  if (!supabase) return { current: "aal1", next: "aal1" };
+  const { data, error } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+  if (error || !data) return { current: "aal1", next: "aal1" };
+  return { current: data.currentLevel, next: data.nextLevel };
+}
+
+/* The verified authenticator, if any. */
+export async function getVerifiedFactor() {
+  const { data } = await supabase.auth.mfa.listFactors();
+  return data?.totp?.find((f) => f.status === "verified") || null;
+}
+
+/* Starts setting up an authenticator: returns the QR code (an SVG data URL)
+   and the text secret for manual entry. Unfinished set-ups are cleared first
+   so a reload does not pile them up. */
+export async function startAuthenticatorSetup() {
+  const { data: listed } = await supabase.auth.mfa.listFactors();
+  for (const f of listed?.all || []) {
+    if (f.factor_type === "totp" && f.status !== "verified") {
+      await supabase.auth.mfa.unenroll({ factorId: f.id });
+    }
+  }
+  const { data, error } = await supabase.auth.mfa.enroll({
+    factorType: "totp",
+    friendlyName: `DnyanSetu admin ${new Date().toISOString().slice(0, 10)}`,
+  });
+  if (error) throw new Error(friendlyError(error, "Could not start 2-step verification set-up."));
+  return { factorId: data.id, qr: data.totp.qr_code, secret: data.totp.secret };
+}
+
+/* Checks a 6-digit code; on success the session becomes aal2. */
+export async function verifyAuthenticatorCode(factorId, code) {
+  const { error } = await supabase.auth.mfa.challengeAndVerify({ factorId, code: String(code).trim() });
+  if (error) {
+    throw new Error(/invalid|expired|code/i.test(error.message || "")
+      ? "That code is not right or has expired. Enter the current 6-digit code from your authenticator app."
+      : friendlyError(error, "Could not verify the code."));
+  }
+}

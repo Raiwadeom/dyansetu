@@ -15,6 +15,7 @@ import { isBackendConfigured } from "./lib/supabase";
 import { ErrorBoundary, NotFoundPage } from "./lib/errorPages";
 import {
   useAuth, acceptTerms, readOAuthIntent, clearOAuthIntent, safeNext,
+  getAssuranceLevel, getVerifiedFactor, startAuthenticatorSetup, verifyAuthenticatorCode,
 } from "./lib/auth";
 import {
   fetchProfile, updateProfile, listProfiles, adminUpdateProfile, adminDeleteProfile,
@@ -1209,6 +1210,16 @@ function AboutPage({ onBack }) {
 
 /* =============================== VIEW: Auth Screen ============================== */
 
+/* New passwords: at least 8 characters with a letter and a number. Supabase
+   enforces the same rule on the server; this just says it first. Existing
+   passwords keep working. */
+function passwordProblem(pw = "") {
+  if (pw.length < 8) return "Password must be at least 8 characters long.";
+  if (!/[A-Za-z]/.test(pw) || !/[0-9]/.test(pw)) return "Password must include at least one letter and one number.";
+  if (/^(password|12345678|qwerty|dnyansetu)/i.test(pw)) return "That password is too easy to guess. Please choose another.";
+  return "";
+}
+
 /* The official Google "G", drawn inline so the button needs no image request. */
 function GoogleMark() {
   return (
@@ -1281,8 +1292,9 @@ function AuthScreen({ mode, setMode, onSubmit, goLanding, roleScope = "student",
           : "Please fill in your email address, password, and confirm password.");
         return;
       }
-      if (password.length < 6) {
-        setError("Password should be at least 6 characters long.");
+      const weak = passwordProblem(password);
+      if (weak) {
+        setError(weak);
         return;
       }
       if (password !== confirmPassword) {
@@ -1374,8 +1386,9 @@ function AuthScreen({ mode, setMode, onSubmit, goLanding, roleScope = "student",
   const handleNewPassword = async (e) => {
     e.preventDefault();
     setError("");
-    if (newPassword.length < 6) {
-      setError("Password should be at least 6 characters long.");
+    const weak = passwordProblem(newPassword);
+    if (weak) {
+      setError(weak);
       return;
     }
     setSubmitting(true);
@@ -1445,7 +1458,7 @@ function AuthScreen({ mode, setMode, onSubmit, goLanding, roleScope = "student",
               </div>
             ) : (
               <form onSubmit={handleNewPassword}>
-                <Field label="New password" icon={Lock} type="password" autoComplete="new-password" placeholder="At least 6 characters" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
+                <Field label="New password" icon={Lock} type="password" autoComplete="new-password" placeholder="8+ characters, a letter and a number" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
                 <button type="submit" className="btn btn-primary btn-block btn-lg" style={{ marginTop: 16 }} disabled={submitting}>
                   {submitting ? <><Loader2 size={16} className="spin" /> Saving…</> : <>Save new password <ArrowRight size={16} /></>}
                 </button>
@@ -1541,7 +1554,7 @@ function AuthScreen({ mode, setMode, onSubmit, goLanding, roleScope = "student",
                 <Field label="Full Name" icon={User} type="text" placeholder="Enter your full name" value={name} onChange={(e) => setName(e.target.value)} />
               )}
               <Field label={mode === "signup" ? "Email" : "Registered Email"} icon={Mail} type="email" autoComplete="email" placeholder="name@arcsas.edu" value={email} onChange={(e) => setEmail(e.target.value)} />
-              <Field label="Password" icon={Lock} type={showPassword ? "text" : "password"} placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} />
+              <Field label="Password" icon={Lock} type={showPassword ? "text" : "password"} autoComplete={mode === "signup" ? "new-password" : "current-password"} placeholder={mode === "signup" ? "8+ characters, a letter and a number" : "••••••••"} value={password} onChange={(e) => setPassword(e.target.value)} />
               {mode === "signup" && (
                 <Field label="Confirm Password" icon={Lock} type={showPassword ? "text" : "password"} placeholder="Re-enter password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
               )}
@@ -1596,9 +1609,7 @@ function AuthScreen({ mode, setMode, onSubmit, goLanding, roleScope = "student",
                     disabled={googleBusy || (mode === "signup" && !termsAccepted)}
                   >
                     {googleBusy ? <Loader2 size={16} className="spin" /> : <GoogleMark />}
-                    {mode === "signup"
-                      ? "Sign up with Google"
-                      : selectedRole === "admin" ? `Continue with Google (${ADMIN_EMAIL})` : "Continue with Google"}
+                    {mode === "signup" ? "Sign up with Google" : "Continue with Google"}
                   </button>
                 </>
               )}
@@ -1667,6 +1678,103 @@ function AcceptTermsScreen({ user, onAccept, onSignOut }) {
             Sign out instead
           </button>
         </form>
+      </div>
+    </div>
+  );
+}
+
+/* 2-step verification for the administrator. First time: scan a QR code in an
+   authenticator app and confirm one code. Every login after: enter the
+   current 6-digit code. */
+function AdminMfaScreen({ user, onVerified, onSignOut }) {
+  const [state, setState] = useState({ loading: true, factorId: "", qr: "", secret: "", setup: false, error: "" });
+  const [code, setCode] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const factor = await getVerifiedFactor();
+        if (factor) {
+          if (active) setState({ loading: false, factorId: factor.id, qr: "", secret: "", setup: false, error: "" });
+          return;
+        }
+        const started = await startAuthenticatorSetup();
+        if (active) setState({ loading: false, ...started, setup: true, error: "" });
+      } catch (error) {
+        if (active) setState((s) => ({ ...s, loading: false, error: error.message }));
+      }
+    })();
+    return () => { active = false; };
+  }, []);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    if (busy || !/^\d{6}$/.test(code.trim())) {
+      setState((s) => ({ ...s, error: "Enter the 6-digit code from your authenticator app." }));
+      return;
+    }
+    setBusy(true);
+    try {
+      await verifyAuthenticatorCode(state.factorId, code);
+      await onVerified();
+    } catch (error) {
+      setState((s) => ({ ...s, error: error.message }));
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="auth-screen">
+      <div className="auth-brand-panel">
+        <InstitutionLockup size={64} tone="dark" className="auth-brand-institution" />
+      </div>
+      <div className="auth-form-panel">
+        <div className="auth-heading">
+          <h2 className="auth-title">{state.setup ? "Set up 2-step verification" : "Enter your security code"}</h2>
+          <p className="auth-sub">
+            {state.setup
+              ? "The admin account needs a second step. Scan this QR code with an authenticator app (Google Authenticator, Microsoft Authenticator or similar), then enter the 6-digit code it shows."
+              : `Signed in as ${user.email}. Open your authenticator app and enter the current 6-digit code for DnyanSetu.`}
+          </p>
+        </div>
+
+        {state.loading && <div className="boot-screen"><Loader2 size={20} className="spin" /> Preparing…</div>}
+
+        {state.setup && state.qr && (
+          <div className="mfa-setup">
+            <img src={state.qr} alt="QR code for your authenticator app" className="mfa-qr" />
+            <p className="mfa-secret">
+              Can't scan? Enter this key manually: <code>{state.secret}</code>
+            </p>
+          </div>
+        )}
+
+        {state.error && <div className="form-error">{state.error}</div>}
+
+        {!state.loading && state.factorId && (
+          <form onSubmit={submit}>
+            <Field
+              label="6-digit code"
+              icon={Lock}
+              type="text"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              maxLength={6}
+              placeholder="123456"
+              value={code}
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
+            />
+            <button type="submit" className="btn btn-primary btn-block btn-lg" style={{ marginTop: 16 }} disabled={busy}>
+              {busy ? <><Loader2 size={16} className="spin" /> Checking…</> : <>Verify and open admin desk <ArrowRight size={16} /></>}
+            </button>
+          </form>
+        )}
+
+        <button type="button" className="btn btn-ghost btn-block" style={{ marginTop: 10 }} onClick={onSignOut}>
+          Sign out
+        </button>
       </div>
     </div>
   );
@@ -2993,6 +3101,9 @@ export default function App() {
   /* "idle" | "checking" | "held" | "denied" — the administrator desk opens in
      one window at a time. */
   const [adminLock, setAdminLock] = useState("idle");
+  /* The admin desk opens only after the authenticator code is checked in
+     this login (the database enforces the same rule). */
+  const [adminVerified, setAdminVerified] = useState(false);
   const adminSessionRef = useRef(null);
 
   /* Language for the public-facing pages (landing, about, scholarships, and
@@ -3109,7 +3220,12 @@ export default function App() {
 
       const full = normalizeStudentProfile(profile);
       setCurrentUser(full);
+      let verified = true;
       if (full.role === "admin") {
+        verified = (await getAssuranceLevel()).current === "aal2";
+        setAdminVerified(verified);
+      }
+      if (full.role === "admin" && verified) {
         /* A denied directory read used to be swallowed here, so a broken admin
            profile looked identical to a platform with no users on it. Say what
            actually happened instead. */
@@ -3268,7 +3384,7 @@ export default function App() {
      refused; if this one dies without releasing, the heartbeat stops and the
      lock goes stale so the next window can take over. */
   useEffect(() => {
-    if (demoMode || currentUser?.role !== "admin") {
+    if (demoMode || currentUser?.role !== "admin" || !adminVerified) {
       setAdminLock("idle");
       return undefined;
     }
@@ -3311,7 +3427,7 @@ export default function App() {
       releaseAdminSession(sessionId);
       adminSessionRef.current = null;
     };
-  }, [currentUser?.role, currentUser?.id, demoMode]);
+  }, [currentUser?.role, currentUser?.id, demoMode, adminVerified]);
 
   /* Stamps the account when it opens the notes library, so the admin desk can
      show who has actually used it. Fire-and-forget; failure never blocks reading. */
@@ -3404,6 +3520,16 @@ export default function App() {
     if (!profile) return { success: false, message: "Signed in, but your profile could not be loaded. Please try again." };
     await completeSignIn(profile);
     return { success: true, message: "Login successful." };
+  };
+
+  const handleAdminVerified = async () => {
+    setAdminVerified(true);
+    try {
+      setUsers(await listProfiles());
+    } catch (e) {
+      console.error(e);
+    }
+    replaceView("admin-portal");
   };
 
   const handleAcceptTerms = async () => {
@@ -3591,7 +3717,10 @@ export default function App() {
         {view === "faculty-portal" && (
           <FacultyPortal profile={currentUser} onSaveProfile={handleProfileEdit} />
         )}
-        {view === "admin-portal" && adminLock === "denied" && (
+        {view === "admin-portal" && !demoMode && currentUser?.role === "admin" && !adminVerified && (
+        <AdminMfaScreen user={currentUser} onVerified={handleAdminVerified} onSignOut={logout} />
+      )}
+      {view === "admin-portal" && (demoMode || adminVerified) && adminLock === "denied" && (
           <main className="resource-page pyq-page">
             <div className="resource-head">
               <div className="resource-head-copy">
@@ -3614,10 +3743,10 @@ export default function App() {
             </div>
           </main>
         )}
-        {view === "admin-portal" && adminLock === "checking" && (
+        {view === "admin-portal" && (demoMode || adminVerified) && adminLock === "checking" && (
           <div className="boot-screen"><Loader2 size={20} className="spin" /> Checking administrator session…</div>
         )}
-        {view === "admin-portal" && (adminLock === "held" || adminLock === "idle") && (
+        {view === "admin-portal" && (demoMode || adminVerified) && (adminLock === "held" || adminLock === "idle") && (
           <AdminPortal users={users} onUpdateUser={handleUpdateUser} onDeleteUser={handleDeleteUser} />
         )}
       {view === "notfound" && <NotFoundPage />}
@@ -4650,6 +4779,11 @@ function Styles() {
         font-size: 13px; font-weight: 700; color: var(--text-muted);
       }
       .service-card.is-highlighted { animation: searchFlash 2.4s ease-out; }
+
+      .mfa-setup { display: flex; flex-direction: column; align-items: center; gap: 10px; margin-bottom: 16px; }
+      .mfa-qr { width: 190px; height: 190px; background: #FFFFFF; padding: 8px; border: 1px solid var(--border-light); border-radius: 12px; }
+      .mfa-secret { font-size: 12.5px; color: var(--text-muted); text-align: center; word-break: break-all; }
+      .mfa-secret code { font-size: 12px; color: var(--text-dark); background: #F1F5F9; padding: 2px 6px; border-radius: 4px; }
 
       .admin-rakt-link {
         display: flex; align-items: center; gap: 14px; text-decoration: none; color: var(--text-dark);

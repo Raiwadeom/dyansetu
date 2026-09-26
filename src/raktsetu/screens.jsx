@@ -931,7 +931,14 @@ export function AdminPage({ navigate }) {
       ]);
       setState({ loading: false, stats, reports, requests, log, error: "" });
     } catch (error) {
-      setState((s) => ({ ...s, loading: false, error: error.message }));
+      const needsCode = /administrators only/i.test(error.message || "");
+      setState((s) => ({
+        ...s,
+        loading: false,
+        error: needsCode
+          ? "Admin actions need your 2-step verification code. Open the DnyanSetu admin desk, enter the 6-digit code, then come back here."
+          : error.message,
+      }));
     }
   }, [filter]);
 

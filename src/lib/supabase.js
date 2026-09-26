@@ -65,7 +65,9 @@ export function friendlyError(error, fallback = "Something went wrong. Please tr
   if (/user already registered|already been registered/i.test(message)) {
     return "An account with this email already exists. Please log in instead.";
   }
-  if (/password should be at least/i.test(message)) return "Password should be at least 6 characters long.";
+  if (/password should be at least|password should contain|weak password/i.test(message)) {
+    return "Password must be at least 8 characters and include a letter and a number.";
+  }
   if (/unable to validate email|invalid email/i.test(message)) return "That does not look like a valid email address.";
   if (/rate limit|too many/i.test(message)) return "Too many attempts. Please wait a moment and try again.";
   if (/failed to fetch|network/i.test(message)) return "Cannot reach the server. Check your connection and try again.";

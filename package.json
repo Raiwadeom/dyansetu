@@ -11,7 +11,8 @@
     "build": "vite build",
     "preview": "vite preview --host",
     "check:rls": "node scripts/rls-check.mjs",
-    "test:upload": "node scripts/test-sign-upload.mjs"
+    "test:upload": "node scripts/test-sign-upload.mjs",
+    "audit": "npm audit"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.2",

@@ -1,0 +1,14 @@
+# GitHub checks the packages this site uses every week and opens a pull
+# request when a security fix or update is available. Nothing is merged
+# automatically — review the PR, let Vercel build its preview, then merge.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
