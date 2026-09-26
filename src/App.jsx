@@ -1360,7 +1360,7 @@ function AuthScreen({ mode, setMode, onSubmit, goLanding, roleScope = "student",
     setGoogleBusy(true);
     const result = await signInWithGoogle({
       intent: mode === "signup" ? "signup" : "login",
-      role: selectedRole === "faculty" ? "faculty" : "student",
+      role: selectedRole === "faculty" ? "faculty" : selectedRole === "admin" ? "admin" : "student",
       termsAccepted: mode === "signup" && termsAccepted,
       next,
     });
@@ -1586,7 +1586,7 @@ function AuthScreen({ mode, setMode, onSubmit, goLanding, roleScope = "student",
                 )}
               </button>
 
-              {selectedRole !== "admin" && (
+              {(selectedRole !== "admin" || mode === "login") && (
                 <>
                   <div className="auth-or"><span>or</span></div>
                   <button
@@ -1596,7 +1596,9 @@ function AuthScreen({ mode, setMode, onSubmit, goLanding, roleScope = "student",
                     disabled={googleBusy || (mode === "signup" && !termsAccepted)}
                   >
                     {googleBusy ? <Loader2 size={16} className="spin" /> : <GoogleMark />}
-                    {mode === "signup" ? "Sign up with Google" : "Continue with Google"}
+                    {mode === "signup"
+                      ? "Sign up with Google"
+                      : selectedRole === "admin" ? `Continue with Google (${ADMIN_EMAIL})` : "Continue with Google"}
                   </button>
                 </>
               )}
@@ -3138,6 +3140,16 @@ export default function App() {
     const intent = readOAuthIntent();
     clearOAuthIntent();
     const next = pendingNext || safeNext(intent?.next || "");
+
+    /* The Admin tab's Google button is only for the one administrator
+       address; any other Google account used there is signed straight out. */
+    if (intent?.role === "admin" && (current.email || "").toLowerCase() !== ADMIN_EMAIL) {
+      await auth.signOut();
+      setCurrentUser(null);
+      setNotice("This Google account is not the administrator account. Use the Admin tab only with the administrator email.");
+      replaceView("landing");
+      return;
+    }
 
     if (!current.termsAcceptedAt && intent?.intent === "signup" && intent.termsAccepted) {
       const accepted = await acceptTerms(intent.role);
