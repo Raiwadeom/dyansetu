@@ -159,29 +159,46 @@ function Footer({ tr }) {
 
 /* --------------------------------------------------------------- home page */
 
-const NOT_ELIGIBLE = [
-  [`You are under ${MIN_AGE}, over ${MAX_DONOR_AGE}, or weigh less than ${MIN_WEIGHT_KG} kg`,
-    `तुमचे वय ${MIN_AGE} पेक्षा कमी किंवा ${MAX_DONOR_AGE} पेक्षा जास्त आहे, किंवा वजन ${MIN_WEIGHT_KG} किलोपेक्षा कमी आहे`],
-  ["You have a fever, cold, cough or any infection today, or are taking antibiotics",
-    "आज तुम्हाला ताप, सर्दी, खोकला किंवा कोणताही संसर्ग आहे, किंवा तुम्ही अँटिबायोटिक्स घेत आहात"],
-  ["You donated blood in the last 4 months", "गेल्या 4 महिन्यांत तुम्ही रक्तदान केले आहे"],
-  ["You had a tattoo, piercing, acupuncture, major surgery or a transfusion in the last 12 months",
-    "गेल्या 12 महिन्यांत टॅटू, छिद्र (पिअर्सिंग), अ‍ॅक्युपंक्चर, मोठी शस्त्रक्रिया किंवा रक्त चढवले आहे"],
-  ["You have or have had HIV, hepatitis B or C, syphilis, or recent malaria",
-    "तुम्हाला HIV, हिपॅटायटिस B किंवा C, सिफिलिस आहे/होता, किंवा अलीकडे मलेरिया झाला आहे"],
-  ["You have heart disease, epilepsy, cancer, a bleeding disorder, or insulin-treated diabetes",
-    "तुम्हाला हृदयरोग, अपस्मार (फिट्स), कर्करोग, रक्तस्रावाचा विकार किंवा इन्सुलिनवरील मधुमेह आहे"],
-  ["You are pregnant or breastfeeding, or delivered or miscarried in the last 6 months",
-    "तुम्ही गर्भवती आहात किंवा स्तनपान करत आहात, किंवा गेल्या 6 महिन्यांत प्रसूती/गर्भपात झाला आहे"],
+/* Who can donate: four quick checks, shown as tiles. */
+const DONOR_CHECKS = [
+  { value: `${MIN_AGE}–${MAX_DONOR_AGE}`, label: ["Years old", "वर्षे वय"] },
+  { value: `${MIN_WEIGHT_KG}+ kg`, label: ["Body weight", "वजन"] },
+  { value: "✓", label: ["Healthy today", "आज तब्येत चांगली"] },
+  { value: "4 mo", valueMr: "4 महिने", label: ["Since last donation", "मागील रक्तदानापासून"] },
 ];
 
-const ELIGIBLE = [
-  [<>are <strong>{MIN_AGE}–{MAX_DONOR_AGE} years</strong> old</>, <>वय <strong>{MIN_AGE}–{MAX_DONOR_AGE} वर्षे</strong> आहे</>],
-  [<>weigh <strong>at least {MIN_WEIGHT_KG} kg</strong></>, <>वजन <strong>किमान {MIN_WEIGHT_KG} किलो</strong> आहे</>],
-  ["are in good health today, with no fever, cold or infection", "आज तब्येत चांगली आहे — ताप, सर्दी किंवा संसर्ग नाही"],
-  [<>have <strong>not donated blood in the last 4 months</strong> ({DONATION_GAP_DAYS} days)</>,
-    <><strong>गेल्या 4 महिन्यांत रक्तदान केलेले नाही</strong> ({DONATION_GAP_DAYS} दिवस)</>],
-  ["can confirm the health declaration in your profile", "प्रोफाइलमधील आरोग्य घोषणापत्राची खात्री देऊ शकता"],
+/* Who should not donate, grouped so the list is easy to scan. */
+const NOT_ELIGIBLE_GROUPS = [
+  {
+    title: ["Right now", "सध्या"],
+    items: [
+      ["Fever, cold, cough or any infection", "ताप, सर्दी, खोकला किंवा कोणताही संसर्ग"],
+      ["Taking antibiotics or medicine for an illness", "आजारासाठी अँटिबायोटिक्स किंवा औषधे घेत आहात"],
+      ["Donated blood in the last 4 months", "गेल्या 4 महिन्यांत रक्तदान केले आहे"],
+    ],
+  },
+  {
+    title: ["In the last 12 months", "गेल्या 12 महिन्यांत"],
+    items: [
+      ["Tattoo, piercing or acupuncture", "टॅटू, छिद्र (पिअर्सिंग) किंवा अ‍ॅक्युपंक्चर"],
+      ["Major surgery or a blood transfusion", "मोठी शस्त्रक्रिया किंवा रक्त चढवले"],
+    ],
+  },
+  {
+    title: ["Health conditions", "आरोग्य स्थिती"],
+    items: [
+      ["HIV, hepatitis B or C, syphilis, or recent malaria", "HIV, हिपॅटायटिस B किंवा C, सिफिलिस, किंवा अलीकडील मलेरिया"],
+      ["Heart disease, epilepsy, cancer or a bleeding disorder", "हृदयरोग, अपस्मार (फिट्स), कर्करोग किंवा रक्तस्रावाचा विकार"],
+      ["Diabetes treated with insulin", "इन्सुलिनवरील मधुमेह"],
+    ],
+  },
+  {
+    title: ["Pregnancy", "गर्भावस्था"],
+    items: [
+      ["Pregnant or breastfeeding", "गर्भवती किंवा स्तनपान करत आहात"],
+      ["Delivered or miscarried in the last 6 months", "गेल्या 6 महिन्यांत प्रसूती किंवा गर्भपात"],
+    ],
+  },
 ];
 
 const HERO_FACTS = [
@@ -213,8 +230,7 @@ function EligibilityGuide({ tr }) {
     <section className="rs-section rs-tone-1" id="eligibility" aria-labelledby="rs-elig-title">
       <SectionTitle
         id="rs-elig-title"
-        sub={tr("Read this before you join. The blood bank still does its own checks before any donation.",
-          "सामील होण्यापूर्वी हे वाचा. कोणत्याही रक्तदानापूर्वी रक्तपेढी स्वतःची तपासणी करतेच.")}
+        sub={tr("Read this before you join. The blood bank still does its own checks.", "सामील होण्यापूर्वी हे वाचा. रक्तपेढी स्वतःची तपासणी करतेच.")}
       >
         {tr("Who can use RaktSetu, and who can donate", "रक्तसेतू कोण वापरू शकते आणि रक्तदान कोण करू शकते")}
       </SectionTitle>
@@ -222,52 +238,56 @@ function EligibilityGuide({ tr }) {
       <div className="rs-age-banner" role="note">
         <span className="rs-age-badge">{MIN_AGE}+</span>
         <div>
-          <strong>{tr(`RaktSetu is only for people aged ${MIN_AGE} and over.`, `रक्तसेतू फक्त ${MIN_AGE} वर्षे व त्यावरील वयाच्या व्यक्तींसाठी आहे.`)}</strong>
-          <p>
-            {tr(
-              `Students and staff under ${MIN_AGE} can keep using everything else on DnyanSetu, but cannot join RaktSetu, post requests or receive alerts. The profile form will not accept an age under ${MIN_AGE}.`,
-              `${MIN_AGE} पेक्षा कमी वयाचे विद्यार्थी आणि कर्मचारी DnyanSetu वरील बाकी सर्व वापरू शकतात, पण रक्तसेतूमध्ये सामील होऊ शकत नाहीत, विनंती टाकू शकत नाहीत किंवा सूचना मिळवू शकत नाहीत. प्रोफाइल फॉर्म ${MIN_AGE} पेक्षा कमी वय स्वीकारत नाही.`,
-            )}
-          </p>
+          <strong>{tr(`Only for people aged ${MIN_AGE} and over`, `फक्त ${MIN_AGE} वर्षे व त्यावरील वयासाठी`)}</strong>
+          <p>{tr(
+            `Under ${MIN_AGE}? You can keep using the rest of DnyanSetu.`,
+            `${MIN_AGE} पेक्षा कमी वय? बाकी DnyanSetu तुम्ही वापरू शकता.`,
+          )}</p>
         </div>
       </div>
 
-      <div className="rs-guide-grid">
-        <article className="rs-card rs-guide rs-tone-2">
-          <h3><span className="rs-icon-chip"><CheckCircle2 size={18} /></span> {tr("You may volunteer as a donor if you", "तुम्ही रक्तदाता म्हणून स्वयंसेवा करू शकता, जर तुम्ही")}</h3>
-          <ul className="rs-ticks">
-            {ELIGIBLE.map((line, i) => <li key={i}>{pick(tr, line)}</li>)}
-          </ul>
-          <p className="rs-muted">
-            {tr("Students, faculty and staff can all join. Only age and health decide who can donate.",
-              "विद्यार्थी, प्राध्यापक आणि कर्मचारी सर्वजण सामील होऊ शकतात. रक्तदान कोण करू शकते हे फक्त वय आणि आरोग्य ठरवते.")}
-          </p>
-        </article>
-
-        <article className="rs-card rs-guide rs-tone-4">
-          <h3><span className="rs-icon-chip"><XCircle size={18} /></span> {tr("Please do not volunteer if any of these apply", "यापैकी काहीही लागू असल्यास कृपया स्वयंसेवा करू नका")}</h3>
-          <ul className="rs-crosses">
-            {NOT_ELIGIBLE.map((line) => <li key={line[0]}>{pick(tr, line)}</li>)}
-          </ul>
-        </article>
-      </div>
-
-      <article className="rs-card rs-guide rs-guide--wide rs-tone-5">
-        <h3><span className="rs-icon-chip"><HeartPulse size={18} /></span> {tr("After you donate", "रक्तदानानंतर")}</h3>
-        <p>
-          {tr(
-            "Your body needs time to rebuild the blood you gave. Once you record a donation, RaktSetu automatically stops showing you requests to help with and stops matching you by email for 4 months. You can still post requests for someone else during that time.",
-            "दिलेले रक्त पुन्हा तयार होण्यासाठी शरीराला वेळ लागतो. रक्तदानाची नोंद केल्यावर रक्तसेतू 4 महिने तुम्हाला मदतीसाठी विनंत्या दाखवणे आणि ईमेलद्वारे जुळवणे आपोआप थांबवते. या काळात तुम्ही इतरांसाठी विनंती टाकू शकता.",
-          )}
-        </p>
+      <article className="rs-card rs-elig-block rs-tone-2">
+        <h3><span className="rs-icon-chip"><CheckCircle2 size={18} /></span> {tr("You can donate if you are", "तुम्ही रक्तदान करू शकता, जर")}</h3>
+        <ul className="rs-check-tiles">
+          {DONOR_CHECKS.map((c) => (
+            <li key={c.label[0]}>
+              <strong>{c.valueMr ? tr(c.value, c.valueMr) : c.value}</strong>
+              <span>{pick(tr, c.label)}</span>
+            </li>
+          ))}
+        </ul>
+        <p className="rs-muted">{tr(
+          "Students, faculty and staff can all join, and you confirm your health in the profile form.",
+          "विद्यार्थी, प्राध्यापक आणि कर्मचारी सर्वजण सामील होऊ शकतात; आरोग्याची खात्री प्रोफाइल फॉर्ममध्ये द्या.",
+        )}</p>
       </article>
 
-      <p className="rs-note">
-        {tr(
-          "The blood bank or hospital always makes the final decision. They will check your haemoglobin, blood pressure and health history before any donation. RaktSetu does not give medical advice.",
-          "अंतिम निर्णय नेहमी रक्तपेढी किंवा रुग्णालयच घेते. रक्तदानापूर्वी ते तुमचे हिमोग्लोबिन, रक्तदाब आणि आरोग्य इतिहास तपासतील. रक्तसेतू वैद्यकीय सल्ला देत नाही.",
-        )}
-      </p>
+      <article className="rs-card rs-elig-block rs-tone-4">
+        <h3><span className="rs-icon-chip"><XCircle size={18} /></span> {tr("Please do not donate if you have", "यापैकी काही असल्यास रक्तदान करू नका")}</h3>
+        <div className="rs-reason-groups">
+          {NOT_ELIGIBLE_GROUPS.map((g) => (
+            <div key={g.title[0]} className="rs-reason-group">
+              <h4>{pick(tr, g.title)}</h4>
+              <ul className="rs-crosses">
+                {g.items.map((line) => <li key={line[0]}>{pick(tr, line)}</li>)}
+              </ul>
+            </div>
+          ))}
+        </div>
+      </article>
+
+      <article className="rs-card rs-elig-block rs-tone-5">
+        <h3><span className="rs-icon-chip"><HeartPulse size={18} /></span> {tr("After you donate", "रक्तदानानंतर")}</h3>
+        <p>{tr(
+          "Rest for 4 months. Once you record a donation, RaktSetu pauses your requests and email matches for that time automatically.",
+          "4 महिने विश्रांती घ्या. रक्तदानाची नोंद केल्यावर रक्तसेतू त्या काळात विनंत्या आणि ईमेल जुळवणी आपोआप थांबवते.",
+        )}</p>
+      </article>
+
+      <p className="rs-note">{tr(
+        "The blood bank or hospital always makes the final decision after checking haemoglobin and blood pressure. RaktSetu does not give medical advice.",
+        "हिमोग्लोबिन व रक्तदाब तपासून अंतिम निर्णय नेहमी रक्तपेढी किंवा रुग्णालयच घेते. रक्तसेतू वैद्यकीय सल्ला देत नाही.",
+      )}</p>
     </section>
   );
 }
