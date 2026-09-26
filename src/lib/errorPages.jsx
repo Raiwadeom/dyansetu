@@ -163,12 +163,15 @@ export class ErrorBoundary extends React.Component {
 
   render() {
     if (!this.state.error) return this.props.children;
-    /* After a new deploy, an open tab asks for code files that no longer
-       exist. A reload fetches the new version, so do that once, quietly. */
-    if (/Failed to fetch dynamically imported module|Importing a module script failed|ChunkLoadError/i.test(this.state.error?.message || "")) {
+    /* After a new deploy, a tab that was already open asks for code files
+       that no longer exist. Reloading fetches the new version, so do it
+       quietly — every time a new version is out, but never twice within a
+       minute, so a real outage cannot cause a reload loop. */
+    if (/Failed to fetch dynamically imported module|Importing a module script failed|ChunkLoadError|error loading dynamically imported module/i.test(this.state.error?.message || "")) {
       try {
-        if (!sessionStorage.getItem("dnyansetu:reloaded-for-update")) {
-          sessionStorage.setItem("dnyansetu:reloaded-for-update", "1");
+        const last = Number(sessionStorage.getItem("dnyansetu:reloaded-for-update") || 0);
+        if (Date.now() - last > 60 * 1000) {
+          sessionStorage.setItem("dnyansetu:reloaded-for-update", String(Date.now()));
           window.location.reload();
           return null;
         }
