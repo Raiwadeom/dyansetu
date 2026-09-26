@@ -3383,11 +3383,20 @@ export default function App() {
         setAuthMode("login");
         return result;
       }
+      /* Seed the new profile while the sign-up session is live, then end it:
+         logging in is a deliberate second step, so the new account lands on
+         the Log in tab with a confirmation instead of going straight in.
+         (Google sign-in stays one step.) */
       const profile = await loadForSession(result.session);
-      if (!profile) return { success: false, message: "Account created, but your profile could not be loaded. Please log in." };
-      await seedNewProfile(profile);
-      redirectUser(profile);
-      return { success: true, message: "Account created." };
+      if (profile) await seedNewProfile(profile);
+      await auth.signOut();
+      setCurrentUser(null);
+      setUsers([]);
+      setAuthMode("login");
+      return {
+        success: true,
+        message: "Account created! Now log in with your email and password to continue.",
+      };
     }
 
     const result = await auth.signInWithEmail({ email, password: creds.password });
