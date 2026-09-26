@@ -152,10 +152,11 @@ const NOTICE_BOARD = [
   },
   {
     id: "raktsetu",
-    title: "RaktSetu, our student blood-donation network, is coming soon.",
-    titleMr: "रक्तसेतू, आमचे विद्यार्थी रक्तदान नेटवर्क, लवकरच सुरू होत आहे.",
+    title: "RaktSetu, our student blood-donation network, is now live.",
+    titleMr: "रक्तसेतू, आमचे विद्यार्थी रक्तदान नेटवर्क, आता सुरू झाले आहे.",
     date: "18 Sep 2026",
-    status: "soon",
+    status: "live",
+    ...(RAKTSETU_APP_URL ? { href: RAKTSETU_APP_URL } : {}),
   },
 ];
 
@@ -238,8 +239,8 @@ const LANDING_HUBS = [
         href: RAKTSETU_APP_URL,
         cta: "Open RaktSetu app",
         ctaMr: "रक्तसेतू अ‍ॅप उघडा",
-        pendingNote: "App link coming soon",
-        pendingNoteMr: "अ‍ॅपची लिंक लवकरच उपलब्ध होईल",
+        pendingNote: "Live since 18 Sep 2026",
+        pendingNoteMr: "१८ सप्टेंबर २०२६ पासून सुरू",
       },
       {
         id: "csm-news-desk",
