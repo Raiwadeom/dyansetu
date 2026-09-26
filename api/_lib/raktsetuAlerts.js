@@ -69,7 +69,6 @@ export async function sendPushAlerts(request) {
 
   for (let i = 0; i < (targets || []).length; i += PUSH_CHUNK) {
     const chunk = targets.slice(i, i + PUSH_CHUNK);
-    // eslint-disable-next-line no-await-in-loop
     const results = await Promise.allSettled(chunk.map((t) => webpush.sendNotification(
       { endpoint: t.endpoint, keys: t.keys },
       payload,
@@ -205,7 +204,6 @@ export async function sendEmailAlerts(request, site) {
       };
     });
 
-    // eslint-disable-next-line no-await-in-loop
     const response = await fetch("https://api.resend.com/emails/batch", {
       method: "POST",
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
@@ -226,36 +224,4 @@ export async function sendEmailAlerts(request, site) {
   if (sent) await admin.rpc("raktsetu_log_emails", { p_count: sent });
 
   return { sent, failed, matching: all.length, limitHit };
-}
-
-/* One clearly-labelled test alert to a single address — used to check the
-   Resend domain, the template and spam placement before going live. Counts
-   toward the daily limit like any other send. */
-export async function sendTestAlert(to, site, userId = "00000000-0000-0000-0000-000000000000") {
-  const apiKey = env("RESEND_API_KEY");
-  const from = env("RESEND_FROM");
-  if (!apiKey || !from) throw new Error("RESEND_API_KEY / RESEND_FROM are not set.");
-  const request = {
-    id: "test", blood_group: "O+", units: 1, hospital: "[TEST] Sample Hospital",
-    address: "This is a test alert — no one needs blood", city: "Udgir",
-    needed_by: new Date(Date.now() + 6 * 3600 * 1000).toISOString(),
-  };
-  const openUrl = `${site}/raktsetu`;
-  const unsubscribeUrl = `${site}/api/raktsetu/unsubscribe?token=${encodeURIComponent(makeUnsubscribeToken(userId))}`;
-  const response = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      from,
-      to: [to],
-      subject: "[TEST] Blood needed: O+ — 1 unit(s) at Sample Hospital, Udgir",
-      html: emailHtml(request, { name: "", openUrl, unsubscribeUrl }),
-      text: emailText(request, { openUrl, unsubscribeUrl }),
-      headers: { "List-Unsubscribe": `<${unsubscribeUrl}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" },
-    }),
-  });
-  const body = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(`Resend HTTP ${response.status}: ${JSON.stringify(body)}`);
-  await supabaseAdmin().rpc("raktsetu_log_emails", { p_count: 1 });
-  return body.id;
 }

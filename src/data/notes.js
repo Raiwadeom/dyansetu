@@ -23,15 +23,10 @@ export function noteStreamById(id) {
   return NOTE_STREAMS.find((s) => s.id === id) || null;
 }
 
-export function noteStreamName(id) {
-  return noteStreamById(id)?.name || id;
-}
-
 /* Accepted attachments. Handwritten notes are usually photographed, so images
    matter as much as PDFs here. */
 export const ACCEPTED_NOTE_TYPES = "application/pdf,image/png,image/jpeg,image/webp";
 
-export const MAX_NOTE_FILE_BYTES = 15 * 1024 * 1024;
 export const MAX_NOTE_FILES = 12;
 
 export function formatBytes(bytes) {

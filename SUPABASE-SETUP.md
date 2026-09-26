@@ -54,35 +54,13 @@ The Google screen will say "Continue to `<project-ref>.supabase.co`". Showing
 your own domain there is a paid Supabase add-on; the DnyanSetu name and logo
 from step 2 are what make it look trustworthy for now.
 
-## Part 3 — Move existing Firebase users (nobody gets locked out)
+## Part 3 — Existing Firebase users (done 2026-09-26)
 
-How it works: every Firebase user is copied into Supabase with the same email
-and profile but **no password**. The first time they log in with their usual
-email and password, the site checks that password against Firebase (still
-running, untouched) and sets it on Supabase. After that Firebase is no longer
-involved for them. Nothing in Firebase is deleted.
-
-1. Firebase console → Project settings → **Service accounts → Generate new
-   private key**. Save the JSON **outside** the project folder, e.g.
-   `C:\Users\91992\Documents\firebase-key.json`. Never commit it.
-2. Add to `.env.local` (and Vercel): `FIREBASE_API_KEY` = your old
-   `VITE_FIREBASE_API_KEY` value.
-3. From `hac/`, dry run first, then for real:
-   ```
-   npm run migrate:firebase -- --service-account=C:\Users\91992\Documents\firebase-key.json --dry-run
-   npm run migrate:firebase -- --service-account=C:\Users\91992\Documents\firebase-key.json
-   ```
-   It copies users, profiles, quiz attempts, notes and question papers, and is
-   safe to re-run.
-4. The admin account `smuiqac@gmail.com` keeps its admin role through the
-   migration. If you ever need to set it by hand (SQL Editor):
-   ```sql
-   update public.profiles set role = 'admin', restricted = false, status = 'active'
-   where email = 'smuiqac@gmail.com';
-   ```
-
-Anyone who signs in with Google using the same email is linked to their
-migrated account automatically.
+All 9 Firebase accounts were copied into Supabase with their roles and quiz
+history. Each one gets their Supabase password the first time they log in with
+their old password (`api/legacy-login.js` checks it against Firebase, which is
+kept running for exactly this). Keep `FIREBASE_API_KEY` set until all of them
+have logged in once; after that the endpoint and the Firebase project can go.
 
 ## Part 4 — RaktSetu alerts
 

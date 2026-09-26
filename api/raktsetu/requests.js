@@ -20,6 +20,10 @@ import {
 import { sendEmailAlerts, sendPushAlerts } from "../_lib/raktsetuAlerts.js";
 
 const GROUPS = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
+
+/* Mirrors raktsetu_has_payment_words() in the database, which is what
+   actually refuses them; checked here too for a clear message. */
+const PAYMENT_WORDS = /(\bupi\b|\bg ?pay\b|google ?pay|\bphone ?pe\b|paytm|₹|\brupees?\b|\brs\.? ?\d|\binr\b|\bifsc\b|\baccount ?(no|number|num)\b|bank ?details|\bpayments?\b|send ?money|transfer ?money|processing ?fee|service ?charge|donation ?fee|\bprice\b|cost of blood)/i;
 const MAX_PER_DAY = 3;
 
 function text(value, max) {
@@ -54,6 +58,9 @@ function validate(body) {
     return { error: "The needed-by time must be within the next 30 days." };
   }
   if (body.genuine !== true) return { error: "Please confirm this request is genuine." };
+  if (PAYMENT_WORDS.test(`${request.patient_name} ${request.hospital} ${request.address} ${request.note}`)) {
+    return { error: "Requests cannot mention money, payment or bank details. Blood is never paid for through RaktSetu." };
+  }
 
   request.needed_by = request.needed_by.toISOString();
   return { request, phone };
@@ -107,13 +114,23 @@ export default async function handler(req, res) {
 
   const { data: saved, error: saveError } = await admin
     .from("blood_requests")
-    .insert({ ...request, requester_id: caller.user.id })
+    .insert({
+      ...request,
+      requester_id: caller.user.id,
+      /* Shown as a "New member" badge so donors can judge for themselves. Uses
+         the DnyanSetu join date, so accounts moved over from Firebase keep
+         their original age. */
+      new_member: Date.now() - new Date(caller.profile.created_at || caller.user.created_at).getTime() < 24 * 60 * 60 * 1000,
+    })
     .select("*")
     .single();
   if (saveError) {
     const limited = /at most 3/i.test(saveError.message || "");
-    if (!limited) console.error("[raktsetu] save failed:", saveError.message);
-    res.status(limited ? 429 : 500).json({ error: limited ? saveError.message : "Could not save the request." });
+    const payment = /money, payment/i.test(saveError.message || "");
+    if (!limited && !payment) console.error("[raktsetu] save failed:", saveError.message);
+    res.status(limited ? 429 : payment ? 400 : 500).json({
+      error: limited || payment ? saveError.message : "Could not save the request.",
+    });
     return;
   }
 

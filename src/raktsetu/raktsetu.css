@@ -10,7 +10,7 @@
    Everything is scoped under .rs-root so it never leaks into DnyanSetu.
    ========================================================================== */
 
-@import url("https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600;700&family=Noto+Sans+Devanagari:wght@400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600;700&family=Noto+Sans+Devanagari:wght@400;500;600;700&family=Noto+Serif:wght@700&family=Noto+Serif+Devanagari:wght@600;700&display=swap");
 
 .rs-root {
   --rs-navy: #0b2f5b;          /* header, headings */
@@ -81,7 +81,7 @@
 
 /* ------------------------------------------------------------------ header */
 
-.rs-header { background: #0b2f5b; color: #fff; }
+.rs-header { background: var(--rs-surface); color: var(--rs-text); border-bottom: 1px solid var(--rs-line); }
 /* The tricolour strip every GoI portal carries. */
 .rs-header::before { content: ""; display: block; }
 
@@ -89,21 +89,37 @@
   max-width: 1280px; margin: 0 auto; padding: 12px 20px 12px 14px;
   display: flex; align-items: center; justify-content: space-between; gap: 16px;
 }
-.rs-brand { display: flex; align-items: center; gap: 12px; color: #fff !important; text-decoration: none; min-width: 0; }
-.rs-logo-mark { flex-shrink: 0; display: block; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.2)); }
-.rs-brand-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; line-height: 1.2; }
-.rs-brand-name { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
-.rs-brand-name strong { font-size: 22px; letter-spacing: 0.01em; }
-.rs-brand-hi { font-size: 15px; color: #ffcf8a; font-weight: 600; }
-.rs-brand-text small {
-  font-size: 12px; color: #d5e2f3; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600;
+.rs-brand { display: flex; align-items: center; text-decoration: none; min-width: 0; }
+
+/* Brand lockup (RaktSetu brand sheet): split drop + serif wordmark. */
+.rs-lockup { display: inline-flex; align-items: center; gap: 12px; min-width: 0; }
+.rs-drop-mark { display: block; flex-shrink: 0; }
+.rs-drop-left { fill: #a51c24; }
+.rs-drop-right { fill: #6e1016; }
+.rs-lockup-text { display: flex; flex-direction: column; line-height: 1.05; min-width: 0; }
+.rs-lockup-text strong {
+  font-family: "Noto Serif", Georgia, serif; font-weight: 700; font-size: 26px; color: #16202e; letter-spacing: -0.01em;
+}
+.rs-lockup-text span {
+  font-family: "Noto Serif Devanagari", "Noto Sans Devanagari", serif; font-weight: 600; font-size: 16px; color: #a51c24;
+}
+/* Reversed: bright red + white halves, white wordmark, soft pink Devanagari. */
+.rs-lockup--reversed .rs-drop-left { fill: #e0353e; }
+.rs-lockup--reversed .rs-drop-right { fill: #ffffff; }
+.rs-lockup--reversed .rs-lockup-text strong { color: #ffffff; }
+.rs-lockup--reversed .rs-lockup-text span { color: #f4b6b6; }
+@media (prefers-color-scheme: dark) {
+  .rs-header .rs-drop-left { fill: #e0353e; }
+  .rs-header .rs-drop-right { fill: #ffffff; }
+  .rs-header .rs-lockup-text strong { color: #ffffff; }
+  .rs-header .rs-lockup-text span { color: #f4b6b6; }
 }
 .rs-back {
   display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0;
-  color: #0b2f5b !important; background: #fff; text-decoration: none;
+  color: #fff !important; background: #1e3a5f; text-decoration: none;
   font-size: 14px; font-weight: 600; border-radius: 6px; padding: 8px 14px; line-height: 1.2;
 }
-.rs-back:hover { background: #e8eff9; }
+.rs-back:hover { background: #16202e; }
 
 .rs-nav {
   background: var(--rs-surface); border-bottom: 1px solid var(--rs-line);
@@ -416,10 +432,7 @@
   display: flex; flex-direction: column; gap: 12px; align-items: center; text-align: center;
 }
 .rs-footer-inner > p { max-width: 760px; }
-.rs-footer-brand { display: flex; align-items: center; gap: 12px; text-align: left; }
-.rs-footer-brand > div { display: flex; flex-direction: column; line-height: 1.3; }
-.rs-footer-brand strong { color: #fff; font-size: 18px; }
-.rs-footer-brand span { font-size: 12.5px; }
+.rs-footer-brand { display: flex; align-items: center; text-align: left; }
 .rs-footer a { color: #fff; }
 .rs-footer .rs-footer-warning { color: #ffd08a; justify-content: center; }
 .rs-footer-links { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 20px; }
@@ -430,12 +443,9 @@
 
 @media (max-width: 480px) {
   .rs-header-top { padding: 12px; gap: 10px; }
-  .rs-brand { gap: 10px; }
-  .rs-logo-mark { width: 34px; height: 34px; }
-  .rs-brand-text strong { font-size: 18px; }
-  .rs-brand-text small { display: none; }
-  .rs-brand-name strong { font-size: 19px; }
-  .rs-brand-hi { font-size: 13px; }
+  .rs-lockup { gap: 9px; }
+  .rs-lockup-text strong { font-size: 21px; }
+  .rs-lockup-text span { font-size: 13.5px; }
   .rs-back { padding: 8px 10px; font-size: 13px; }
   .rs-back .rs-back-long { display: none; }
   .rs-nav-inner { padding: 8px; gap: 4px; }
@@ -508,7 +518,6 @@
   55%, 100% { stroke-dashoffset: 0; }
 }
 
-.rs-beat { transform-box: fill-box; transform-origin: center; animation: rs-beat 1.6s ease-in-out infinite; }
 .rs-heart { display: block; transform-origin: center; animation: rs-beat 1.6s ease-in-out infinite; }
 .rs-title-heart .rs-heart { animation-delay: 0.2s; }
 .rs-ecg-path { stroke-dasharray: 420; animation: rs-draw 3.2s ease-in-out infinite; }
@@ -553,17 +562,16 @@
 
 /* Language switch (EN / मराठी) in the header. */
 .rs-header-actions { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
-.rs-lang { display: inline-flex; border-radius: 6px; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.55); }
+.rs-lang { display: inline-flex; border-radius: 6px; overflow: hidden; border: 1px solid var(--rs-line); }
 .rs-lang button {
-  background: transparent; color: #fff; border: 0; padding: 7px 10px; font: inherit;
+  background: var(--rs-surface); color: var(--rs-text); border: 0; padding: 7px 10px; font: inherit;
   font-size: 13px; font-weight: 700; line-height: 1.2; cursor: pointer;
 }
-.rs-lang button + button { border-left: 1px solid rgba(255, 255, 255, 0.55); }
-.rs-lang button.is-active { background: #fff; color: #0b2f5b; }
+.rs-lang button + button { border-left: 1px solid var(--rs-line); }
+.rs-lang button.is-active { background: #1e3a5f; color: #fff; }
 @media (max-width: 480px) {
   .rs-header-actions { gap: 6px; }
   .rs-lang button { padding: 7px 8px; font-size: 12px; }
-  .rs-brand-hi { display: none; }
 }
 @media (max-width: 360px) {
   .rs-back > span:last-child { display: none; }
@@ -665,3 +673,19 @@
 @media (max-width: 400px) {
   .rs-info-grid { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* Safety additions: emergency help, badges, moderation log. */
+.rs-emergency {
+  background: var(--rs-primary-soft); border-left: 4px solid var(--rs-primary);
+  border-radius: 6px; padding: 10px 14px; font-size: 14.5px; line-height: 1.5;
+}
+.rs-emergency a { font-weight: 700; }
+.rs-badges { display: inline-flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.rs-new-member {
+  font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 999px; white-space: nowrap;
+  background: var(--rs-warn-soft); color: var(--rs-warn); border: 1px solid var(--rs-line);
+}
+.rs-status--review { background: var(--rs-warn-soft); color: var(--rs-warn); }
+.rs-admin-log { list-style: none; margin: 0; display: flex; flex-direction: column; gap: 8px; font-size: 14.5px; }
+.rs-admin-log li { padding-bottom: 8px; border-bottom: 1px solid var(--rs-line); }
+.rs-admin-log li:last-child { border-bottom: 0; padding-bottom: 0; }

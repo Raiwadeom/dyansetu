@@ -3,7 +3,7 @@
 import React from "react";
 import { AlertTriangle, Loader2 } from "lucide-react";
 
-import { PAYMENT_WARNING, displayGroup } from "./api.js";
+import { ERAKTKOSH_URL, HEALTH_HELPLINE, PAYMENT_WARNING, displayGroup } from "./api.js";
 
 /* An in-app link: a real <a href> (so open-in-new-tab works) that navigates
    without a page load on a plain click. */
@@ -73,24 +73,28 @@ export function todayIso() {
 
 /* ------------------------------------------------------------- brand art */
 
-/* RaktSetu mark: a heart carrying a blood drop, resting on a bridge ("setu").
-   The heart beats gently; the motion stops for anyone who asked their device
-   to reduce motion. */
+/* RaktSetu mark (from the brand sheet): a blood drop split into two halves,
+   giver and receiver. Colours come from CSS so the reversed version (bright
+   red + white on dark) is a class away. */
 export function RaktSetuLogo({ size = 44, className = "" }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 48 48" aria-hidden="true" className={`rs-logo-mark ${className}`}>
-      <circle cx="24" cy="24" r="23" fill="#ffffff" />
-      <circle cx="24" cy="24" r="21" fill="none" stroke="#e07b00" strokeWidth="1.5" />
-      <g className="rs-beat">
-        <path
-          d="M24 36.5C15.5 30.2 10.5 25.4 10.5 19.4a6.9 6.9 0 0 1 13.5-2.1 6.9 6.9 0 0 1 13.5 2.1c0 6-5 10.8-13.5 17.1z"
-          fill="#0b2f5b"
-        />
-        <path d="M24 18.2s-4.2 5-4.2 7.6a4.2 4.2 0 0 0 8.4 0c0-2.6-4.2-7.6-4.2-7.6z" fill="#ffffff" />
-      </g>
-      <path d="M8.5 38.5Q24 30.5 39.5 38.5" fill="none" stroke="#e07b00" strokeWidth="2.2" strokeLinecap="round" />
-      <path d="M14 36v4M24 33.5v6.5M34 36v4" stroke="#e07b00" strokeWidth="1.6" strokeLinecap="round" />
+    <svg width={size * (100 / 120)} height={size} viewBox="0 0 100 120" aria-hidden="true" className={`rs-drop-mark ${className}`}>
+      <path className="rs-drop-left" d="M46 4C33 21 6 54 6 76a40 40 0 0 0 40 40Z" />
+      <path className="rs-drop-right" d="M54 4c13 17 40 50 40 72a40 40 0 0 1-40 40Z" />
     </svg>
+  );
+}
+
+/* Primary lockup: mark + "RaktSetu" + "रक्तसेतु". `reversed` for dark backgrounds. */
+export function RaktSetuLockup({ size = 44, reversed = false }) {
+  return (
+    <span className={`rs-lockup ${reversed ? "rs-lockup--reversed" : ""}`}>
+      <RaktSetuLogo size={size} />
+      <span className="rs-lockup-text">
+        <strong>RaktSetu</strong>
+        <span lang="mr">रक्तसेतु</span>
+      </span>
+    </span>
   );
 }
 
@@ -133,5 +137,28 @@ export function HeartbeatLine() {
         strokeLinejoin="round"
       />
     </svg>
+  );
+}
+
+/* Government help shown next to requests: RaktSetu is never the only way. */
+export function EmergencyHelp({ tr = (en) => en }) {
+  return (
+    <p className="rs-emergency" role="note">
+      <strong>{tr("Emergency?", "आपत्कालीन स्थिती?")}</strong>{" "}
+      {tr("Contact the hospital's blood bank directly, call", "थेट रुग्णालयाच्या रक्तपेढीशी संपर्क साधा, कॉल करा")}{" "}
+      <a href={`tel:${HEALTH_HELPLINE}`}>{HEALTH_HELPLINE}</a>{" "}
+      {tr("(health helpline), or check live blood stock on", "(आरोग्य हेल्पलाइन), किंवा रक्तसाठा पहा")}{" "}
+      <a href={ERAKTKOSH_URL} target="_blank" rel="noreferrer">e-RaktKosh</a>
+      {tr(" (Government of India).", " (भारत सरकार).")}
+    </p>
+  );
+}
+
+/* Account created less than a day before the request was posted. */
+export function NewMemberBadge() {
+  return (
+    <span className="rs-new-member" title="This request was posted by an account created less than a day earlier. Check the details with the hospital before going.">
+      New member
+    </span>
   );
 }

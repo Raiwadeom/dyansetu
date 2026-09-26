@@ -118,7 +118,6 @@ export async function uploadFiles(files, options = {}) {
   for (let i = 0; i < files.length; i += 1) {
     /* Sequential, so progress can report "file 2 of 5" and one failure does not
        leave five half-finished uploads in flight. */
-    // eslint-disable-next-line no-await-in-loop
     out.push(await uploadFile(files[i], {
       ...options,
       onProgress: (pct) => options.onProgress?.(pct, i + 1, files.length),

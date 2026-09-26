@@ -53,7 +53,6 @@ export const EXAM_RULES = {
 /* Target depth per subject: 100 questions a level, 300 a subject. The engine
    works with whatever a bank actually holds and reports any shortfall. */
 export const TARGET_PER_LEVEL = 100;
-export const TARGET_PER_SUBJECT = TARGET_PER_LEVEL * LEVELS.length;
 
 export const QUIZ_STREAMS = [
   {
@@ -238,13 +237,3 @@ export function subjectOf(streamId, year, subjectId) {
   return subjectsFor(streamId, year).find((s) => s.id === subjectId) || null;
 }
 
-export function levelById(levelId) {
-  return LEVELS.find((l) => l.id === levelId) || null;
-}
-
-/* The level a student must clear before `levelId` opens, or null for the first. */
-export function previousLevel(levelId) {
-  const level = levelById(levelId);
-  if (!level || level.order === 0) return null;
-  return LEVELS[level.order - 1];
-}

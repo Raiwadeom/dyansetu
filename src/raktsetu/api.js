@@ -42,6 +42,21 @@ export const DISCLAIMER =
 
 export const PAYMENT_WARNING = "Never pay anyone. Buying or selling blood is illegal in India.";
 
+/* Bump when the RaktSetu consent text in the profile form changes; everyone
+   is asked to agree again on their next save. Stored per profile. */
+export const CONSENT_VERSION = "2026-09-26";
+
+/* Mirrors raktsetu_has_payment_words() in the database (which is what refuses
+   them). Checked in the form first so the message appears before posting. */
+export const PAYMENT_WORDS = /(\bupi\b|\bg ?pay\b|google ?pay|\bphone ?pe\b|paytm|₹|\brupees?\b|\brs\.? ?\d|\binr\b|\bifsc\b|\baccount ?(no|number|num)\b|bank ?details|\bpayments?\b|send ?money|transfer ?money|processing ?fee|service ?charge|donation ?fee|\bprice\b|cost of blood)/i;
+
+/* Government resources shown next to every request. */
+export const ERAKTKOSH_URL = "https://eraktkosh.mohfw.gov.in/";
+export const HEALTH_HELPLINE = "104";
+
+/* Named on the Terms page; complaints and data requests go here. */
+export const GRIEVANCE_EMAIL = "smuiqac@gmail.com";
+
 export const displayGroup = (g) => (g === "unknown" ? "Don't know" : (g || "").replace("-", "−"));
 
 function check(result, fallback) {
@@ -98,6 +113,7 @@ export async function saveMyRaktProfile(userId, form) {
     notify_push: Boolean(form.notify_push),
     notify_email: Boolean(form.notify_email),
     consent_at: new Date().toISOString(),
+    consent_version: CONSENT_VERSION,
   };
   return check(
     await supabase.from("raktsetu_profiles").upsert(row).select("*").single(),
@@ -119,7 +135,7 @@ export async function deleteMyRaktData() {
 /* --------------------------------------------------------------- requests */
 
 const REQUEST_COLUMNS =
-  "id, requester_id, patient_name, blood_group, units, hospital, address, city, needed_by, note, status, removed_reason, created_at";
+  "id, requester_id, patient_name, blood_group, units, hospital, address, city, needed_by, note, status, removed_reason, created_at, new_member, under_review";
 
 export async function listOpenRequests({ bloodGroup = "", city = "" } = {}) {
   let query = supabase
@@ -250,4 +266,12 @@ export async function fetchBaseProfile(userId) {
     await supabase.from("profiles").select("id, name, email, role, restricted, status, terms_accepted_at, pfp").eq("id", userId).maybeSingle(),
     "Could not load your account.",
   );
+}
+
+/* Moderation history (admin only; the database refuses anyone else). */
+export async function listAdminLog() {
+  return check(
+    await supabase.from("raktsetu_admin_log").select("id, action, request_id, reason, created_at").order("created_at", { ascending: false }).limit(50),
+    "Could not load the moderation log.",
+  ) || [];
 }

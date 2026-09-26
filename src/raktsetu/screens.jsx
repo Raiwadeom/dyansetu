@@ -14,14 +14,14 @@ import {
 import {
   BLOOD_GROUPS, DONATION_GAP_DAYS, GENDERS, HEALTH_CONDITIONS, MAX_DONOR_AGE, MIN_AGE, MIN_WEIGHT_KG,
   adminDismiss, adminRemove, createRequest, deleteMyRaktData, displayGroup, donorBlockers, fetchContact,
-  fetchMyRaktProfile,
+  fetchMyRaktProfile, CONSENT_VERSION, PAYMENT_WORDS, GRIEVANCE_EMAIL, listAdminLog,
   fetchRequest, listAllOpenForAdmin, listMyRequests, listMyResponses, listOpenRequests, listReports,
   listResponders, markDonated, nextEligibleDate, reportRequest, respondToRequest, saveMyRaktProfile,
   setRequestStatus, updateMyRaktSettings,
 } from "./api.js";
 import { currentSubscription, disablePush, enablePush, isPushConfigured, pushSupport } from "./push.js";
 import {
-  GroupBadge, Link, PaymentWarning, Spinner, StatusBadge, formatDate, formatDateTime, todayIso,
+  EmergencyHelp, GroupBadge, Link, NewMemberBadge, PaymentWarning, Spinner, StatusBadge, formatDate, formatDateTime, todayIso,
 } from "./ui.jsx";
 
 /* ------------------------------------------------------------ form pieces */
@@ -65,8 +65,10 @@ export function ProfileForm({ userId, defaultName = "", existing = null, onboard
     /* Re-confirmed on every save — health changes. */
     health_declared: false,
     notify: existing ? existing.notify_push || existing.notify_email : true,
-    consent: Boolean(existing),
+    /* Asked again whenever the consent text changes (CONSENT_VERSION). */
+    consent: existing?.consent_version === CONSENT_VERSION,
   }));
+  const consentChanged = Boolean(existing) && existing.consent_version !== CONSENT_VERSION;
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(false);
@@ -184,6 +186,9 @@ export function ProfileForm({ userId, defaultName = "", existing = null, onboard
           Notify me about blood requests (browser notifications for my city, and email when my blood group matches).
         </Check>
 
+        {consentChanged && (
+          <p className="rs-hint rs-hint--box">We have updated the RaktSetu consent text. Please read it and tick the box again to save.</p>
+        )}
         <Check checked={form.consent} onChange={set("consent")} required>
           I am {MIN_AGE} or older, and I consent to DnyanSetu storing my age, gender, weight, blood group, city,
           health declaration and optional phone number to run RaktSetu, as described in the{" "}
@@ -259,7 +264,12 @@ function RequestCard({ request, navigate }) {
       <div className="rs-request-body">
         <div className="rs-request-top">
           <strong>{request.units} unit{request.units === 1 ? "" : "s"} needed</strong>
-          <StatusBadge status={request.status} />
+          <span className="rs-badges">
+            {request.new_member && <NewMemberBadge />}
+            {request.under_review
+              ? <span className="rs-status rs-status--review">Hidden · under review</span>
+              : <StatusBadge status={request.status} />}
+          </span>
         </div>
         <p className="rs-request-where"><MapPin size={14} /> {request.hospital}, {request.city}</p>
         <p className="rs-muted">Needed by {formatDateTime(request.needed_by)}</p>
@@ -294,6 +304,7 @@ export function RequestsPage({ navigate, profile }) {
         <Link to="/raktsetu/new" navigate={navigate} className="rs-btn rs-btn-primary rs-btn-sm"><PlusCircle size={15} /> Request blood</Link>
       </div>
       <PaymentWarning />
+      <EmergencyHelp />
       <PushPrompt navigate={navigate} />
 
       <div className="rs-filters">
@@ -460,7 +471,10 @@ export function RequestDetailPage({ id, navigate, userId, profile }) {
           <GroupBadge group={r.blood_group} large />
           <div>
             <h1 className="rs-page-title">Blood needed: {displayGroup(r.blood_group)} — {r.units} unit{r.units === 1 ? "" : "s"}</h1>
-            <StatusBadge status={r.status} />
+            <span className="rs-badges">
+              <StatusBadge status={r.status} />
+              {r.new_member && <NewMemberBadge />}
+            </span>
           </div>
         </div>
 
@@ -475,6 +489,14 @@ export function RequestDetailPage({ id, navigate, userId, profile }) {
         </dl>
 
         <PaymentWarning />
+        <EmergencyHelp />
+
+        {r.under_review && (
+          <div className="rs-alert">
+            <strong>This request is hidden while a moderator reviews it.</strong> Several members reported it.
+            {mine && <> If you think this is a mistake, write to <a href={`mailto:${GRIEVANCE_EMAIL}`}>{GRIEVANCE_EMAIL}</a>.</>}
+          </div>
+        )}
 
         {state.contact && !mine && (
           <div className="rs-contact">
@@ -484,7 +506,7 @@ export function RequestDetailPage({ id, navigate, userId, profile }) {
           </div>
         )}
 
-        {!mine && isOpen && !state.contact && (
+        {!mine && isOpen && !r.under_review && !state.contact && (
           blockers.length ? (
             <div className="rs-alert">
               <strong>You cannot volunteer for this right now:</strong>
@@ -543,6 +565,13 @@ export function NewRequestPage({ navigate, profile }) {
   const submit = async (e) => {
     e.preventDefault();
     if (!form.genuine) return setState({ busy: false, error: "Please confirm this request is genuine.", result: null });
+    if (PAYMENT_WORDS.test(`${form.patientName} ${form.hospital} ${form.address} ${form.note}`)) {
+      return setState({
+        busy: false,
+        result: null,
+        error: "Requests cannot mention money, payment, UPI or bank details. Blood is never paid for through RaktSetu.",
+      });
+    }
     setState({ busy: true, error: "", result: null });
     try {
       const result = await createRequest({
@@ -588,6 +617,7 @@ export function NewRequestPage({ navigate, profile }) {
       <h1 className="rs-page-title">Request blood</h1>
       <p className="rs-lead">Volunteers in this city get a browser alert; donors whose blood group matches exactly also get an email. Your phone number is never included in alerts.</p>
       <PaymentWarning />
+      <EmergencyHelp />
 
       <form className="rs-card rs-form" onSubmit={submit}>
         <Field label="Patient / requester name" required>
@@ -868,15 +898,15 @@ export function SettingsPage({ profile, setProfile, clearProfile, userId, naviga
 /* ---------------------------------------------------------- admin moderation */
 
 export function AdminPage({ navigate }) {
-  const [state, setState] = useState({ loading: true, reports: [], open: [], error: "" });
+  const [state, setState] = useState({ loading: true, reports: [], open: [], log: [], error: "" });
   const [reasons, setReasons] = useState({});
 
   const load = useCallback(async () => {
     try {
-      const [reports, open] = await Promise.all([listReports(), listAllOpenForAdmin()]);
-      setState({ loading: false, reports, open, error: "" });
+      const [reports, open, log] = await Promise.all([listReports(), listAllOpenForAdmin(), listAdminLog()]);
+      setState({ loading: false, reports, open, log, error: "" });
     } catch (error) {
-      setState({ loading: false, reports: [], open: [], error: error.message });
+      setState({ loading: false, reports: [], open: [], log: [], error: error.message });
     }
   }, []);
 
@@ -909,7 +939,10 @@ export function AdminPage({ navigate }) {
   return (
     <section className="rs-section">
       <h1 className="rs-page-title">Moderation</h1>
-      <p className="rs-lead">Remove fake, spam or paid requests. To stop someone posting again, restrict their account from the DnyanSetu admin desk.</p>
+      <p className="rs-lead">
+        Remove fake, spam or paid requests. A request reported by 3 members is hidden automatically until you
+        remove it or dismiss the reports. To stop someone posting again, restrict their account from the DnyanSetu admin desk.
+      </p>
       <ErrorBox message={state.error} />
       {state.loading ? <Spinner /> : (
         <>
@@ -932,6 +965,20 @@ export function AdminPage({ navigate }) {
               {removeRow(r)}
             </div>
           ))}
+
+          <h2 className="rs-card-title">Moderation log</h2>
+          <p className="rs-muted">Every removal and dismissed report is recorded here, with who did it and why.</p>
+          {state.log.length === 0 ? <p className="rs-empty">No moderation actions yet.</p> : (
+            <ul className="rs-card rs-admin-log">
+              {state.log.map((x) => (
+                <li key={x.id}>
+                  <strong>{x.action === "remove_request" ? "Removed request" : "Dismissed reports"}</strong>
+                  {x.reason && <> — “{x.reason}”</>}
+                  <span className="rs-muted"> · {formatDateTime(x.created_at)}</span>
+                </li>
+              ))}
+            </ul>
+          )}
         </>
       )}
     </section>

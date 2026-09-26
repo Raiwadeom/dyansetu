@@ -236,25 +236,5 @@ function structuredCloneish(value) {
   return JSON.parse(JSON.stringify(value));
 }
 
-/* ------------------------------ Bank coverage ------------------------------ */
-
-/* Whole-catalogue roll-up, used by the quiz landing header. */
-export function catalogueCoverage(streams) {
-  let authored = 0;
-  let target = 0;
-  let subjects = 0;
-  streams.forEach((stream) => {
-    stream.years.forEach((year) => {
-      year.subjects.forEach((subject) => {
-        const stats = bankStats(stream.id, subject.id);
-        authored += stats.total;
-        target += stats.target;
-        subjects += 1;
-      });
-    });
-  });
-  return { authored, target, subjects };
-}
-
 export { LEVELS, LEVEL_IDS, PRACTICE_RULES, EXAM_RULES, streamById, subjectOf };
 export { PROGRESS_KEY, subjectKey, blankSubjectProgress };

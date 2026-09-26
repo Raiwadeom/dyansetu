@@ -10,7 +10,6 @@
     "dev": "vite --host",
     "build": "vite build",
     "preview": "vite preview --host",
-    "migrate:firebase": "node scripts/migrate-firebase-to-supabase.mjs",
     "check:rls": "node scripts/rls-check.mjs",
     "test:upload": "node scripts/test-sign-upload.mjs"
   },
@@ -23,7 +22,6 @@
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.4",
-    "firebase-admin": "^14.5.0",
     "vite": "^6.0.0"
   }
 }

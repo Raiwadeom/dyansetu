@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef, useCallback, Suspense, lazy } from "react";
-import logo from "./img/dnyansetu-logo.png";
 import collegeLogo from "./img/college-logo.jpg";
 import principalPhoto from "./img/principal.jpg";
 import heroOne from "../media/slideshow 1.jpeg";
@@ -37,7 +36,7 @@ import {
   Code2, Compass, MessageSquare, LogOut, MapPin, X, Loader2, Target, Shield, ExternalLink,
   FileText, Edit3, Trash2, Ban, Sparkles, BookOpen, ImagePlus, BarChart3,
   Info, Facebook, Instagram, CalendarDays, Search, Droplet, ClipboardList, ListChecks, Coins, HandHeart,
-  ScrollText, NotebookPen, Download, ChevronRight, FileDown, AlertTriangle, Newspaper, Megaphone,
+  ScrollText, NotebookPen, FileDown, AlertTriangle, Newspaper, Megaphone,
   Languages, Menu,
 } from "lucide-react";
 
@@ -58,7 +57,7 @@ const SOCIAL_LINKS = {
 };
 
 /* The single administrator. The database enforces this too — see admin_email()
-   in firestore.rules — so changing it here alone grants nothing. */
+   in supabase/migrations/0001_core.sql — so changing it here alone grants nothing. */
 const ADMIN_EMAIL = "smuiqac@gmail.com";
 
 /* Used only while the app runs on offline seed data, so that the admin screens
@@ -387,49 +386,6 @@ const SEED_USERS = [
   }
 ];
 
-const GOAL_OPTIONS = [
-  "Build technical skills",
-  "Prepare for placements",
-  "Explore career options",
-  "Improve academic performance",
-  "Build projects",
-  "Prepare for competitive opportunities",
-  "Discover interests"
-];
-
-const ACADEMIC_STAGE_OPTIONS = ["First Year", "Second Year", "Third Year", "Graduate / Other"];
-const DOMAIN_OPTIONS = [
-  { label: "Computer Science", interests: ["Programming", "Python", "Web Development", "Data Structures", "AI / ML", "Database Systems"] },
-  { label: "Electronics", interests: ["Embedded Systems", "Circuit Design", "Signal Processing", "IoT", "Robotics"] },
-  { label: "Physics", interests: ["Electromagnetism", "Research", "Quantum Concepts", "Experimental Methods", "Data Analysis"] },
-  { label: "General Engineering", interests: ["Problem Solving", "Projects", "Communication", "Leadership", "Innovation"] },
-];
-const CAREER_OPTIONS = [
-  "Software Developer",
-  "Full Stack Developer",
-  "Data / AI",
-  "Cybersecurity",
-  "Research",
-  "Entrepreneurship",
-  "Higher Studies",
-  "Government / Competitive Exams",
-  "Not sure yet"
-];
-const SKILL_CHIPS = [
-  "Programming",
-  "Web Development",
-  "Problem Solving",
-  "Databases",
-  "AI",
-  "Cybersecurity",
-  "Communication",
-  "Leadership",
-  "Project Management",
-  "Data Structures",
-  "Python",
-  "Research"
-];
-
 function normalizeStudentProfile(student = {}) {
   return {
     ...student,
@@ -525,10 +481,16 @@ function SelectField({ label, icon: Icon, options, ...props }) {
   );
 }
 
+/* DnyanSetu mark (brand sheet): the letter ज्ञ on a Setu Indigo tile with a
+   marigold bridge arch. Drawn inline so it stays sharp at every size. */
 function BrandLogo({ variant = "mark", className = "", alt = "DnyanSetu logo" }) {
   return (
-    <span className={`brand-logo-frame brand-logo-frame--${variant} ${className}`.trim()}>
-      <img src={logo} alt={alt} className="brand-logo-image" draggable={false} />
+    <span className={`brand-logo-frame brand-logo-frame--${variant} ${className}`.trim()} role="img" aria-label={alt}>
+      <svg viewBox="0 0 100 100" className="brand-logo-svg" aria-hidden="true">
+        <rect width="100" height="100" rx="22" fill="#1E3A5F" />
+        <text x="50" y="62" textAnchor="middle" className="brand-logo-glyph">ज्ञ</text>
+        <path d="M20 82 Q50 66 80 82" fill="none" stroke="#E9B04A" strokeWidth="6" strokeLinecap="round" />
+      </svg>
     </span>
   );
 }
@@ -649,7 +611,7 @@ function Landing({ goAuth, onOpenAbout, onOpenPage }) {
             <BrandLogo variant="nav" />
             <div className="landing-brand-copy">
               <span className="landing-brand-name">DnyanSetu</span>
-              <span className="landing-brand-tag">connecting futures</span>
+              <span className="landing-brand-tag" lang="mr">ज्ञानसेतु</span>
             </div>
           </div>
         </div>
@@ -963,7 +925,7 @@ function Landing({ goAuth, onOpenAbout, onOpenPage }) {
               <BrandLogo variant="footer" />
               <div className="footer-brand-copy">
                 <span className="footer-brand-name">DnyanSetu</span>
-                <span className="footer-brand-slogan">connecting futures</span>
+                <span className="footer-brand-slogan" lang="mr">ज्ञानसेतु</span>
               </div>
             </div>
 
@@ -2240,7 +2202,7 @@ function FacultyPortal({ profile, onSaveProfile }) {
     }
   };
 
-  useEffect(() => { refreshMyNotes(); /* eslint-disable-next-line */ }, [profile.id]);
+  useEffect(() => { refreshMyNotes(); }, [profile.id]);
   const [showProfileEditor, setShowProfileEditor] = useState(false);
 
   const [profileForm, setProfileForm] = useState({
@@ -3656,7 +3618,7 @@ function LanguagePicker({ onChoose }) {
 function Styles() {
   return (
     <style>{`
-      @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+      @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Noto+Serif:wght@700&family=Noto+Serif+Devanagari:wght@600;700&display=swap');
 
       .arcsas {
         --abc-navy: #0B1E2E;
@@ -3760,11 +3722,6 @@ function Styles() {
       @keyframes orbDrift {
         0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.55; }
         50% { transform: translate(18px, -22px) scale(1.08); opacity: 0.75; }
-      }
-
-      @keyframes tagShimmer {
-        0%, 100% { opacity: 0.85; letter-spacing: 0.12em; }
-        50% { opacity: 1; letter-spacing: 0.16em; }
       }
 
       @keyframes sectionReveal {
@@ -3952,54 +3909,24 @@ function Styles() {
         align-items: center;
         justify-content: center;
         flex-shrink: 0;
-        overflow: hidden;
-        border-radius: 14px;
-        background: linear-gradient(145deg, #0B1E2E 0%, #1a3650 100%);
-        border: 1px solid rgba(255, 255, 255, 0.10);
-        box-shadow: 0 4px 16px rgba(11, 30, 46, 0.18);
+        border-radius: 22%;
+        box-shadow: 0 4px 14px rgba(30, 58, 95, 0.22);
       }
-      /* The mark is itself a circular badge, so these variants drop the plate
-         and let the logo stand on its own. */
+      .brand-logo-svg { display: block; width: 100%; height: 100%; }
+      .brand-logo-glyph {
+        font-family: 'Noto Serif Devanagari', 'Nirmala UI', 'Mangal', serif;
+        font-weight: 700;
+        font-size: 50px;
+        fill: #FFFFFF;
+      }
       .brand-logo-frame--mark,
       .brand-logo-frame--nav,
       .brand-logo-frame--footer {
-        width: 48px;
-        height: 48px;
-        padding: 0;
-        border-radius: 50%;
-        background: transparent;
-        border: 0;
+        width: 46px;
+        height: 46px;
         animation: none;
       }
-      .brand-logo-frame--full {
-        width: min(128px, 45%);
-        aspect-ratio: 1 / 1;
-        padding: 14px 16px;
-        border-radius: 20px;
-        background: linear-gradient(145deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.03) 100%);
-        border: 1px solid rgba(255, 255, 255, 0.14);
-        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
-      }
-      .brand-logo-image {
-        display: block;
-        width: 100%;
-        height: 100%;
-        object-fit: contain;
-        object-position: center;
-        image-rendering: -webkit-optimize-contrast;
-        pointer-events: none;
-        user-select: none;
-      }
-      /* The mark used to be scaled to 145% inside an overflow-hidden frame, which
-         cropped the wordmark. Contain it instead so the whole logo stays visible. */
-      .brand-logo-frame--mark .brand-logo-image,
-      .brand-logo-frame--nav .brand-logo-image,
-      .brand-logo-frame--footer .brand-logo-image {
-        width: 100%;
-        height: 100%;
-        object-position: center;
-        transform: none;
-      }
+
 
       /* This page is one short message and one link, so it is centred on the
          page rather than hugging the left edge like the multi-column resource
@@ -4258,24 +4185,11 @@ function Styles() {
         text-align: center;
       }
       .auth-brand-institution .institution-lockup-copy { align-items: center; }
-      .brand-logo-frame--full .brand-logo-image {
-        width: 118%;
-        height: 118%;
-        object-position: center 18%;
-        filter: contrast(1.1) saturate(1.08) drop-shadow(0 8px 18px rgba(0,0,0,0.35));
-      }
       .app-brand-mark .brand-logo-frame {
         width: 100%;
         height: 100%;
-        border-radius: 50%;
-        padding: 0;
         animation: none;
         box-shadow: none;
-      }
-      .app-brand-mark .brand-logo-image {
-        width: 100%;
-        height: 100%;
-        object-position: center;
       }
 
       .landing-brand-copy {
@@ -4287,26 +4201,17 @@ function Styles() {
         gap: 5px;
       }
       .landing-brand-name {
-        font-size: clamp(1.2rem, 1.95vw, 2.1rem);
-        font-weight: 900;
-        letter-spacing: -0.06em;
-        background: linear-gradient(135deg, #0f172a 0%, #1D4ED8 50%, #0f172a 100%);
-        background-size: 200% auto;
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-        animation: textGradientWave 6s ease infinite;
-        font-family: 'Space Grotesk', 'Segoe UI', sans-serif;
+        font-size: clamp(1.25rem, 2vw, 2rem);
+        font-weight: 700;
+        letter-spacing: -0.01em;
+        color: #16202E;
+        font-family: 'Noto Serif', Georgia, serif;
       }
       .landing-brand-tag {
-        font-size: 0.62rem;
-        letter-spacing: 0.12em;
-        text-transform: lowercase;
-        color: #0284C7;
-        font-weight: 700;
-        font-family: 'Segoe UI', 'Inter', 'Arial', sans-serif;
-        margin-left: 2px;
-        animation: tagShimmer 3s ease-in-out infinite;
+        font-size: 0.95rem;
+        color: #5A6576;
+        font-weight: 600;
+        font-family: 'Noto Serif Devanagari', 'Noto Sans Devanagari', serif;
       }
       .brand-accent {
         background: linear-gradient(90deg, #E65100, #0284C7, #059669, #8B5CF6);
@@ -4951,12 +4856,12 @@ function Styles() {
       .footer-brand img, .footer-brand svg { height: 42px; width: auto; }
       .footer-brand-copy { display: flex; flex-direction: column; line-height: 1.25; }
       .footer-brand-name {
-        font-family: 'Space Grotesk', sans-serif;
+        font-family: 'Noto Serif', Georgia, serif;
         font-size: 22px; font-weight: 700; color: #FFFFFF; letter-spacing: -0.01em;
       }
       .footer-brand-slogan {
-        font-size: 12.5px; letter-spacing: 0.09em; text-transform: lowercase;
-        color: var(--abc-saffron);
+        font-family: 'Noto Serif Devanagari', 'Noto Sans Devanagari', serif;
+        font-size: 14px; font-weight: 600; color: #E9B04A;
       }
 
       .footer-college {
@@ -5381,25 +5286,7 @@ function Styles() {
         gap: 4px;
         min-width: 0;
       }
-      .footer-brand-name {
-        font-size: 1.5rem;
-        line-height: 0.95;
-        letter-spacing: -0.06em;
-        font-weight: 900;
-        color: #FFFFFF;
-        font-family: 'Segoe UI', 'Inter', 'Arial', sans-serif;
-        white-space: nowrap;
-      }
-      .footer-brand-slogan {
-        font-size: 0.6rem;
-        letter-spacing: 0.12em;
-        text-transform: lowercase;
-        color: #D7E7FF;
-        font-weight: 700;
-        opacity: 0.95;
-        font-family: 'Segoe UI', 'Inter', 'Arial', sans-serif;
-        white-space: nowrap;
-      }
+
       .auth-form-panel { display: flex; flex-direction: column; justify-content: center; padding: 56px; max-width: 480px; margin: 0 auto; width: 100%; }
       .auth-tabs { display: flex; gap: 6px; background: #F1F5F9; padding: 4px; border-radius: var(--radius-sm); margin-bottom: 24px; width: fit-content; border: 1px solid var(--border-light); }
       .auth-tab { border: none; background: transparent; padding: 8px 18px; border-radius: var(--radius-sm); font-size: 13px; font-weight: 600; color: var(--text-muted); transition: all 0.2s ease; cursor: pointer; }
@@ -6286,7 +6173,6 @@ function Styles() {
           border-image: linear-gradient(90deg, #E65100, #0284C7, #059669, #8B5CF6) 1;
         }
         .auth-brand-header { gap: 10px; }
-        .auth-brand-panel .brand-logo-frame--full { width: 92px; }
         .auth-brand-institution { margin-top: 16px; }
         .institution-name { font-size: 12px; }
         .institution-meta { font-size: 9.5px; }
@@ -6339,7 +6225,6 @@ function Styles() {
         .story-title { font-size: 20px; }
         .story-quote { font-size: 14px; }
         .auth-brand-panel { padding: 22px 16px 18px; }
-        .auth-brand-panel .brand-logo-frame--full { width: 80px; }
         .auth-form-panel { padding: 22px 14px calc(30px + env(safe-area-inset-bottom)); }
         .role-tab { font-size: 11px; gap: 4px; }
         .dash-grid, .profile-page { width: calc(100% - 18px); }
@@ -6364,7 +6249,6 @@ function Styles() {
       /* --- Short landscape phones: keep the login panel from eating the screen --- */
       @media (max-height: 520px) and (orientation: landscape) and (max-width: 900px) {
         .auth-brand-panel { padding: 16px; }
-        .auth-brand-panel .brand-logo-frame--full { width: 64px; }
         .auth-brand-institution { margin-top: 10px; }
       }
 

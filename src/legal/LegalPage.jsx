@@ -77,6 +77,7 @@ const PRIVACY = {
         "If you post a request, the patient name, blood group, units, hospital, address, city and needed-by time are shown to signed-in RaktSetu members until the request closes. Your contact number is shown only to volunteers who respond.",
         "Browser notifications are sent through your browser's push service (for example Google or Apple). Emails are sent through our email provider (Resend). Each browser you turn alerts on in is stored so alerts can reach it after you close the tab; turn them off in RaktSetu → Alerts.",
         "You can delete all your RaktSetu data at any time from RaktSetu → Alerts → “Delete my RaktSetu data”, or by writing to the address below. Your DnyanSetu account is not affected.",
+        "How long we keep it. The contact number on a request is erased automatically 30 days after the request closes. A RaktSetu profile that has not been updated for 12 months is deleted automatically, together with its alert subscriptions. We record the date and version of the consent you gave, and a log of moderation actions, so we can show how your data was handled if you ask.",
       ],
     },
     {
@@ -142,7 +143,17 @@ const TERMS = {
         "Alerts and consent. Browser notifications and emails are sent only if you opt in. Turn browser notifications on or off, choose your city or all cities, and turn email off in RaktSetu → Alerts, or use the unsubscribe link in any alert email.",
         "Requester responsibility. Post a request only for a real, current need, with correct details, and confirm it is genuine. You may post at most 3 requests in 24 hours; requests close automatically after their needed-by time. Mark a request fulfilled or cancel it once it is no longer needed.",
         "Prohibited. Fake, test, duplicate or spam requests; asking for or offering money, gifts or any payment; and buying or selling blood — which is illegal in India. Never pay anyone for blood through RaktSetu. Requests can be reported, and the administrator may remove any request and restrict any account that breaks these rules.",
+        "Safety measures. To prevent misuse, RaktSetu automatically refuses requests that mention money, UPI, bank details or fees; limits each member to offering help on 10 requests in 24 hours so phone numbers cannot be collected in bulk; hides any request reported by 3 members until a moderator reviews it; marks requests from accounts less than a day old as \u201cNew member\u201d; and records every moderation action (who acted, when and why).",
+        "Emergencies. RaktSetu is not an emergency service and must never be the only place you look for blood. In an emergency, contact the hospital\u2019s blood bank directly, call the 104 health helpline, or check live blood availability on the Government of India\u2019s e-RaktKosh portal (eraktkosh.mohfw.gov.in).",
         "Deleting your data. You can delete your RaktSetu profile, alert subscriptions, responses and requests at any time from RaktSetu → Alerts → “Delete my RaktSetu data”, or ask us to delete them, or your whole DnyanSetu account, by writing to the address below. Complaints about how your data is handled can also be sent there.",
+      ],
+    },
+    {
+      id: "grievance",
+      heading: "Grievance Officer",
+      body: [
+        "Complaints about content, misuse of RaktSetu, or how your personal data is handled can be sent to the Grievance Officer: the DnyanSetu Administrator, Chhatrapati Shivajiraje Mahavidyalaya, Udgir \u2014 smuiqac@gmail.com.",
+        "We acknowledge every complaint within 24 hours and aim to resolve it within 15 days. Requests that break these terms (fake requests, requests for money, harassment) are removed as soon as they are confirmed.",
       ],
     },
     {

@@ -54,7 +54,7 @@ export async function authenticate(token) {
 
   const { data: profile } = await admin
     .from("profiles")
-    .select("id, role, name, email, status, restricted")
+    .select("id, role, name, email, status, restricted, created_at")
     .eq("id", data.user.id)
     .maybeSingle();
 

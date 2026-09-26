@@ -27,7 +27,9 @@ import { ensureServiceWorker } from "./push.js";
 import {
   ActivityPage, AdminPage, NewRequestPage, ProfileForm, ProfilePage, RequestDetailPage, RequestsPage, SettingsPage,
 } from "./screens.jsx";
-import { HeartPulse, HeartbeatLine, Link, RaktSetuLogo, SectionTitle, Spinner } from "./ui.jsx";
+import {
+  EmergencyHelp, HeartPulse, HeartbeatLine, Link, RaktSetuLockup, RaktSetuLogo, SectionTitle, Spinner,
+} from "./ui.jsx";
 import "./raktsetu.css";
 
 /* ------------------------------------------------------------------ router */
@@ -97,13 +99,7 @@ function Header({ path, navigate, user, isAdmin, lang, setLang, tr }) {
     <header className="rs-header">
       <div className="rs-header-top">
         <Link to="/raktsetu" navigate={navigate} className="rs-brand" aria-label="RaktSetu home">
-          <RaktSetuLogo />
-          <span className="rs-brand-text">
-            <span className="rs-brand-name">
-              <strong>RaktSetu</strong>
-              <span className="rs-brand-hi" lang="mr">रक्तसेतू</span>
-            </span>
-          </span>
+          <RaktSetuLockup size={46} />
         </Link>
         <div className="rs-header-actions">
           <div className="rs-lang" role="group" aria-label="Language / भाषा">
@@ -144,11 +140,7 @@ function Footer({ tr }) {
     <footer className="rs-footer">
       <div className="rs-footer-inner">
         <div className="rs-footer-brand">
-          <RaktSetuLogo size={38} />
-          <div>
-            <strong>RaktSetu</strong>
-            <span lang="mr">रक्तसेतू</span>
-          </div>
+          <RaktSetuLockup size={40} reversed />
         </div>
         <p className="rs-footer-warning"><AlertTriangle size={16} /> <strong>{tr(...T.pay)}</strong></p>
         <p>{tr(...T.disclaimer)}</p>
@@ -307,6 +299,7 @@ function HomePage({ navigate, user, tr }) {
             )}
           </div>
           <p className="rs-hero-warning"><AlertTriangle size={16} /> <span>{tr(...T.pay)}</span></p>
+          <EmergencyHelp tr={tr} />
         </div>
 
         <aside className="rs-hero-panel" aria-label={tr("RaktSetu at a glance", "रक्तसेतू एका नजरेत")}>
@@ -413,7 +406,14 @@ export default function RaktSetuApp() {
 
   useEffect(() => {
     document.title = "RaktSetu · DnyanSetu";
-    document.querySelector('meta[name="theme-color"]')?.setAttribute("content", "#b91c1c");
+    document.querySelector('meta[name="theme-color"]')?.setAttribute("content", "#16202e");
+    /* RaktSetu's own tab icon (the split drop). */
+    document.querySelectorAll('link[rel="icon"]').forEach((l) => l.remove());
+    const icon = document.createElement("link");
+    icon.rel = "icon";
+    icon.type = "image/svg+xml";
+    icon.href = "/raktsetu-icon.svg";
+    document.head.appendChild(icon);
     ensureServiceWorker();
   }, []);
 
