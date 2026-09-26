@@ -270,6 +270,8 @@ const LANDING_HUBS = [
         blurb: "Our student blood-donation network — connect donors to urgent requests.",
         blurbMr: "आमचे विद्यार्थी रक्तदान नेटवर्क — रक्तदात्यांना तातडीच्या गरजांशी जोडते.",
         keywords: "raktsetu blood donation donor rakt setu emergency camp health",
+        image: "/services/raktsetu.png",
+        accent: "raktsetu",
         href: RAKTSETU_APP_URL,
         cta: "Open RaktSetu",
         ctaMr: "रक्तसेतू उघडा",
@@ -284,6 +286,8 @@ const LANDING_HUBS = [
         blurb: "College announcements, events and press coverage in one feed.",
         blurbMr: "महाविद्यालयाच्या सूचना, कार्यक्रम आणि प्रसिद्धी एकाच फीडमध्ये.",
         keywords: "csm news desk announcements events press college updates",
+        image: "/services/csm-news-desk.png",
+        accent: "news",
         href: CSM_NEWS_DESK_URL,
         cta: "Open CSM News Desk",
         ctaMr: "सीएसएम न्यूज डेस्क उघडा",
@@ -298,6 +302,8 @@ const LANDING_HUBS = [
         blurb: "Government and institutional scholarships with eligibility and deadlines.",
         blurbMr: "पात्रता आणि अंतिम तारखांसह शासकीय आणि संस्थात्मक शिष्यवृत्ती.",
         keywords: "scholarship scholarships financial aid fee waiver freeship stipend grant",
+        image: "/services/scholarships.svg",
+        accent: "scholarship",
         page: "scholarships",
       },
     ],
@@ -827,7 +833,7 @@ function Landing({ goAuth, onOpenAbout, onOpenPage }) {
               <p className="hub-intro">{tr(hub.intro, hub.introMr)}</p>
             </div>
 
-            <div className={isScheme ? "service-list" : "hub-grid"}>
+            <div className={isScheme ? "service-cards" : "hub-grid"}>
               {hub.items.map((item, index) => {
                 const ItemIcon = item.icon;
                 const cardId = `hub-${hub.id}-${item.id}`;
@@ -857,17 +863,21 @@ function Landing({ goAuth, onOpenAbout, onOpenPage }) {
 
                 return isScheme ? (
                   <article
-                    className={`service-row ${highlightId === cardId ? "is-highlighted" : ""}`}
+                    className={`service-card service-card--${item.accent || "default"} ${highlightId === cardId ? "is-highlighted" : ""}`}
                     id={cardId}
                     key={item.id}
+                    style={{ animationDelay: `${index * 0.12}s` }}
                   >
-                    <span className="service-row-index">{String(index + 1).padStart(2, "0")}</span>
-                    <span className="service-row-icon"><ItemIcon size={18} /></span>
-                    <div className="service-row-body">
+                    <div className="service-card-media">
+                      {item.image && <img src={item.image} alt="" loading="lazy" />}
+                      <span className="service-card-index">{String(index + 1).padStart(2, "0")}</span>
+                      <span className="service-card-icon"><ItemIcon size={20} /></span>
+                    </div>
+                    <div className="service-card-body">
                       <h3>{tr(item.name, item.nameMr)}</h3>
                       <p>{tr(item.blurb, item.blurbMr)}</p>
+                      <div className="service-card-action">{action}</div>
                     </div>
-                    <div className="service-row-action">{action}</div>
                   </article>
                 ) : (
                   <article
@@ -4542,87 +4552,92 @@ function Styles() {
 
       /* Social Services — official numbered service list (renamed service-*
          to avoid clashing with the Scholarships page's own .scheme-list). */
-      .service-list {
+      /* Social Services: one card per service, each with its own colour,
+         a picture, and a gentle rise-in. */
+      .service-cards {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 24px;
+        text-align: left;
+      }
+      .service-card {
+        --svc: #1E3A5F;
+        --svc-soft: #E8EFF9;
         display: flex;
         flex-direction: column;
-        border: 1px solid rgba(15,23,42,0.18);
-        border-radius: 4px;
-        overflow: hidden;
         background: #FFFFFF;
-      }
-      .service-row {
-        display: flex;
-        align-items: center;
-        gap: 16px;
-        padding: 18px 20px;
-        text-align: left;
-        border-bottom: 1px solid rgba(15,23,42,0.1);
-        border-left: 3px solid transparent;
-        transition: border-color 0.15s ease, background 0.15s ease;
+        border: 1px solid rgba(15, 23, 42, 0.1);
+        border-top: 4px solid var(--svc);
+        border-radius: 14px;
+        overflow: hidden;
+        box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
+        transition: transform 0.25s ease, box-shadow 0.25s ease;
+        animation: serviceRise 0.6s ease-out both;
         scroll-margin-top: 110px;
       }
-      .service-row:nth-child(even) { background: #F8FAFC; }
-      .service-row:last-child { border-bottom: none; }
-      .service-row:hover { border-left-color: var(--abc-saffron); background: var(--abc-saffron-bg); }
-      .service-row-index {
-        flex: 0 0 auto;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 24px;
-        height: 24px;
-        border-radius: 3px;
-        background: var(--abc-navy);
-        color: #FFFFFF;
-        font-family: 'JetBrains Mono', monospace;
-        font-size: 11px;
-        font-weight: 700;
+      .service-card--raktsetu { --svc: #A51C24; --svc-soft: #FCEBEC; }
+      .service-card--news { --svc: #1E3A5F; --svc-soft: #E8EFF9; }
+      .service-card--scholarship { --svc: #C98A1B; --svc-soft: #FFF4E0; }
+      .service-card:hover { transform: translateY(-6px); box-shadow: 0 18px 36px rgba(15, 23, 42, 0.14); }
+      .service-card-media {
+        position: relative;
+        aspect-ratio: 16 / 10;
+        background: var(--svc-soft);
+        overflow: hidden;
       }
-      .service-row-icon {
-        flex: 0 0 auto;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 38px;
-        height: 38px;
-        border-radius: 4px;
-        border: 1px solid rgba(15,23,42,0.14);
-        background: #FFFFFF;
-        color: var(--abc-navy);
+      .service-card-media img {
+        width: 100%; height: 100%; object-fit: cover; object-position: top; display: block;
+        transition: transform 0.5s ease;
       }
-      .service-row-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
-      .service-row-body h3 { font-size: 15.5px; font-weight: 700; color: var(--text-dark); line-height: 1.35; }
-      .service-row-body p { font-size: 13px; line-height: 1.6; color: var(--text-muted); }
-      .service-row-action { flex: 0 0 auto; }
-      .service-row-btn {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        padding: 8px 16px;
-        border-radius: 3px;
-        border: 1.5px solid var(--abc-navy);
-        background: var(--abc-navy);
-        color: #FFFFFF;
-        font-family: inherit;
-        font-size: 12.5px;
-        font-weight: 700;
-        text-decoration: none;
-        cursor: pointer;
-        white-space: nowrap;
-        transition: background 0.15s ease;
+      .service-card:hover .service-card-media img { transform: scale(1.05); }
+      .service-card-media::after {
+        content: ""; position: absolute; inset: 0;
+        background: linear-gradient(180deg, transparent 55%, rgba(15, 23, 42, 0.28) 100%);
+        pointer-events: none;
       }
-      .service-row-btn:hover { background: var(--abc-navy-light); }
-      .service-row-pending {
-        display: inline-flex;
-        padding: 7px 14px;
-        border-radius: 3px;
-        border: 1.5px dashed rgba(15,23,42,0.3);
-        font-size: 11.5px;
-        font-weight: 700;
-        color: var(--text-muted);
-        white-space: nowrap;
+      .service-card-index {
+        position: absolute; top: 12px; left: 12px; z-index: 1;
+        padding: 4px 10px; border-radius: 999px;
+        background: var(--svc); color: #FFFFFF;
+        font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700;
       }
-      .service-row.is-highlighted { animation: searchFlash 2.4s ease-out; }
+      .service-card-icon {
+        position: absolute; right: 14px; bottom: -22px; z-index: 1;
+        width: 48px; height: 48px; border-radius: 12px;
+        display: inline-flex; align-items: center; justify-content: center;
+        background: var(--svc); color: #FFFFFF;
+        box-shadow: 0 8px 18px rgba(15, 23, 42, 0.2);
+        border: 3px solid #FFFFFF;
+      }
+      .service-card-body { display: flex; flex-direction: column; gap: 8px; padding: 22px 20px 20px; flex: 1; }
+      .service-card-body h3 { font-size: 19px; font-weight: 700; color: var(--svc); line-height: 1.3; padding-right: 48px; }
+      .service-card-body p { font-size: 14.5px; line-height: 1.6; color: var(--text-subtle); flex: 1; }
+      .service-card-action { margin-top: 8px; }
+      .service-card .service-row-btn {
+        display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+        width: 100%; padding: 11px 16px; border-radius: 8px; border: 0;
+        background: var(--svc); color: #FFFFFF;
+        font-family: inherit; font-size: 14.5px; font-weight: 700;
+        text-decoration: none; cursor: pointer; white-space: nowrap;
+        transition: filter 0.15s ease;
+      }
+      .service-card .service-row-btn:hover { filter: brightness(1.12); }
+      .service-card .service-row-pending {
+        display: inline-flex; justify-content: center; width: 100%;
+        padding: 10px 14px; border-radius: 8px; border: 1.5px dashed rgba(15,23,42,0.3);
+        font-size: 13px; font-weight: 700; color: var(--text-muted);
+      }
+      .service-card.is-highlighted { animation: searchFlash 2.4s ease-out; }
+      @keyframes serviceRise {
+        from { opacity: 0; transform: translateY(18px); }
+        to { opacity: 1; transform: none; }
+      }
+      @media (max-width: 980px) { .service-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+      @media (max-width: 640px) { .service-cards { grid-template-columns: minmax(0, 1fr); gap: 18px; } }
+      @media (prefers-reduced-motion: reduce) {
+        .service-card, .service-card-media img { animation: none; transition: none; }
+        .service-card:hover { transform: none; }
+      }
 
       .stream-cards-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; align-items: stretch; justify-items: center; margin-top: 8px; }
 
@@ -6070,7 +6085,7 @@ function Styles() {
         .nav-marketing { padding: 12px 20px; }
         .nav-gov-brand { min-width: 0; flex: 1 1 auto; }
         .landing-brand-wrap { min-width: 0; flex: 0 1 auto; }
-        .landing-brand-copy { min-width: 0; overflow: hidden; }
+        .landing-brand-copy { min-width: 0; }
         .nav-topstrip-text { font-size: 10.5px; }
         .nav-menu-toggle { display: inline-flex; }
         .nav-collapse { display: none; }
@@ -6118,9 +6133,13 @@ function Styles() {
         .nav-marketing { padding: 10px 14px; gap: 8px; }
         .nav-gov-brand { gap: 8px; min-width: 0; flex: 0 1 auto; }
         .landing-brand-wrap { min-width: 0; }
-        .landing-brand-name { font-size: 19px; }
-        .landing-brand-tag { font-size: 9px; }
+        .landing-brand-name { font-size: 19px; white-space: nowrap; }
+        .landing-brand-tag { font-size: 11px; }
         .landing-brand-divider { display: none; }
+        /* The wordmark never shrinks or clips ("DnyanSet" on scroll); the
+           floating bar gives up side margin instead. */
+        .landing-brand-wrap, .landing-brand-copy { flex: 0 0 auto; overflow: visible; }
+        .nav-marketing.is-floating { margin: 0 6px; padding: 8px 10px; top: 8px; }
         .brand-logo-frame--nav { width: 36px; height: 36px; }
         .nav-lang-switch { flex: 0 0 auto; gap: 3px; }
         .nav-lang-btn { padding: 6px 10px; font-size: 11.5px; }
@@ -6153,11 +6172,6 @@ function Styles() {
         .notice-item { flex-wrap: wrap; padding: 14px 16px; gap: 8px; }
         .notice-item-title { font-size: 13px; }
 
-        .service-row { flex-wrap: wrap; padding: 14px 16px; gap: 10px; }
-        .service-row-index { display: none; }
-        .service-row-icon { width: 36px; height: 36px; }
-        .service-row-action { width: 100%; }
-        .service-row-btn, .service-row-pending { width: 100%; justify-content: center; }
 
         .story-shell { padding: 24px 18px; gap: 18px; }
         .story-title { font-size: 22px; }
@@ -6228,6 +6242,8 @@ function Styles() {
         .hero-alison { padding: 18px 12px 28px; }
         .nav-marketing { padding: 9px 12px; }
         .landing-brand-tag { display: none; }
+        .landing-brand-name { font-size: 18px; }
+        .nav-lang-btn { padding: 5px 8px; }
         .nav-actions .btn { padding: 8px 12px; font-size: 12.5px; min-height: 36px; }
         .nav-staff-link { padding: 6px 8px; font-size: 11.5px; }
         .brand-logo-frame--nav { width: 36px; height: 36px; }

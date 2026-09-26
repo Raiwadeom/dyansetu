@@ -18,15 +18,11 @@
 }
 
 html {
-  /* The site is light-only. Chrome's automatic dark mode (and Samsung
-     Internet's) force-darkens any page whose root says it is light-only, so
-     the root declares both schemes — which opts out of that — while body and
-     the page colours below keep everything light. */
-  color-scheme: light dark;
-}
-
-body {
-  color-scheme: light;
+  /* Light-only site. "only light" is the standard opt-out from phone
+     browsers' automatic dark mode (Chrome auto-dark, Samsung Internet), which
+     otherwise repaint every white card black. Tested: plain "light" and
+     "light dark" both still got darkened. */
+  color-scheme: only light;
 }
 
 html,

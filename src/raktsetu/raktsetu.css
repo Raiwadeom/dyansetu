@@ -45,7 +45,7 @@
   line-height: 1.6;
   /* Always light, whatever the phone's dark-mode setting: the government
      look stays the same for everyone. */
-  color-scheme: light;
+  color-scheme: only light;
   overflow-x: hidden;
 }
 

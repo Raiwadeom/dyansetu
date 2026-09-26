@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" role="img" aria-label="Scholarships">
+  <rect width="800" height="500" fill="#FFF7E8"/>
+  <circle cx="660" cy="90" r="150" fill="#F9E3B8"/>
+  <circle cx="120" cy="440" r="170" fill="#FCEFD6"/>
+  <!-- document / scholarship certificate -->
+  <g transform="translate(120 110) rotate(-4)">
+    <rect width="300" height="220" rx="14" fill="#FFFFFF" stroke="#E6D3AE" stroke-width="3"/>
+    <rect x="28" y="30" width="170" height="16" rx="8" fill="#1E3A5F"/>
+    <rect x="28" y="64" width="244" height="10" rx="5" fill="#D8DEE7"/>
+    <rect x="28" y="86" width="220" height="10" rx="5" fill="#D8DEE7"/>
+    <rect x="28" y="108" width="236" height="10" rx="5" fill="#D8DEE7"/>
+    <rect x="28" y="130" width="150" height="10" rx="5" fill="#D8DEE7"/>
+    <circle cx="232" cy="168" r="30" fill="#C98A1B"/>
+    <circle cx="232" cy="168" r="20" fill="#E9B04A"/>
+    <path d="M218 192 l-8 30 22-10 22 10 -8-30" fill="#C98A1B"/>
+  </g>
+  <!-- graduation cap -->
+  <g transform="translate(470 150)">
+    <path d="M0 60 L130 0 L260 60 L130 120 Z" fill="#1E3A5F"/>
+    <path d="M60 88 v60 c0 22 140 22 140 0 v-60 l-70 32 Z" fill="#16202E"/>
+    <path d="M230 74 v70" stroke="#E9B04A" stroke-width="6" stroke-linecap="round"/>
+    <circle cx="230" cy="150" r="10" fill="#E9B04A"/>
+  </g>
+  <!-- coins -->
+  <g transform="translate(520 350)">
+    <ellipse cx="60" cy="70" rx="60" ry="16" fill="#C98A1B"/>
+    <rect x="0" y="40" width="120" height="30" fill="#C98A1B"/>
+    <ellipse cx="60" cy="40" rx="60" ry="16" fill="#E9B04A"/>
+    <ellipse cx="170" cy="60" rx="50" ry="14" fill="#C98A1B"/>
+    <rect x="120" y="36" width="100" height="24" fill="#C98A1B"/>
+    <ellipse cx="170" cy="36" rx="50" ry="14" fill="#E9B04A"/>
+    <text x="60" y="47" text-anchor="middle" font-family="Georgia,serif" font-size="22" font-weight="700" fill="#7A4E08">₹</text>
+  </g>
+</svg>
