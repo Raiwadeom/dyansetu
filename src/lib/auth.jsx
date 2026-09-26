@@ -59,7 +59,14 @@ export function AuthProvider({ children }) {
       if (!active) return;
       setSession(data?.session ?? null);
       setLoading(false);
+    }).catch(() => {
+      if (active) setLoading(false);
     });
+
+    /* Safety net: if the browser blocks storage (private modes, embedded
+       frames) the session check can stall. Carry on signed-out rather than
+       showing "Loading…" forever. */
+    const giveUp = setTimeout(() => { if (active) setLoading(false); }, 8000);
 
     /* Fires on sign-in, sign-out (in this tab or another), and token refresh. */
     const { data } = supabase.auth.onAuthStateChange((event, next) => {
@@ -71,6 +78,7 @@ export function AuthProvider({ children }) {
 
     return () => {
       active = false;
+      clearTimeout(giveUp);
       data?.subscription?.unsubscribe();
     };
   }, []);

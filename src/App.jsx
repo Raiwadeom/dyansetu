@@ -6279,6 +6279,9 @@ function Styles() {
         .landing-brand-tag { display: none; }
         .landing-brand-name { font-size: 18px; }
         .nav-lang-btn { padding: 5px 8px; }
+        /* Small phones: the floating bar drops the college crest (the college
+           name stays in the strip above) so the full wordmark always fits. */
+        .nav-marketing.is-floating .nav-gov-brand > .college-crest { display: none; }
         .nav-actions .btn { padding: 8px 12px; font-size: 12.5px; min-height: 36px; }
         .nav-staff-link { padding: 6px 8px; font-size: 11.5px; }
         .brand-logo-frame--nav { width: 36px; height: 36px; }
