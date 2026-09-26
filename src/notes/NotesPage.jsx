@@ -7,7 +7,7 @@ import {
 import { NOTE_STREAMS, SEMESTERS, noteStreamById, formatBytes } from "../data/notes.js";
 import { fetchNotes } from "../lib/notes.js";
 import { downloadUrl } from "../lib/cloudinary.js";
-import { isBackendConfigured } from "../lib/firebase.js";
+import { isBackendConfigured } from "../lib/supabase.js";
 
 /* ============================================================================
    DnyanSetu — Subject-wise notes library

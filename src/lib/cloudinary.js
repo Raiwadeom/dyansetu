@@ -3,8 +3,8 @@
 
    The browser cannot upload on its own. Every upload runs in two steps:
 
-     1. Ask /api/sign-upload for a signature, sending the current Firebase ID
-        token. The server verifies that token against Google's certificates and
+     1. Ask /api/sign-upload for a signature, sending the current Supabase
+        access token. The server verifies that token with Supabase Auth and
         confirms the account is faculty or admin before signing anything.
      2. Upload straight to Cloudinary with that signature.
 
@@ -18,7 +18,7 @@
    stored file is cleared from the Cloudinary dashboard.
    ========================================================================== */
 
-import { auth, isBackendConfigured } from "./firebase.js";
+import { getAccessToken, isBackendConfigured } from "./supabase.js";
 
 /* Trimmed defensively: this value is typed into a hosting dashboard by hand,
    and a trailing space or newline from a copy-paste compiles straight into
@@ -40,15 +40,15 @@ const ALLOWED_TYPES = new Set([
 ]);
 
 async function requestSignature(folder) {
-  if (!isBackendConfigured || !auth?.currentUser) {
+  const accessToken = isBackendConfigured ? await getAccessToken() : "";
+  if (!accessToken) {
     throw new Error("Sign in as faculty to upload files.");
   }
 
-  const idToken = await auth.currentUser.getIdToken();
   const response = await fetch(SIGN_URL, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ idToken, folder }),
+    body: JSON.stringify({ accessToken, folder }),
   });
 
   let body = {};

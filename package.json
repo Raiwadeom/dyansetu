@@ -10,16 +10,20 @@
     "dev": "vite --host",
     "build": "vite build",
     "preview": "vite preview --host",
-    "setup": "node scripts/setup.mjs"
+    "migrate:firebase": "node scripts/migrate-firebase-to-supabase.mjs",
+    "check:rls": "node scripts/rls-check.mjs",
+    "test:upload": "node scripts/test-sign-upload.mjs"
   },
   "dependencies": {
-    "firebase": "^12.18.0",
+    "@supabase/supabase-js": "^2.117.2",
     "lucide-react": "^0.468.0",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "web-push": "^3.6.7"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.4",
+    "firebase-admin": "^14.5.0",
     "vite": "^6.0.0"
   }
 }

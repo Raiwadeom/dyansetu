@@ -19,54 +19,58 @@ function check(name, condition, detail = "") {
 console.log("\nwith no server secrets configured:");
 delete process.env.CLOUDINARY_API_KEY;
 delete process.env.CLOUDINARY_API_SECRET;
-delete process.env.FIREBASE_PROJECT_ID;
+delete process.env.SUPABASE_URL;
+delete process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-let res = await handleSignUpload({ idToken: "x", folder: "dnyansetu/notes" });
+let res = await handleSignUpload({ accessToken: "x", folder: "dnyansetu/notes" });
 check("refuses to sign", res.status === 503, `got ${res.status}`);
 
 /* ------------------------------ configured ------------------------------- */
 process.env.CLOUDINARY_API_KEY = "123456789";
 process.env.CLOUDINARY_API_SECRET = "test-secret";
 process.env.CLOUDINARY_UPLOAD_PRESET = "dnyansetu_signed";
-process.env.FIREBASE_PROJECT_ID = "demo-project";
+/* Nothing listens here, so every token check fails closed — exactly what a
+   forged or unverifiable token must do. */
+process.env.SUPABASE_URL = "http://127.0.0.1:9";
+process.env.SUPABASE_SERVICE_ROLE_KEY = "test-service-role";
 
 console.log("\nrequest validation:");
 
 res = await handleSignUpload({ folder: "dnyansetu/notes" });
 check("no token is rejected", res.status === 401, `got ${res.status}`);
 
-res = await handleSignUpload({ idToken: "abc", folder: "etc/passwd" });
+res = await handleSignUpload({ accessToken: "abc", folder: "etc/passwd" });
 check("arbitrary folder is rejected", res.status === 400, `got ${res.status}`);
 
-res = await handleSignUpload({ idToken: "abc", folder: "dnyansetu/../secret" });
+res = await handleSignUpload({ accessToken: "abc", folder: "dnyansetu/../secret" });
 check("path traversal is rejected", res.status === 400, `got ${res.status}`);
 
-res = await handleSignUpload({ idToken: "not.a.token", folder: "dnyansetu/notes" });
+res = await handleSignUpload({ accessToken: "not.a.token", folder: "dnyansetu/notes" });
 check("malformed token is rejected", res.status === 401, `got ${res.status}`);
 
 /* A structurally valid but unsigned token — the shape an attacker would forge. */
 const b64 = (o) => Buffer.from(JSON.stringify(o)).toString("base64url");
 const forged = [
-  b64({ alg: "RS256", kid: "made-up-key" }),
+  b64({ alg: "HS256", typ: "JWT" }),
   b64({
-    aud: "demo-project",
-    iss: "https://securetoken.google.com/demo-project",
-    sub: "attacker",
+    aud: "authenticated",
+    role: "authenticated",
+    sub: "00000000-0000-0000-0000-000000000000",
     exp: Math.floor(Date.now() / 1000) + 3600,
     iat: Math.floor(Date.now() / 1000),
   }),
   Buffer.from("fake-signature").toString("base64url"),
 ].join(".");
 
-res = await handleSignUpload({ idToken: forged, folder: "dnyansetu/notes" });
+res = await handleSignUpload({ accessToken: forged, folder: "dnyansetu/notes" });
 check("forged token is rejected", res.status === 401, `got ${res.status}`);
 
 const alg = [
   b64({ alg: "none", kid: "x" }),
-  b64({ aud: "demo-project", sub: "attacker" }),
+  b64({ aud: "authenticated", sub: "attacker" }),
   "",
 ].join(".");
-res = await handleSignUpload({ idToken: alg, folder: "dnyansetu/notes" });
+res = await handleSignUpload({ accessToken: alg, folder: "dnyansetu/notes" });
 check("alg=none is rejected", res.status === 401, `got ${res.status}`);
 
 /* --------------------------- signature algorithm -------------------------- */

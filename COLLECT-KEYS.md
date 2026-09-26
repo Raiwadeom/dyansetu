@@ -1,5 +1,8 @@
 # Collecting your keys with Claude in Chrome
 
+> **Outdated:** this describes the old Firebase keys. DnyanSetu now uses Supabase —
+> see [SUPABASE-SETUP.md](SUPABASE-SETUP.md) for the keys you need.
+
 Claude in Chrome is a **different Claude** from the one in your terminal. It runs
 inside your browser and can read pages you are logged into; the terminal one can
 read your files and run your code. Neither can talk to the other, so you are the

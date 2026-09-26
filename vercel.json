@@ -5,12 +5,31 @@
   "redirects": [
     {
       "source": "/:path*",
-      "has": [{ "type": "host", "value": "dyansetu.vercel.app" }],
+      "has": [
+        {
+          "type": "host",
+          "value": "dyansetu.vercel.app"
+        }
+      ],
       "destination": "https://www.dnyansetu.online/:path*",
       "permanent": true
     }
   ],
   "rewrites": [
-    { "source": "/((?!api/).*)", "destination": "/index.html" }
+    {
+      "source": "/((?!api/).*)",
+      "destination": "/index.html"
+    }
+  ],
+  "functions": {
+    "api/raktsetu/requests.js": {
+      "maxDuration": 60
+    }
+  },
+  "crons": [
+    {
+      "path": "/api/cron/daily",
+      "schedule": "30 2 * * *"
+    }
   ]
 }
