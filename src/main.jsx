@@ -1,7 +1,13 @@
-import React from "react";
+import React, { Suspense, lazy } from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App.jsx";
+import { AuthProvider } from "./lib/auth.jsx";
 import "./index.css";
+
+/* /raktsetu is its own full page with its own look, but the same site, domain
+   and sign-in session — so it shares the AuthProvider and nothing else. */
+const RaktSetuApp = lazy(() => import("./raktsetu/RaktSetuApp.jsx"));
+const isRaktSetu = /^\/raktsetu(\/|$)/i.test(window.location.pathname);
 
 /* A crash used to leave a blank white page with nothing to go on — the error
    only existed in the browser console. This paints it on the page instead, so
@@ -70,7 +76,15 @@ const root = document.getElementById("root");
 ReactDOM.createRoot(root).render(
   <React.StrictMode>
     <ErrorBoundary>
-      <App />
+      <AuthProvider>
+        {isRaktSetu ? (
+          <Suspense fallback={null}>
+            <RaktSetuApp />
+          </Suspense>
+        ) : (
+          <App />
+        )}
+      </AuthProvider>
     </ErrorBoundary>
   </React.StrictMode>,
 );

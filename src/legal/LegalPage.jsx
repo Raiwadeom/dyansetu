@@ -1,12 +1,19 @@
 import React, { useEffect } from "react";
 import { ArrowLeft, Shield, FileText, Mail } from "lucide-react";
 
+import { useLang } from "../lib/i18n";
+import { LEGAL_UI_MR, PRIVACY_MR, TERMS_MR } from "./legalMarathi";
+
 /* ============================================================================
    DnyanSetu — Privacy Policy and Terms of Service
 
    Both documents share a layout, so they share a component. The content is
    written to describe what the platform actually does: accounts held in
-   Firebase, quiz attempts stored per student, notes uploaded by faculty.
+   Supabase, quiz attempts stored per student, notes uploaded by faculty, and
+   the RaktSetu blood-donation network.
+
+   A section with an `id` gets that anchor, so /terms#raktsetu links straight
+   to the RaktSetu terms (the sign-up checkbox and RaktSetu pages use it).
    ========================================================================== */
 
 const CONTACT_EMAIL = "smuiqac@gmail.com";
@@ -29,7 +36,7 @@ const PRIVACY = {
     {
       heading: "What we do not collect",
       body: [
-        "We do not collect your password. Authentication is handled by our infrastructure provider, which stores only a cryptographic hash; nobody at the college can read your password.",
+        "We do not collect your password. Authentication is handled by our infrastructure provider (Supabase), which stores only a cryptographic hash; nobody at the college can read your password. If you sign in with Google, we receive only your name and email address from Google.",
         "We do not use advertising trackers, and we do not build behavioural profiles for marketing.",
       ],
     },
@@ -62,6 +69,17 @@ const PRIVACY = {
       ],
     },
     {
+      id: "raktsetu",
+      heading: "RaktSetu (blood donation) — additional note",
+      body: [
+        "RaktSetu is only for people aged 18 and over. If you join it, we store your age, gender, weight, blood group, city, an optional phone number, the date of your last donation (if you give one), your health self-declaration, and your alert preferences. Blood group and health information are sensitive; we collect them only with your explicit consent in the RaktSetu profile form, and only to show and match blood requests.",
+        "Nobody else can see your RaktSetu profile. Matching is done by our server. A requester sees your name and phone number only if you tap “I can help” on their request, and you see the requester's phone only after you do the same. Phone numbers are never included in notifications or emails.",
+        "If you post a request, the patient name, blood group, units, hospital, address, city and needed-by time are shown to signed-in RaktSetu members until the request closes. Your contact number is shown only to volunteers who respond.",
+        "Browser notifications are sent through your browser's push service (for example Google or Apple). Emails are sent through our email provider (Resend). Each browser you turn alerts on in is stored so alerts can reach it after you close the tab; turn them off in RaktSetu → Alerts.",
+        "You can delete all your RaktSetu data at any time from RaktSetu → Alerts → “Delete my RaktSetu data”, or by writing to the address below. Your DnyanSetu account is not affected.",
+      ],
+    },
+    {
       heading: "Changes to this policy",
       body: [
         "If this policy changes materially we will make the updated version available here before the change takes effect.",
@@ -80,7 +98,7 @@ const TERMS = {
     {
       heading: "Who may use the platform",
       body: [
-        "Accounts are intended for students and faculty of the institution. You are responsible for the accuracy of the details you provide and for keeping your password to yourself.",
+        "Accounts are intended for students and faculty of the institution. You must be at least 13 years old to use DnyanSetu. You are responsible for the accuracy of the details you provide and for keeping your password to yourself.",
         "You must not share your account, attempt to access another person's account, or misrepresent your role.",
       ],
     },
@@ -113,6 +131,21 @@ const TERMS = {
       ],
     },
     {
+      id: "raktsetu",
+      heading: "RaktSetu — student blood-donation network",
+      body: [
+        "What it is. RaktSetu is a community network that connects people who are looking for blood donors with volunteers registered on DnyanSetu. It is run by students and staff as a social service, free of charge.",
+        "What it is not. RaktSetu does not give medical advice, diagnosis or treatment. It is not a blood bank, it does not collect, test, store or supply blood, and it cannot guarantee that any donor will respond or that a donation will take place. In an emergency, contact the hospital and its blood bank directly. Any donation happens only at a licensed blood bank or hospital, which decides final eligibility after its own screening.",
+        "Who may use it. You must be 13 or older to use DnyanSetu, but RaktSetu is only for people aged 18 and over — the profile form will not accept a younger age. To volunteer as a donor you must be 18 to 65 years old, weigh at least 45 kg, be in good health, and truthfully confirm the health declaration in your profile. After a donation you may not volunteer again for 4 months; RaktSetu applies this automatically once a donation is recorded.",
+        "What we collect and why. Your age, gender, weight, blood group, city, optional phone number, last donation date and health declaration — to check eligibility and to show and match blood requests near you. See the RaktSetu note in the Privacy Policy.",
+        "Who can see it. Your RaktSetu profile is visible only to you. A requester sees your name and phone only if you tap “I can help” on their request. A requester's phone is shown only to volunteers who respond. Phone numbers are never put in notifications or emails.",
+        "Alerts and consent. Browser notifications and emails are sent only if you opt in. Turn browser notifications on or off, choose your city or all cities, and turn email off in RaktSetu → Alerts, or use the unsubscribe link in any alert email.",
+        "Requester responsibility. Post a request only for a real, current need, with correct details, and confirm it is genuine. You may post at most 3 requests in 24 hours; requests close automatically after their needed-by time. Mark a request fulfilled or cancel it once it is no longer needed.",
+        "Prohibited. Fake, test, duplicate or spam requests; asking for or offering money, gifts or any payment; and buying or selling blood — which is illegal in India. Never pay anyone for blood through RaktSetu. Requests can be reported, and the administrator may remove any request and restrict any account that breaks these rules.",
+        "Deleting your data. You can delete your RaktSetu profile, alert subscriptions, responses and requests at any time from RaktSetu → Alerts → “Delete my RaktSetu data”, or ask us to delete them, or your whole DnyanSetu account, by writing to the address below. Complaints about how your data is handled can also be sent there.",
+      ],
+    },
+    {
       heading: "Suspension",
       body: [
         "An account may be restricted where these terms are breached. Where the reason is a misunderstanding, contact us and we will review it.",
@@ -128,18 +161,25 @@ const TERMS = {
 };
 
 export default function LegalPage({ kind, onBack }) {
-  const doc = kind === "terms" ? TERMS : PRIVACY;
-  const Icon = doc.icon;
+  /* Follows the site language (EN / मराठी); the Marathi text lives in
+     legalMarathi.js with the same sections and anchors. */
+  const { lang } = useLang();
+  const mr = lang === "mr";
+  const doc = kind === "terms" ? (mr ? TERMS_MR : TERMS) : (mr ? PRIVACY_MR : PRIVACY);
+  const Icon = kind === "terms" ? FileText : Shield;
 
   useEffect(() => {
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  }, [kind]);
+    /* /terms#raktsetu (from the sign-up checkbox) lands on that section. */
+    const target = window.location.hash ? document.getElementById(window.location.hash.slice(1)) : null;
+    if (target) target.scrollIntoView({ block: "start" });
+    else window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [kind, lang]);
 
   return (
-    <main className="legal-page">
+    <main className="legal-page" lang={mr ? "mr" : "en"}>
       <div className="resource-head">
         <button type="button" className="btn btn-ghost btn-sm" onClick={onBack}>
-          <ArrowLeft size={16} /> Back
+          <ArrowLeft size={16} /> {mr ? LEGAL_UI_MR.back : "Back"}
         </button>
         <div className="resource-head-copy">
           <p className="section-eyebrow"><Icon size={14} /> {doc.eyebrow}</p>
@@ -150,7 +190,7 @@ export default function LegalPage({ kind, onBack }) {
 
       <article className="legal-body">
         {doc.sections.map((section, index) => (
-          <section className="legal-section" key={section.heading}>
+          <section className="legal-section" key={section.heading} id={section.id}>
             <h2>
               <span className="legal-number">{String(index + 1).padStart(2, "0")}</span>
               {section.heading}
@@ -162,11 +202,19 @@ export default function LegalPage({ kind, onBack }) {
         ))}
 
         <section className="legal-contact">
-          <h2><Mail size={17} /> Get in touch</h2>
-          <p>
-            For any question about this document, or to request changes to your records, write to{" "}
-            <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>.
-          </p>
+          <h2><Mail size={17} /> {mr ? LEGAL_UI_MR.contactHeading : "Get in touch"}</h2>
+          {mr ? (
+            <p>
+              {LEGAL_UI_MR.contactBefore}{" "}
+              <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>. {LEGAL_UI_MR.contactAfter}
+            </p>
+          ) : (
+            <p>
+              For any question about this document, to request changes to or deletion of your records, or to
+              make a complaint about how your data is handled, write to{" "}
+              <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>. We aim to reply within 7 days.
+            </p>
+          )}
         </section>
       </article>
     </main>

@@ -1,23 +1,18 @@
 /* ============================================================================
-   DnyanSetu — Quiz progress (Firestore)
+   DnyanSetu — Quiz progress (Supabase)
 
    The quiz sits on the public landing page, so it has to work for a visitor
    who is not signed in. Two backends therefore:
 
-     signed in  -> one document per submitted paper under
-                   profiles/{uid}/attempts, so progress follows the student to
-                   any device
+     signed in  -> one row per submitted paper in quiz_attempts, so
+                   progress follows the student to any device
      signed out -> the original localStorage blob, per browser
 
    Both produce the shape the engine expects:
      progress["<streamId>/<year>/<subjectId>"] = { levels: {...}, exam: {...} }
    ========================================================================== */
 
-import {
-  collection, addDoc, getDocs, query, orderBy, limit, serverTimestamp,
-} from "firebase/firestore";
-
-import { db, isBackendConfigured } from "./firebase.js";
+import { isBackendConfigured, supabase } from "./supabase.js";
 import { LEVEL_IDS } from "../data/quiz/curriculum.js";
 import { PROGRESS_KEY, blankSubjectProgress, subjectKey } from "../data/quiz/progress.js";
 
@@ -93,45 +88,57 @@ export function foldAttempts(rows, poolSizeFor) {
   return progress;
 }
 
+/* Table rows back into the camelCase shape foldAttempts and the admin desk read. */
+function toAttempt(row) {
+  return {
+    streamId: row.stream_id,
+    year: row.year,
+    subjectId: row.subject_id,
+    stage: row.stage,
+    score: row.score,
+    total: row.total,
+    passed: row.passed,
+    questionIds: row.question_ids || [],
+    at: row.created_at ? Date.parse(row.created_at) : null,
+  };
+}
+
+async function loadAttempts(userId, max) {
+  const { data, error } = await supabase
+    .from("quiz_attempts")
+    .select("*")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(max);
+  if (error) throw error;
+  return (data || []).map(toAttempt);
+}
+
 export async function fetchProgress(userId, poolSizeFor) {
   if (!isBackendConfigured || !userId) return {};
-  const snapshot = await getDocs(query(
-    collection(db, "profiles", userId, "attempts"),
-    orderBy("createdAt", "desc"),
-    limit(1000),
-  ));
-  return foldAttempts(snapshot.docs.map((d) => d.data()), poolSizeFor);
+  return foldAttempts(await loadAttempts(userId, 1000), poolSizeFor);
 }
 
 /* Raw attempts for one account, newest first. The admin desk uses this to show
-   who has actually practised; firestore.rules already lets an admin read any
-   profile's attempts. Fetched per account rather than as one collectionGroup
-   query, because the attempts rule is nested under profiles/{uid} and a group
-   query would be denied by it. */
+   who has actually practised; the quiz_attempts policy lets the administrator
+   read any account's rows. */
 export async function fetchAttempts(userId, max = 500) {
   if (!isBackendConfigured || !userId) return [];
-  const snapshot = await getDocs(query(
-    collection(db, "profiles", userId, "attempts"),
-    orderBy("createdAt", "desc"),
-    limit(max),
-  ));
-  return snapshot.docs.map((d) => {
-    const a = d.data();
-    return { ...a, at: a.createdAt?.toMillis?.() ?? null };
-  });
+  return loadAttempts(userId, max);
 }
 
 export async function saveAttempt(userId, { streamId, year, subjectId, stage, result, questions }) {
   if (!isBackendConfigured || !userId) return;
-  await addDoc(collection(db, "profiles", userId, "attempts"), {
-    streamId,
+  const { error } = await supabase.from("quiz_attempts").insert({
+    user_id: userId,
+    stream_id: streamId,
     year: Number(year),
-    subjectId,
+    subject_id: subjectId,
     stage,
     score: result.score,
     total: result.total,
     passed: result.pass,
-    questionIds: questions.map((q) => q.id),
-    createdAt: serverTimestamp(),
+    question_ids: questions.map((q) => q.id),
   });
+  if (error) throw error;
 }

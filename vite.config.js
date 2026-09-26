@@ -39,41 +39,61 @@ function readEnvFiles(mode, dir) {
   return values;
 }
 
-/* Serves api/sign-upload.js during `npm run dev`, so signed uploads work
-   locally exactly as they do once deployed. In production the same file is
-   picked up as a serverless function by Vercel, Netlify or similar. */
+/* Serves every file under api/ during `npm run dev`, so the endpoints work
+   locally exactly as they do once deployed as Vercel functions. Each file's
+   default export is called with a small Vercel-style req/res shim
+   (req.body, req.query, res.status().json()). */
 function apiRoutes(mode) {
   return {
     name: "dnyansetu-api-routes",
     configureServer(server) {
-      /* The handler reads its secrets from process.env. The unprefixed values
-         are the ones Vite deliberately keeps out of the client bundle — that is
-         exactly why the Cloudinary secret lives there. Re-read on every restart
-         so editing .env.local takes effect without killing the process. */
+      /* The handlers read their secrets from process.env. The unprefixed values
+         are the ones Vite deliberately keeps out of the client bundle. Re-read
+         on every restart so editing .env.local takes effect without killing
+         the process. */
       const env = readEnvFiles(mode, server.config.root);
       Object.entries(env).forEach(([key, value]) => {
         if (key.startsWith("VITE_")) return;
         process.env[key] = value;
       });
 
-      server.middlewares.use("/api/sign-upload", async (req, res, next) => {
-        if (req.method !== "POST") return next();
+      server.middlewares.use("/api", async (req, res, next) => {
+        const url = new URL(req.url, "http://localhost");
+        const route = url.pathname.replace(/^\/+|\/+$/g, "");
+        /* No leading underscore (shared code) and no path tricks. */
+        if (!route || route.split("/").some((part) => !/^[a-z0-9-]+$/i.test(part))) return next();
+
+        const file = path.join(server.config.root, "api", `${route}.js`);
+        if (!fs.existsSync(file)) return next();
 
         try {
           const chunks = [];
           for await (const chunk of req) chunks.push(chunk);
-          const body = JSON.parse(Buffer.concat(chunks).toString("utf8") || "{}");
+          const raw = Buffer.concat(chunks).toString("utf8");
+          let body = raw;
+          if (raw && /json/i.test(req.headers["content-type"] || "")) {
+            try { body = JSON.parse(raw); } catch { body = {}; }
+          }
+          req.body = body;
+          req.query = Object.fromEntries(url.searchParams);
 
-          const { handleSignUpload } = await server.ssrLoadModule("/api/sign-upload.js");
-          const { status, json } = await handleSignUpload(body);
+          res.status = (code) => { res.statusCode = code; return res; };
+          res.json = (data) => {
+            res.setHeader("Content-Type", "application/json");
+            res.end(JSON.stringify(data));
+            return res;
+          };
+          res.send = (data) => { res.end(typeof data === "string" ? data : JSON.stringify(data)); return res; };
 
-          res.statusCode = status;
-          res.setHeader("Content-Type", "application/json");
-          res.end(JSON.stringify(json));
+          const mod = await server.ssrLoadModule(`/api/${route}.js`);
+          await mod.default(req, res);
         } catch (error) {
-          res.statusCode = 500;
-          res.setHeader("Content-Type", "application/json");
-          res.end(JSON.stringify({ error: error.message || "Signing failed." }));
+          console.error(`[api/${route}]`, error);
+          if (!res.headersSent) {
+            res.statusCode = 500;
+            res.setHeader("Content-Type", "application/json");
+            res.end(JSON.stringify({ error: error.message || "Server error." }));
+          }
         }
       });
     },

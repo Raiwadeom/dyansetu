@@ -12,9 +12,11 @@ const NotesPage = lazy(() => import("./notes/NotesPage"));
 const LegalPage = lazy(() => import("./legal/LegalPage"));
 import { generateTrackingId } from "./utils/identity";
 import { downloadCsv, timestampedName } from "./utils/exportSheet";
-import { isBackendConfigured } from "./lib/firebase";
+import { isBackendConfigured } from "./lib/supabase";
 import {
-  signUp, signIn, signOut, getSession, onAuthChange, resetPassword,
+  useAuth, acceptTerms, readOAuthIntent, clearOAuthIntent, safeNext,
+} from "./lib/auth";
+import {
   fetchProfile, updateProfile, listProfiles, adminUpdateProfile, adminDeleteProfile,
   markNotesOpened,
 } from "./lib/profiles";
@@ -98,10 +100,35 @@ const MEMBERS_ONLY_PAGES = new Set(["notes", "quiz"]);
    rather than shared, so two tabs do not fight over one another's position. */
 const VIEW_KEY = "dnyansetu:view";
 
+/* Real addresses for the pages people link to or bookmark directly. Everything
+   else keeps the old single-address behaviour and shows "/". /raktsetu is its
+   own app (see main.jsx), reached with a normal page load. */
+function pathForView(view, authMode, scope, next) {
+  const query = next ? `?next=${encodeURIComponent(next)}` : "";
+  if (view === "auth") {
+    if (scope === "staff") return `/staff${query}`;
+    return `${authMode === "signup" ? "/signup" : "/login"}${query}`;
+  }
+  if (view === "accept-terms") return `/login${query}`;
+  if (view === "terms") return `/terms${window.location.hash === "#raktsetu" ? "#raktsetu" : ""}`;
+  if (view === "privacy") return "/privacy";
+  return "/";
+}
+
+function initialRoute() {
+  const path = (window.location.pathname.replace(/\/+$/, "") || "/").toLowerCase();
+  if (path === "/login") return { view: "auth", authMode: "login", scope: "student", direct: true };
+  if (path === "/signup") return { view: "auth", authMode: "signup", scope: "student", direct: true };
+  if (path === "/staff") return { view: "auth", authMode: "login", scope: "staff", direct: true };
+  if (path === "/terms") return { view: "terms", direct: true };
+  if (path === "/privacy") return { view: "privacy", direct: true };
+  return { view: "landing", direct: false };
+}
+
 /* A restored view still has to be one this account may actually open — a stale
    entry must never hand out a portal the user has no right to. */
 function mayOpenView(view, profile) {
-  if (!view || view === "auth") return false;
+  if (!view || view === "auth" || view === "accept-terms") return false;
   if (MEMBERS_ONLY_PAGES.has(view)) return Boolean(profile);
   if (view === "profile") return profile?.role === "student";
   if (view === "faculty-portal" || view === "faculty-setup") return profile?.role === "faculty";
@@ -129,9 +156,12 @@ const INSTITUTION = {
 
 /* --------------------------- External / Partner Links --------------------------- */
 
-/* RaktSetu blood-donation app. Paste the published app link here and the Social
-   Services card turns into a live link automatically. */
-const RAKTSETU_APP_URL = "";
+/* RaktSetu blood-donation network — its own full page inside this site, same
+   domain and same sign-in (see src/raktsetu). */
+const RAKTSETU_APP_URL = "/raktsetu";
+
+/* Same-site paths open in this tab; anything else is an external site. */
+const linkTarget = (href) => (href?.startsWith("/") ? {} : { target: "_blank", rel: "noreferrer" });
 
 /* CSM News Desk. Paste the published site link here once it's live and the
    card turns into a live link automatically, same as RaktSetu above. */
@@ -237,8 +267,8 @@ const LANDING_HUBS = [
         blurbMr: "आमचे विद्यार्थी रक्तदान नेटवर्क — रक्तदात्यांना तातडीच्या गरजांशी जोडते.",
         keywords: "raktsetu blood donation donor rakt setu emergency camp health",
         href: RAKTSETU_APP_URL,
-        cta: "Open RaktSetu app",
-        ctaMr: "रक्तसेतू अ‍ॅप उघडा",
+        cta: "Open RaktSetu",
+        ctaMr: "रक्तसेतू उघडा",
         pendingNote: "Live since 18 Sep 2026",
         pendingNoteMr: "१८ सप्टेंबर २०२६ पासून सुरू",
       },
@@ -795,7 +825,7 @@ function Landing({ goAuth, onOpenAbout, onOpenPage }) {
                 <Row
                   className="notice-item"
                   key={item.id}
-                  {...(item.href ? { href: item.href, target: "_blank", rel: "noreferrer" } : {})}
+                  {...(item.href ? { href: item.href, ...linkTarget(item.href) } : {})}
                 >
                   <span className={`notice-status notice-status--${item.status}`}>
                     {item.status === "live" ? tr("Live", "सुरू") : tr("Coming soon", "लवकरच")}
@@ -804,7 +834,9 @@ function Landing({ goAuth, onOpenAbout, onOpenPage }) {
                     <span className="notice-item-title">{tr(item.title, item.titleMr)}</span>
                     <span className="notice-item-date">{item.date}</span>
                   </span>
-                  {item.href && <ExternalLink size={14} className="notice-item-arrow" />}
+                  {item.href && (item.href.startsWith("/")
+                    ? <ArrowRight size={14} className="notice-item-arrow" />
+                    : <ExternalLink size={14} className="notice-item-arrow" />)}
                 </Row>
               );
             })}
@@ -841,8 +873,9 @@ function Landing({ goAuth, onOpenAbout, onOpenPage }) {
                   </button>
                 ) : item.href !== undefined ? (
                   isLive ? (
-                    <a className={btnClass} href={item.href} target="_blank" rel="noreferrer">
-                      {tr(item.cta, item.ctaMr) || openLabel} <ExternalLink size={14} />
+                    <a className={btnClass} href={item.href} {...linkTarget(item.href)}>
+                      {tr(item.cta, item.ctaMr) || openLabel}
+                      {item.href.startsWith("/") ? <ArrowRight size={14} /> : <ExternalLink size={14} />}
                     </a>
                   ) : (
                     <span className={isScheme ? "service-row-pending" : "hub-card-pending"}>
@@ -1199,8 +1232,40 @@ function AboutPage({ onBack }) {
 
 /* =============================== VIEW: Auth Screen ============================== */
 
-function AuthScreen({ mode, setMode, onSubmit, goLanding, roleScope = "student" }) {
+/* The official Google "G", drawn inline so the button needs no image request. */
+function GoogleMark() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
+      <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
+      <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
+      <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
+      <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
+    </svg>
+  );
+}
+
+/* Links in the terms line open in a new tab, so a half-filled sign-up form is
+   never lost by reading them. */
+function TermsLinks() {
+  return (
+    <>
+      I agree to the{" "}
+      <a href="/terms" target="_blank" rel="noreferrer">Terms and Conditions</a>
+      {" "}(including the{" "}
+      <a href="/terms#raktsetu" target="_blank" rel="noreferrer">RaktSetu terms</a>)
+      {" "}and the{" "}
+      <a href="/privacy" target="_blank" rel="noreferrer">Privacy Policy</a>.
+    </>
+  );
+}
+
+function AuthScreen({ mode, setMode, onSubmit, goLanding, roleScope = "student", next = "", demoMode = false }) {
+  const { signInWithGoogle, resetPassword, updatePassword, recovery } = useAuth();
   const isStaffScope = roleScope === "staff";
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [googleBusy, setGoogleBusy] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [newPasswordDone, setNewPasswordDone] = useState(false);
   const [selectedRole, setSelectedRole] = useState(isStaffScope ? "faculty" : "student");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -1215,7 +1280,6 @@ function AuthScreen({ mode, setMode, onSubmit, goLanding, roleScope = "student" 
   const [resetSubmitting, setResetSubmitting] = useState(false);
   const [resetError, setResetError] = useState("");
   const [resetSent, setResetSent] = useState(false);
-  const localHostUrl = typeof window !== "undefined" ? window.location.origin : "http://localhost:5173";
 
   /* Accounts are keyed on the email address alone. Phone sign-in was removed,
      so there is nothing to disambiguate here beyond trimming and casing. */
@@ -1229,6 +1293,10 @@ function AuthScreen({ mode, setMode, onSubmit, goLanding, roleScope = "student" 
     if (submitting) return;
 
     if (mode === "signup") {
+      if (!termsAccepted) {
+        setError("Please tick the box to agree to the Terms and Conditions and Privacy Policy.");
+        return;
+      }
       const needsName = selectedRole !== "admin";
       if ((needsName && !name.trim()) || !email.trim() || !password || !confirmPassword) {
         setError(needsName
@@ -1302,7 +1370,48 @@ function AuthScreen({ mode, setMode, onSubmit, goLanding, roleScope = "student" 
     }
   };
 
-  /* Works the same way for a student, faculty or admin account — Firebase
+  const handleGoogle = async () => {
+    setError("");
+    if (mode === "signup" && !termsAccepted) {
+      setError("Please tick the box to agree to the Terms and Conditions and Privacy Policy.");
+      return;
+    }
+    if (demoMode) {
+      setError("Google sign-in needs the Supabase keys in .env.local. See SUPABASE-SETUP.md.");
+      return;
+    }
+    setGoogleBusy(true);
+    const result = await signInWithGoogle({
+      intent: mode === "signup" ? "signup" : "login",
+      role: selectedRole === "faculty" ? "faculty" : "student",
+      termsAccepted: mode === "signup" && termsAccepted,
+      next,
+    });
+    /* On success the browser is already leaving for Google. */
+    if (!result.success) {
+      setGoogleBusy(false);
+      setError(result.message || "Could not start Google sign-in.");
+    }
+  };
+
+  const handleNewPassword = async (e) => {
+    e.preventDefault();
+    setError("");
+    if (newPassword.length < 6) {
+      setError("Password should be at least 6 characters long.");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const result = await updatePassword(newPassword);
+      if (result.success) setNewPasswordDone(true);
+      else setError(result.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  /* Works the same way for a student, faculty or admin account — Supabase
      Auth does not care which, so there is nothing role-specific to ask here. */
   const handleResetSubmit = async (e) => {
     e.preventDefault();
@@ -1346,7 +1455,32 @@ function AuthScreen({ mode, setMode, onSubmit, goLanding, roleScope = "student" 
         <button type="button" className="auth-back-link" onClick={goLanding}>
           <ArrowLeft size={15} /> Back
         </button>
-        {forgotMode ? (
+        {recovery ? (
+          <>
+            <div className="auth-heading">
+              <h2 className="auth-title">Choose a new password</h2>
+              <p className="auth-sub">You followed a password-reset link. Set a new password for your account.</p>
+            </div>
+            {error && <div className="form-error">{error}</div>}
+            {newPasswordDone ? (
+              <div className="form-success">
+                <CheckCircle2 size={15} /> <span>Password updated. You are signed in.</span>
+              </div>
+            ) : (
+              <form onSubmit={handleNewPassword}>
+                <Field label="New password" icon={Lock} type="password" autoComplete="new-password" placeholder="At least 6 characters" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
+                <button type="submit" className="btn btn-primary btn-block btn-lg" style={{ marginTop: 16 }} disabled={submitting}>
+                  {submitting ? <><Loader2 size={16} className="spin" /> Saving…</> : <>Save new password <ArrowRight size={16} /></>}
+                </button>
+              </form>
+            )}
+            {newPasswordDone && (
+              <button type="button" className="btn btn-ghost btn-block" style={{ marginTop: 10 }} onClick={() => window.location.assign(next || "/")}>
+                Continue
+              </button>
+            )}
+          </>
+        ) : forgotMode ? (
           <>
             <div className="auth-heading">
               <h2 className="auth-title">Reset your password</h2>
@@ -1394,8 +1528,8 @@ function AuthScreen({ mode, setMode, onSubmit, goLanding, roleScope = "student" 
                   ? "Sign in with your registered email address."
                   : "Register with your name, email address, and password to begin."}
               </p>
-              {mode === "login" && (
-                <p className="auth-host-note">Local host: <strong>{localHostUrl}</strong></p>
+              {next.startsWith("/raktsetu") && (
+                <p className="auth-host-note">Sign in to continue to <strong>RaktSetu</strong>.</p>
               )}
             </div>
 
@@ -1457,7 +1591,17 @@ function AuthScreen({ mode, setMode, onSubmit, goLanding, roleScope = "student" 
                 </label>
               </div>
 
-              <button type="submit" className="btn btn-primary btn-block btn-lg" style={{ marginTop: 16 }} disabled={submitting}>
+              {/* Required before either sign-up button works. Not shown on the
+                  login tab: an account that signs in with Google without having
+                  accepted gets a one-time terms screen instead. */}
+              {mode === "signup" && (
+                <label className="auth-terms-check" style={{ marginTop: 14 }}>
+                  <input type="checkbox" checked={termsAccepted} onChange={(e) => setTermsAccepted(e.target.checked)} required />
+                  <span><TermsLinks /></span>
+                </label>
+              )}
+
+              <button type="submit" className="btn btn-primary btn-block btn-lg" style={{ marginTop: 16 }} disabled={submitting || (mode === "signup" && !termsAccepted)}>
                 {submitting ? (
                   <><Loader2 size={16} className="spin" /> {mode === "login" ? "Signing in…" : "Creating account…"}</>
                 ) : (
@@ -1465,15 +1609,85 @@ function AuthScreen({ mode, setMode, onSubmit, goLanding, roleScope = "student" 
                 )}
               </button>
 
-              {mode === "signup" && (
+              {selectedRole !== "admin" && (
+                <>
+                  <div className="auth-or"><span>or</span></div>
+                  <button
+                    type="button"
+                    className="btn btn-google btn-block btn-lg"
+                    onClick={handleGoogle}
+                    disabled={googleBusy || (mode === "signup" && !termsAccepted)}
+                  >
+                    {googleBusy ? <Loader2 size={16} className="spin" /> : <GoogleMark />}
+                    {mode === "signup" ? "Sign up with Google" : "Continue with Google"}
+                  </button>
+                </>
+              )}
+
+              {mode === "signup" ? (
                 <button type="button" className="btn btn-ghost btn-block" style={{ marginTop: 10 }} onClick={() => setMode("login")}>
                   Already registered? Go to login
+                </button>
+              ) : (
+                <button type="button" className="btn btn-ghost btn-block" style={{ marginTop: 10 }} onClick={() => setMode("signup")}>
+                  New here? Create an account
                 </button>
               )}
             </form>
           </>
         )}
 
+      </div>
+    </div>
+  );
+}
+
+/* Shown once to anyone signed in who has not accepted the current terms —
+   typically a Google sign-in from /login, or an account moved over from
+   Firebase. Nothing else opens until they accept or sign out. */
+function AcceptTermsScreen({ user, onAccept, onSignOut }) {
+  const [checked, setChecked] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  const submit = async (e) => {
+    e.preventDefault();
+    if (!checked || busy) return;
+    setBusy(true);
+    setError("");
+    const result = await onAccept();
+    if (!result?.success) {
+      setError(result?.message || "Could not save that. Please try again.");
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="auth-screen">
+      <div className="auth-brand-panel">
+        <InstitutionLockup size={64} tone="dark" className="auth-brand-institution" />
+      </div>
+      <div className="auth-form-panel">
+        <div className="auth-heading">
+          <h2 className="auth-title">Accept terms to continue</h2>
+          <p className="auth-sub">
+            Signed in as <strong>{user.email}</strong>. Before you continue, please read and accept
+            DnyanSetu&apos;s Terms and Conditions and Privacy Policy.
+          </p>
+        </div>
+        {error && <div className="form-error">{error}</div>}
+        <form onSubmit={submit}>
+          <label className="auth-terms-check">
+            <input type="checkbox" checked={checked} onChange={(e) => setChecked(e.target.checked)} required />
+            <span><TermsLinks /></span>
+          </label>
+          <button type="submit" className="btn btn-primary btn-block btn-lg" style={{ marginTop: 16 }} disabled={!checked || busy}>
+            {busy ? <><Loader2 size={16} className="spin" /> Saving…</> : <>Accept and continue <ArrowRight size={16} /></>}
+          </button>
+          <button type="button" className="btn btn-ghost btn-block" style={{ marginTop: 10 }} onClick={onSignOut}>
+            Sign out instead
+          </button>
+        </form>
       </div>
     </div>
   );
@@ -2766,12 +2980,20 @@ function TopNavApp({ view, go, onLogout, user }) {
 /* ===================================== App Root ===================================== */
 
 export default function App() {
-  const [view, setView] = useState("landing");
-  const [authMode, setAuthMode] = useState("login");
+  const auth = useAuth();
+  /* The address the page was opened on: /login, /signup, /staff, /terms and
+     /privacy open straight onto that page. */
+  const [route] = useState(initialRoute);
+  const [view, setView] = useState(route.view);
+  const [authMode, setAuthMode] = useState(route.authMode || "login");
   /* Which side of the door the auth screen opens on: the header's own Log in /
      Get Started always mean a student, while "Staff Login" in the nav is the
      only way to reach the Faculty / Admin tabs. */
-  const [authRoleScope, setAuthRoleScope] = useState("student");
+  const [authRoleScope, setAuthRoleScope] = useState(route.scope || "student");
+  /* Where to go after signing in, from /login?next=… (used by /raktsetu). */
+  const [pendingNext, setPendingNext] = useState(
+    () => safeNext(new URLSearchParams(window.location.search).get("next") || ""),
+  );
   const [users, setUsers] = useState([]);
   const [currentUser, setCurrentUser] = useState(null);
   const [booting, setBooting] = useState(true);
@@ -2784,25 +3006,22 @@ export default function App() {
   const [adminLock, setAdminLock] = useState("idle");
   const adminSessionRef = useRef(null);
 
-  /* Language for the public-facing pages (landing, about, scholarships).
-     The picker is asked again on every genuine page load — opening the site
-     fresh (a shared/bookmarked link, a new tab) or an actual refresh (F5 /
-     pull-to-refresh) — never a one-time thing. This effect's empty deps
-     array already means it only runs once per real browser page load (there
-     is no client-side router keeping App mounted across a navigation away
-     from the site), so no navigation-type check is needed to tell "fresh
-     load" apart from a tab switch — a plain tab switch never remounts App
-     in the first place. An earlier version gated this on the Navigation
-     Timing API reporting a "reload", which meant opening the site via a
-     link (type "navigate") skipped the picker whenever a language was
-     already saved from a previous visit — only F5 actually triggered it. */
-  const [lang, setLangState] = useState("en");
-  const [askLang, setAskLang] = useState(true);
-  useEffect(() => {
-    let saved = null;
-    try { saved = localStorage.getItem(LANG_KEY); } catch { /* storage blocked */ }
-    if (saved === "en" || saved === "mr") setLangState(saved);
-  }, []);
+  /* Language for the public-facing pages (landing, about, scholarships, and
+     RaktSetu's landing page, which shares the same saved choice). The picker
+     appears only until a language has been chosen; after that the choice
+     sticks — across refreshes, new tabs and links from RaktSetu — until the
+     visitor changes it with the EN / मराठी switch. */
+  const [lang, setLangState] = useState(() => {
+    try { return localStorage.getItem(LANG_KEY) === "mr" ? "mr" : "en"; } catch { return "en"; }
+  });
+  const [askLang, setAskLang] = useState(() => {
+    try {
+      const saved = localStorage.getItem(LANG_KEY);
+      return saved !== "en" && saved !== "mr";
+    } catch {
+      return true;
+    }
+  });
   const setLang = (value) => {
     setLangState(value);
     setAskLang(false);
@@ -2833,13 +3052,15 @@ export default function App() {
   const viewRef = useRef(view);
   useEffect(() => { viewRef.current = view; }, [view]);
 
+  /* Each in-app entry records how deep it is, so goBack knows whether there is
+     an in-app page to return to at all. */
   const navigateTo = (next) => {
-    window.history.pushState({ view: next }, "");
+    window.history.pushState({ view: next, depth: (window.history.state?.depth || 0) + 1 }, "");
     setView(next);
     window.scrollTo(0, 0);
   };
   const replaceView = (next) => {
-    window.history.replaceState({ view: next }, "");
+    window.history.replaceState({ view: next, depth: window.history.state?.depth || 0 }, "");
     setView(next);
   };
   /* This is the onBack a page falls through to once its own stepBack (the
@@ -2849,11 +3070,22 @@ export default function App() {
      back is the only caller that needs the pageBackRef check, and it makes
      that check directly in the popstate handler below. */
   const goBack = () => {
-    window.history.back();
+    /* Opened straight onto this page (a /terms link in a new tab, a bookmark,
+       a refresh): there is nothing in-app behind it, and history.back() would
+       either do nothing or leave the site. Go to the home page instead. */
+    if ((window.history.state?.depth || 0) > 0) window.history.back();
+    else replaceView("landing");
   };
 
-  const redirectUser = (u) => {
+  const redirectUser = (u, next = pendingNext) => {
     if (!u) return;
+    /* A ?next= path (e.g. /raktsetu) is a separate app, so it gets a real page
+       load; the session carries over. */
+    if (next) {
+      setPendingNext("");
+      window.location.assign(next);
+      return;
+    }
     /* Straight back to whatever they were trying to open before signing in. */
     if (pendingPage) {
       const target = pendingPage;
@@ -2880,7 +3112,7 @@ export default function App() {
       if (!profile) return null;
 
       if (profile.restricted || profile.status === "deleted") {
-        await signOut();
+        await auth.signOut();
         setCurrentUser(null);
         setNotice("This account has been restricted. Please contact the administrator.");
         return null;
@@ -2908,28 +3140,69 @@ export default function App() {
       console.error("Could not load profile", err);
       return null;
     }
-  }, []);
+  }, [auth.signOut]);
 
-  useEffect(() => {
-    let active = true;
-    (async () => {
-      if (demoMode) {
-        setUsers(SEED_USERS);
-        setBooting(false);
-        return;
+  /* Runs once a user has just signed in (email, Google, or arriving at /login
+     already signed in). Finishes a Google sign-up started on /signup, holds
+     anyone who has not accepted the current terms at the terms screen, and
+     otherwise sends them on. */
+  const completeSignIn = async (profile) => {
+    let current = profile;
+    const intent = readOAuthIntent();
+    clearOAuthIntent();
+    const next = pendingNext || safeNext(intent?.next || "");
+
+    if (!current.termsAcceptedAt && intent?.intent === "signup" && intent.termsAccepted) {
+      const accepted = await acceptTerms(intent.role);
+      if (accepted.success) {
+        current = normalizeStudentProfile(await fetchProfile(current.id)) || current;
+        setCurrentUser(current);
       }
-      const session = await getSession();
-      if (!active) return;
-      const profile = await loadForSession(session);
-      if (!active) return;
-      try {
-        const saved = sessionStorage.getItem(VIEW_KEY);
-        if (mayOpenView(saved, profile)) replaceView(saved);
-      } catch { /* storage blocked — start on the landing page */ }
-      if (active) setBooting(false);
+    }
+
+    if (!current.termsAcceptedAt) {
+      if (next) setPendingNext(next);
+      replaceView("accept-terms");
+      return;
+    }
+
+    if (!current.trackingId) await seedNewProfile(current);
+    redirectUser(current, next);
+  };
+
+  /* Boot: wait for Supabase to restore any saved session (or finish a Google
+     redirect), then load the profile. */
+  const bootedRef = useRef(false);
+  useEffect(() => {
+    if (bootedRef.current) return undefined;
+    if (demoMode) {
+      bootedRef.current = true;
+      setUsers(SEED_USERS);
+      setBooting(false);
+      return undefined;
+    }
+    if (auth.loading) return undefined;
+    bootedRef.current = true;
+
+    (async () => {
+      const profile = await loadForSession(auth.session);
+      const intent = readOAuthIntent();
+      /* A password-reset link also signs the user in; they stay on the auth
+         screen until they have chosen the new password. */
+      if (profile && !auth.recovery && (!profile.termsAcceptedAt || intent || route.view === "auth")) {
+        /* Just back from Google, on /login while already signed in, or still
+           owing the terms acceptance. */
+        await completeSignIn(profile);
+      } else if (!route.direct) {
+        try {
+          const saved = sessionStorage.getItem(VIEW_KEY);
+          if (mayOpenView(saved, profile)) replaceView(saved);
+        } catch { /* storage blocked — start on the landing page */ }
+      }
+      setBooting(false);
     })();
-    return () => { active = false; };
-  }, [demoMode, loadForSession]);
+    return undefined;
+  }, [demoMode, auth.loading, loadForSession]);
 
   /* Remembers the current page so a refresh returns to it. The auth screen is
      never stored: coming back to a login form you already completed is worse
@@ -2937,7 +3210,7 @@ export default function App() {
   useEffect(() => {
     if (booting) return;
     try {
-      if (view === "auth") sessionStorage.removeItem(VIEW_KEY);
+      if (view === "auth" || view === "accept-terms") sessionStorage.removeItem(VIEW_KEY);
       else sessionStorage.setItem(VIEW_KEY, view);
     } catch { /* private mode or storage disabled — refresh just loses the spot */ }
   }, [view, booting]);
@@ -2951,14 +3224,21 @@ export default function App() {
      on names the view to show — read from event.state rather than
      re-deriving it, so this never needs to re-subscribe (and never
      re-pushes) on every view change. */
+  /* Keeps the address bar on the real path for pages that have one. */
   useEffect(() => {
-    window.history.replaceState({ view: "landing" }, "");
+    const path = pathForView(view, authMode, authRoleScope, pendingNext);
+    const here = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+    if (path !== here) window.history.replaceState(window.history.state, "", path);
+  }, [view, authMode, authRoleScope, pendingNext]);
+
+  useEffect(() => {
+    window.history.replaceState({ view: viewRef.current, depth: 0 }, "");
     const onPop = (e) => {
       if (pageBackRef.current?.()) {
         /* The physical back was absorbed by the page's own drill-down, so put
            the entry back — the browser's stack depth still has to match, and
            the top-level view never actually changed. */
-        window.history.pushState({ view: viewRef.current }, "");
+        window.history.pushState({ view: viewRef.current, depth: (e.state?.depth || 0) + 1 }, "");
         return;
       }
       setView(e.state?.view || "landing");
@@ -2967,20 +3247,22 @@ export default function App() {
     return () => window.removeEventListener("popstate", onPop);
   }, []);
 
-  /* Keeps this tab honest when the session ends elsewhere or a token expires. */
+  /* Keeps this tab honest when the session ends elsewhere (a sign-out in
+     another tab clears it here too) or a token expires. */
+  const hadSessionRef = useRef(false);
   useEffect(() => {
-    if (demoMode) return undefined;
-    return onAuthChange((session) => {
-      if (!session) {
-        setCurrentUser(null);
-        setUsers([]);
-        /* Staying put when the auth screen is already open: signup ends its own
-           session on purpose, and bouncing to the landing page there would wipe
-           the "sign up successful" confirmation before it could be read. */
-        if (viewRef.current !== "auth") replaceView("landing");
-      }
-    });
-  }, [demoMode]);
+    if (demoMode || booting) return;
+    if (auth.session) {
+      hadSessionRef.current = true;
+      return;
+    }
+    /* Only an actual sign-out, not a visitor who was never signed in. */
+    if (!hadSessionRef.current) return;
+    hadSessionRef.current = false;
+    setCurrentUser(null);
+    setUsers([]);
+    if (!["auth", "terms", "privacy"].includes(viewRef.current)) replaceView("landing");
+  }, [demoMode, booting, auth.session]);
 
   /* Claims the single administrator session for this window, and keeps it while
      the account stays signed in. A second window finds the lock held and is
@@ -3093,33 +3375,37 @@ export default function App() {
     }
 
     if (creds.mode === "signup") {
-      const result = await signUp({ name: creds.name, email, password: creds.password, role: creds.role });
+      const result = await auth.signUpWithEmail({
+        name: creds.name, email, password: creds.password, role: creds.role,
+      });
       if (!result.success) return result;
       if (result.needsConfirmation) {
         setAuthMode("login");
         return result;
       }
-      /* Firebase signs the new account in automatically. Seed the profile while
-         that session is still live, then end it: signing in is a deliberate
-         second step, so the user sees the confirmation and logs in themselves. */
-      try {
-        const profile = await loadForSession(await getSession());
-        if (profile) await seedNewProfile(profile);
-      } catch (err) {
-        console.error(err);
-      }
-      await signOut();
-      setCurrentUser(null);
-      setAuthMode("login");
-      return { success: true, message: "Sign up successful! Please sign in with your email and password." };
+      const profile = await loadForSession(result.session);
+      if (!profile) return { success: false, message: "Account created, but your profile could not be loaded. Please log in." };
+      await seedNewProfile(profile);
+      redirectUser(profile);
+      return { success: true, message: "Account created." };
     }
 
-    const result = await signIn({ email, password: creds.password });
+    const result = await auth.signInWithEmail({ email, password: creds.password });
     if (!result.success) return result;
-    const profile = await loadForSession(await getSession());
+    const profile = await loadForSession(result.session);
     if (!profile) return { success: false, message: "Signed in, but your profile could not be loaded. Please try again." };
-    redirectUser(profile);
+    await completeSignIn(profile);
     return { success: true, message: "Login successful." };
+  };
+
+  const handleAcceptTerms = async () => {
+    const result = await acceptTerms(currentUser?.role);
+    if (!result.success) return result;
+    const refreshed = normalizeStudentProfile(await fetchProfile(currentUser.id));
+    setCurrentUser(refreshed);
+    if (!refreshed.trackingId) await seedNewProfile(refreshed);
+    redirectUser(refreshed);
+    return { success: true };
   };
 
   const handleFacultySetupComplete = async (data) => {
@@ -3172,7 +3458,7 @@ export default function App() {
   };
 
   const logout = async () => {
-    if (!demoMode) await signOut();
+    if (!demoMode) await auth.signOut();
     setCurrentUser(null);
     setUsers([]);
     setPendingPage(null);
@@ -3223,7 +3509,7 @@ export default function App() {
           <AlertTriangle size={15} />
           <span>
             Running on offline demo data — accounts and uploads are not saved yet.
-            Add your Firebase and Cloudinary keys to <code>.env.local</code> to switch it on. See SETUP.md.
+            Add your Supabase and Cloudinary keys to <code>.env.local</code> to switch it on. See SUPABASE-SETUP.md.
           </span>
         </div>
       )}
@@ -3274,7 +3560,18 @@ export default function App() {
       )}
       {view === "scholarships" && <ScholarshipsPage onBack={goBack} onRegisterBack={registerPageBack} />}
       {view === "auth" && (
-        <AuthScreen mode={authMode} setMode={setAuthMode} roleScope={authRoleScope} onSubmit={handleAuthSubmit} goLanding={() => replaceView("landing")} />
+        <AuthScreen
+          mode={authMode}
+          setMode={setAuthMode}
+          roleScope={authRoleScope}
+          onSubmit={handleAuthSubmit}
+          goLanding={() => { setPendingNext(""); replaceView("landing"); }}
+          next={pendingNext}
+          demoMode={demoMode}
+        />
+      )}
+      {view === "accept-terms" && currentUser && (
+        <AcceptTermsScreen user={currentUser} onAccept={handleAcceptTerms} onSignOut={logout} />
       )}
       {view === "faculty-setup" && <FacultyProfileSetup profile={currentUser} onComplete={handleFacultySetupComplete} />}
       {view === "profile" && currentUser?.role === "student" && (
@@ -5121,6 +5418,25 @@ function Styles() {
       .auth-title { font-size: 28px; line-height: 1.25; color: var(--abc-navy); letter-spacing: -0.02em; }
       .auth-sub { color: var(--text-muted); font-size: 14px; line-height: 1.65; max-width: 42ch; }
       .auth-host-note { font-size: 12.5px; line-height: 1.5; color: var(--abc-blue); word-break: break-all; }
+      .btn-google {
+        display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+        background: #fff; color: var(--text-dark); border: 1px solid var(--border-strong);
+        font-weight: 600;
+      }
+      .btn-google:hover:not(:disabled) { background: var(--bg-card-hover); border-color: var(--text-muted); }
+      .btn-google:disabled { opacity: 0.55; cursor: not-allowed; }
+      .auth-or {
+        display: flex; align-items: center; gap: 12px; margin: 16px 0 12px;
+        color: var(--text-muted); font-size: 12.5px; font-weight: 600;
+      }
+      .auth-or::before, .auth-or::after { content: ""; flex: 1; height: 1px; background: var(--border-light); }
+      .auth-terms-check {
+        display: flex; align-items: flex-start; gap: 10px; margin: 0 0 16px;
+        padding: 12px 14px; border: 1px solid var(--border-light); border-radius: var(--radius-sm);
+        background: var(--bg-canvas); font-size: 13.5px; line-height: 1.55; color: var(--text-subtle);
+      }
+      .auth-terms-check input { margin-top: 3px; flex-shrink: 0; width: 16px; height: 16px; }
+      .auth-terms-check a { color: var(--abc-blue); font-weight: 600; }
 
       .role-selector-wrap { display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px; }
       .role-selector-staff { display: flex; gap: 10px; }

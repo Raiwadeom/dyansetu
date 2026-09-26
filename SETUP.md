@@ -3,49 +3,20 @@
 Two free accounts, about twenty-five minutes. Until you finish, the app runs on
 offline seed data and says so in a banner — so you can keep working meanwhile.
 
-**Firebase** holds accounts and data. **Cloudinary** holds the files.
+**Supabase** holds accounts and data. **Cloudinary** holds the files.
 
 Everything you paste into `.env.local` comes from those two dashboards. Nothing
 in this guide requires a payment method.
 
 ---
 
-## Part 1 — Firebase
+## Part 1 — Supabase (accounts and data)
 
-### 1. Create the project
-
-[console.firebase.google.com](https://console.firebase.google.com) → **Add
-project**. Google Analytics is not needed; turn it off.
-
-### 2. Turn on email sign-in
-
-**Build → Authentication → Get started → Email/Password.** Enable the first
-toggle only, and save.
-
-### 3. Create the database
-
-**Build → Firestore Database → Create database.** Choose **asia-south1
-(Mumbai)** for an Indian college. Start in **production mode** — the next step
-replaces the rules anyway.
-
-> The region cannot be changed later without recreating the database.
-
-### 4. Publish the security rules
-
-**Firestore Database → Rules.** Delete what is there, paste all of
-`firestore.rules` from this project, press **Publish**.
-
-**This step is not optional.** It is the only thing stopping one student reading
-another's records, or any account making itself an administrator.
-
-### 5. Copy the web config
-
-**Project Settings → General → Your apps → Web (`</>`)** → register an app →
-copy the `firebaseConfig` values into `.env.local`.
-
-```bash
-cp .env.example .env.local
-```
+DnyanSetu moved from Firebase to **Supabase** in September 2026. The full
+walkthrough — creating the project, running the SQL, Google sign-in, RaktSetu
+alerts, moving existing Firebase users — is in **[SUPABASE-SETUP.md](SUPABASE-SETUP.md)**.
+Parts 3 onwards below still describe the old Firebase setup and are kept only
+for reference until the migration is finished.
 
 ---
 

@@ -1,8 +1,10 @@
 {
+  "id": "/",
   "name": "DnyanSetu",
   "short_name": "DnyanSetu",
   "description": "Study material, practice quizzes, scholarships, and student services.",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#f5f7fb",
   "theme_color": "#f5f7fb",
@@ -10,12 +12,22 @@
     {
       "src": "/icon-192.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
     },
     {
       "src": "/dnyansetu-logo.png",
       "sizes": "400x400",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "RaktSetu — blood requests",
+      "short_name": "RaktSetu",
+      "url": "/raktsetu/requests",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
     }
   ]
 }
