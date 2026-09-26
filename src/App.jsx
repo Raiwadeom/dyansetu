@@ -12,6 +12,7 @@ const LegalPage = lazy(() => import("./legal/LegalPage"));
 import { generateTrackingId } from "./utils/identity";
 import { downloadCsv, timestampedName } from "./utils/exportSheet";
 import { isBackendConfigured } from "./lib/supabase";
+import { ErrorBoundary, NotFoundPage } from "./lib/errorPages";
 import {
   useAuth, acceptTerms, readOAuthIntent, clearOAuthIntent, safeNext,
 } from "./lib/auth";
@@ -111,6 +112,7 @@ function pathForView(view, authMode, scope, next) {
   if (view === "accept-terms") return `/login${query}`;
   if (view === "terms") return `/terms${window.location.hash === "#raktsetu" ? "#raktsetu" : ""}`;
   if (view === "privacy") return "/privacy";
+  if (view === "notfound") return window.location.pathname;
   return "/";
 }
 
@@ -121,7 +123,10 @@ function initialRoute() {
   if (path === "/staff") return { view: "auth", authMode: "login", scope: "staff", direct: true };
   if (path === "/terms") return { view: "terms", direct: true };
   if (path === "/privacy") return { view: "privacy", direct: true };
-  return { view: "landing", direct: false };
+  if (path === "/" || path === "/index.html") return { view: "landing", direct: false };
+  /* Anything else is a wrong address: show the 404 page instead of quietly
+     landing on the home page. */
+  return { view: "notfound", direct: true };
 }
 
 /* A restored view still has to be one this account may actually open — a stale
@@ -3505,81 +3510,86 @@ export default function App() {
         />
       )}
 
-      {view === "landing" && (
-        <Landing
-          goAuth={(m, scope) => { setAuthMode(m); setAuthRoleScope(scope || "student"); navigateTo("auth"); }}
-          onOpenAbout={() => navigateTo("about")}
-          onOpenPage={openPage}
-        />
-      )}
-      {view === "about" && <AboutPage onBack={goBack} />}
-      {view === "pyq" && <PyqPage onBack={goBack} />}
-      {(view === "privacy" || view === "terms") && (
-        <Suspense fallback={<div className="boot-screen"><Loader2 size={20} className="spin" /> Loading…</div>}>
-          <LegalPage kind={view} onBack={goBack} />
-        </Suspense>
-      )}
-      {view === "notes" && currentUser && (
-        <Suspense fallback={<div className="boot-screen"><Loader2 size={20} className="spin" /> Loading notes…</div>}>
-          <NotesPage onBack={goBack} onRegisterBack={registerPageBack} />
-        </Suspense>
-      )}
-      {view === "quiz" && currentUser && (
-        <Suspense fallback={<div className="boot-screen"><Loader2 size={20} className="spin" /> Loading practice tests…</div>}>
-          <QuizPage onBack={goBack} onRegisterBack={registerPageBack} user={currentUser} />
-        </Suspense>
-      )}
-      {view === "scholarships" && <ScholarshipsPage onBack={goBack} onRegisterBack={registerPageBack} />}
-      {view === "auth" && (
-        <AuthScreen
-          mode={authMode}
-          setMode={setAuthMode}
-          roleScope={authRoleScope}
-          onSubmit={handleAuthSubmit}
-          goLanding={() => { setPendingNext(""); replaceView("landing"); }}
-          next={pendingNext}
-          demoMode={demoMode}
-        />
-      )}
-      {view === "accept-terms" && currentUser && (
-        <AcceptTermsScreen user={currentUser} onAccept={handleAcceptTerms} onSignOut={logout} />
-      )}
-      {view === "faculty-setup" && <FacultyProfileSetup profile={currentUser} onComplete={handleFacultySetupComplete} />}
-      {view === "profile" && currentUser?.role === "student" && (
-        <StudentProfile profile={currentUser} onSaveProfile={handleProfileEdit} />
-      )}
-      {view === "faculty-portal" && (
-        <FacultyPortal profile={currentUser} onSaveProfile={handleProfileEdit} />
-      )}
-      {view === "admin-portal" && adminLock === "denied" && (
-        <main className="resource-page pyq-page">
-          <div className="resource-head">
-            <div className="resource-head-copy">
-              <p className="section-eyebrow"><Shield size={14} /> Access denied</p>
-              <h1 className="resource-title">The administrator desk is open elsewhere</h1>
-              <p className="resource-sub">
-                This account may be used in one window at a time. Close the other tab, window
-                or device that has it open, then try again — the session is released as soon as
-                that window closes.
-              </p>
+      {/* A crash in one page shows a "try again" card there; the header and
+          the rest of the site keep working. Changing page clears it. */}
+      <ErrorBoundary resetKey={view} inline>
+        {view === "landing" && (
+          <Landing
+            goAuth={(m, scope) => { setAuthMode(m); setAuthRoleScope(scope || "student"); navigateTo("auth"); }}
+            onOpenAbout={() => navigateTo("about")}
+            onOpenPage={openPage}
+          />
+        )}
+        {view === "about" && <AboutPage onBack={goBack} />}
+        {view === "pyq" && <PyqPage onBack={goBack} />}
+        {(view === "privacy" || view === "terms") && (
+          <Suspense fallback={<div className="boot-screen"><Loader2 size={20} className="spin" /> Loading…</div>}>
+            <LegalPage kind={view} onBack={goBack} />
+          </Suspense>
+        )}
+        {view === "notes" && currentUser && (
+          <Suspense fallback={<div className="boot-screen"><Loader2 size={20} className="spin" /> Loading notes…</div>}>
+            <NotesPage onBack={goBack} onRegisterBack={registerPageBack} />
+          </Suspense>
+        )}
+        {view === "quiz" && currentUser && (
+          <Suspense fallback={<div className="boot-screen"><Loader2 size={20} className="spin" /> Loading practice tests…</div>}>
+            <QuizPage onBack={goBack} onRegisterBack={registerPageBack} user={currentUser} />
+          </Suspense>
+        )}
+        {view === "scholarships" && <ScholarshipsPage onBack={goBack} onRegisterBack={registerPageBack} />}
+        {view === "auth" && (
+          <AuthScreen
+            mode={authMode}
+            setMode={setAuthMode}
+            roleScope={authRoleScope}
+            onSubmit={handleAuthSubmit}
+            goLanding={() => { setPendingNext(""); replaceView("landing"); }}
+            next={pendingNext}
+            demoMode={demoMode}
+          />
+        )}
+        {view === "accept-terms" && currentUser && (
+          <AcceptTermsScreen user={currentUser} onAccept={handleAcceptTerms} onSignOut={logout} />
+        )}
+        {view === "faculty-setup" && <FacultyProfileSetup profile={currentUser} onComplete={handleFacultySetupComplete} />}
+        {view === "profile" && currentUser?.role === "student" && (
+          <StudentProfile profile={currentUser} onSaveProfile={handleProfileEdit} />
+        )}
+        {view === "faculty-portal" && (
+          <FacultyPortal profile={currentUser} onSaveProfile={handleProfileEdit} />
+        )}
+        {view === "admin-portal" && adminLock === "denied" && (
+          <main className="resource-page pyq-page">
+            <div className="resource-head">
+              <div className="resource-head-copy">
+                <p className="section-eyebrow"><Shield size={14} /> Access denied</p>
+                <h1 className="resource-title">The administrator desk is open elsewhere</h1>
+                <p className="resource-sub">
+                  This account may be used in one window at a time. Close the other tab, window
+                  or device that has it open, then try again — the session is released as soon as
+                  that window closes.
+                </p>
+              </div>
             </div>
-          </div>
-          <div className="admin-denied">
-            <button type="button" className="btn btn-primary" onClick={() => window.location.reload()}>
-              Try again
-            </button>
-            <button type="button" className="btn btn-ghost" onClick={logout}>
-              Sign out
-            </button>
-          </div>
-        </main>
-      )}
-      {view === "admin-portal" && adminLock === "checking" && (
-        <div className="boot-screen"><Loader2 size={20} className="spin" /> Checking administrator session…</div>
-      )}
-      {view === "admin-portal" && (adminLock === "held" || adminLock === "idle") && (
-        <AdminPortal users={users} onUpdateUser={handleUpdateUser} onDeleteUser={handleDeleteUser} />
-      )}
+            <div className="admin-denied">
+              <button type="button" className="btn btn-primary" onClick={() => window.location.reload()}>
+                Try again
+              </button>
+              <button type="button" className="btn btn-ghost" onClick={logout}>
+                Sign out
+              </button>
+            </div>
+          </main>
+        )}
+        {view === "admin-portal" && adminLock === "checking" && (
+          <div className="boot-screen"><Loader2 size={20} className="spin" /> Checking administrator session…</div>
+        )}
+        {view === "admin-portal" && (adminLock === "held" || adminLock === "idle") && (
+          <AdminPortal users={users} onUpdateUser={handleUpdateUser} onDeleteUser={handleDeleteUser} />
+        )}
+      {view === "notfound" && <NotFoundPage />}
+      </ErrorBoundary>
     </div>
     </LangContext.Provider>
   );

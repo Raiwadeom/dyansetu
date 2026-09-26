@@ -16,7 +16,7 @@ function page(title, message) {
 <style>body{margin:0;font-family:Segoe UI,Arial,sans-serif;background:#f6f6f6;color:#111827}
 main{max-width:520px;margin:48px auto;padding:24px;background:#fff;border:1px solid #e5e7eb;border-radius:10px}
 h1{margin:0 0 10px;font-size:20px;color:#b91c1c}p{line-height:1.6;margin:0 0 12px}a{color:#b91c1c}
-@media (prefers-color-scheme: dark){body{background:#111;color:#f3f4f6}main{background:#1c1c1e;border-color:#333}}</style>
+</style>
 </head><body><main><h1>${title}</h1><p>${message}</p>
 <p><a href="/raktsetu/settings">Open RaktSetu notification settings</a></p></main></body></html>`;
 }

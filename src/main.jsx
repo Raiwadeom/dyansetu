@@ -2,6 +2,7 @@ import React, { Suspense, lazy } from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App.jsx";
 import { AuthProvider } from "./lib/auth.jsx";
+import { CrashPage, ErrorBoundary } from "./lib/errorPages.jsx";
 import "./index.css";
 
 /* /raktsetu is its own full page with its own look, but the same site, domain
@@ -9,67 +10,9 @@ import "./index.css";
 const RaktSetuApp = lazy(() => import("./raktsetu/RaktSetuApp.jsx"));
 const isRaktSetu = /^\/raktsetu(\/|$)/i.test(window.location.pathname);
 
-/* A crash used to leave a blank white page with nothing to go on — the error
-   only existed in the browser console. This paints it on the page instead, so
-   a failure is legible without opening devtools. */
-
-const panel = {
-  wrap: {
-    margin: "40px auto", maxWidth: 760, padding: "28px 32px",
-    fontFamily: "'Segoe UI', system-ui, sans-serif", lineHeight: 1.6,
-    background: "#fff", border: "1px solid #fecaca", borderRadius: 14,
-    boxShadow: "0 10px 30px rgba(15,23,42,0.08)", color: "#0f172a",
-  },
-  tag: {
-    display: "inline-block", padding: "3px 10px", borderRadius: 999,
-    background: "#fef2f2", color: "#b91c1c", fontSize: 12,
-    fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase",
-  },
-  msg: {
-    marginTop: 14, padding: "12px 14px", background: "#fff7ed",
-    border: "1px solid #fed7aa", borderRadius: 8,
-    font: "13px/1.5 'JetBrains Mono', Consolas, monospace",
-    whiteSpace: "pre-wrap", wordBreak: "break-word",
-  },
-  stack: {
-    marginTop: 12, maxHeight: 260, overflow: "auto", padding: "12px 14px",
-    background: "#0f172a", color: "#e2e8f0", borderRadius: 8,
-    font: "12px/1.5 'JetBrains Mono', Consolas, monospace", whiteSpace: "pre",
-  },
-};
-
-class ErrorBoundary extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = { error: null };
-  }
-
-  static getDerivedStateFromError(error) {
-    return { error };
-  }
-
-  componentDidCatch(error, info) {
-    console.error("[DnyanSetu] render failed:", error, info);
-  }
-
-  render() {
-    const { error } = this.state;
-    if (!error) return this.props.children;
-
-    return (
-      <div style={panel.wrap}>
-        <span style={panel.tag}>DnyanSetu could not start</span>
-        <h2 style={{ margin: "14px 0 4px", fontSize: 21 }}>{error.name || "Error"}</h2>
-        <div style={panel.msg}>{error.message || String(error)}</div>
-        {error.stack && <div style={panel.stack}>{error.stack}</div>}
-        <p style={{ marginTop: 18, fontSize: 14, color: "#475569" }}>
-          Reload with <strong>Ctrl&nbsp;+&nbsp;Shift&nbsp;+&nbsp;R</strong> to clear a stale
-          cache. If it persists, this message is what to report.
-        </p>
-      </div>
-    );
-  }
-}
+/* Any crash shows a calm "Something went wrong, try again after a while"
+   screen (src/lib/errorPages.jsx) instead of a blank page or a stack trace.
+   The technical detail still goes to the browser console. */
 
 const root = document.getElementById("root");
 
@@ -93,13 +36,12 @@ ReactDOM.createRoot(root).render(
    an effect — never reach the boundary above and would still blank the page. */
 function showFatal(label, detail) {
   if (root && root.childElementCount > 0) return; /* something rendered; leave it */
-  root.innerHTML =
-    `<div style="margin:40px auto;max-width:760px;padding:28px 32px;` +
-    `font-family:'Segoe UI',system-ui,sans-serif;background:#fff;` +
-    `border:1px solid #fecaca;border-radius:14px;color:#0f172a">` +
-    `<strong style="color:#b91c1c">${label}</strong>` +
-    `<pre style="margin-top:12px;padding:12px;background:#0f172a;color:#e2e8f0;` +
-    `border-radius:8px;overflow:auto;white-space:pre-wrap">${detail}</pre></div>`;
+  console.error(`[DnyanSetu] ${label}:`, detail);
+  if (document.getElementById("fatal-root")) return; /* already showing */
+  const host = document.createElement("div");
+  host.id = "fatal-root";
+  document.body.appendChild(host);
+  ReactDOM.createRoot(host).render(<CrashPage error={{ name: label, message: String(detail) }} />);
 }
 
 /* A phone's on-screen keyboard covers the bottom of the screen without

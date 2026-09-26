@@ -43,32 +43,12 @@
   font-family: "Noto Sans", "Noto Sans Devanagari", "Segoe UI", system-ui, sans-serif;
   font-size: 16px;
   line-height: 1.6;
+  /* Always light, whatever the phone's dark-mode setting: the government
+     look stays the same for everyone. */
   color-scheme: light;
   overflow-x: hidden;
 }
 
-@media (prefers-color-scheme: dark) {
-  .rs-root {
-    --rs-navy: #cfe0f7;
-    --rs-primary: #4b8fe8;
-    --rs-primary-hover: #6aa3ee;
-    --rs-primary-soft: #1a2940;
-    --rs-saffron: #ffb04d;
-    --rs-saffron-soft: #2b2112;
-    --rs-bg: #0f141b;
-    --rs-surface: #171e28;
-    --rs-text: #e8edf3;
-    --rs-muted: #a9b4c2;
-    --rs-line: #2b3645;
-    --rs-ok: #6fd08c;
-    --rs-ok-soft: #13261a;
-    --rs-warn: #f5c16c;
-    --rs-warn-soft: #2a2213;
-    --rs-error: #ff8a80;
-    --rs-error-soft: #2c1716;
-    color-scheme: dark;
-  }
-}
 
 .rs-root *, .rs-root *::before, .rs-root *::after { box-sizing: border-box; }
 .rs-root a { color: var(--rs-primary); text-underline-offset: 2px; }
@@ -108,12 +88,6 @@
 .rs-lockup--reversed .rs-drop-right { fill: #ffffff; }
 .rs-lockup--reversed .rs-lockup-text strong { color: #ffffff; }
 .rs-lockup--reversed .rs-lockup-text span { color: #f4b6b6; }
-@media (prefers-color-scheme: dark) {
-  .rs-header .rs-drop-left { fill: #e0353e; }
-  .rs-header .rs-drop-right { fill: #ffffff; }
-  .rs-header .rs-lockup-text strong { color: #ffffff; }
-  .rs-header .rs-lockup-text span { color: #f4b6b6; }
-}
 .rs-back {
   display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0;
   color: #fff !important; background: #1e3a5f; text-decoration: none;
@@ -255,10 +229,6 @@
 }
 .rs-ticks li::before { content: "✓"; background: #e6f4e8; color: #146c2e; }
 .rs-crosses li::before { content: "✕"; background: #f1ecfb; color: #5b3aa8; }
-@media (prefers-color-scheme: dark) {
-  .rs-ticks li::before { background: #173222; color: #7fdc9a; }
-  .rs-crosses li::before { background: #2a2140; color: #c4b0f5; }
-}
 .rs-note { color: var(--rs-muted); font-size: 14.5px; }
 
 .rs-steps { list-style: none; padding: 0; counter-reset: step; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--rs-gap); }
@@ -288,13 +258,10 @@
 .rs-btn-block { width: 100%; }
 .rs-btn-primary { background: var(--rs-primary); color: #fff !important; }
 .rs-btn-primary:hover:not(:disabled) { background: var(--rs-primary-hover); }
-@media (prefers-color-scheme: dark) { .rs-btn-primary { color: #0f141b !important; } }
 /* Secondary: a soft solid fill, not an outline. */
 .rs-btn-ghost { background: var(--rs-primary-soft); color: var(--rs-primary) !important; }
 .rs-btn-ghost:hover:not(:disabled) { background: #d6e3f5; }
-@media (prefers-color-scheme: dark) { .rs-btn-ghost:hover:not(:disabled) { background: #22344f; } }
 .rs-btn-danger { background: var(--rs-error); color: #fff !important; }
-@media (prefers-color-scheme: dark) { .rs-btn-danger { color: #0f141b !important; } }
 .rs-btn-danger-ghost { background: var(--rs-error-soft); color: var(--rs-error) !important; }
 .rs-linkbtn {
   background: none; border: 0; padding: 0; font: inherit; color: var(--rs-primary);
@@ -320,11 +287,6 @@
   width: 100%; min-height: 44px; padding: 10px 12px; border-radius: 6px;
   border: 1px solid #8a96a8; background: var(--rs-surface); color: var(--rs-text);
   font: inherit; font-size: 16px; line-height: 1.4;
-}
-@media (prefers-color-scheme: dark) {
-  .rs-root input[type="text"], .rs-root input[type="number"], .rs-root input[type="tel"],
-  .rs-root input[type="date"], .rs-root input[type="datetime-local"], .rs-root input[type="search"],
-  .rs-root select, .rs-root textarea { border-color: #4a586b; }
 }
 .rs-root textarea { resize: vertical; }
 .rs-root input:focus, .rs-root select:focus, .rs-root textarea:focus { border-color: var(--rs-primary); outline: 3px solid var(--rs-focus); outline-offset: 1px; }
@@ -471,13 +433,6 @@
 .rs-tone-3 { --tone: #0b4ea2; --tone-soft: #e8eff9; --tone-ink: #0b4ea2; }
 .rs-tone-4 { --tone: #6d44c9; --tone-soft: #f1ecfb; --tone-ink: #5b3aa8; }
 .rs-tone-5 { --tone: #0f8b8d; --tone-soft: #e3f5f5; --tone-ink: #0b6b6d; }
-@media (prefers-color-scheme: dark) {
-  .rs-root, .rs-tone-1 { --tone: #ffb04d; --tone-soft: #33240f; --tone-ink: #ffc877; }
-  .rs-tone-2 { --tone: #5ccf6f; --tone-soft: #16301c; --tone-ink: #86e096; }
-  .rs-tone-3 { --tone: #6aa3ee; --tone-soft: #172a45; --tone-ink: #9cc2f5; }
-  .rs-tone-4 { --tone: #a98bf0; --tone-soft: #271f3f; --tone-ink: #c9b6f7; }
-  .rs-tone-5 { --tone: #4fd0d2; --tone-soft: #123033; --tone-ink: #86e3e4; }
-}
 
 /* Nav items each carry their tone on hover / active. */
 .rs-nav-link svg { color: var(--tone); }

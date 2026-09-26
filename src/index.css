@@ -17,6 +17,12 @@
   box-sizing: border-box;
 }
 
+html {
+  /* Light-only site: keeps pages, form controls and scrollbars light even
+     when the phone or computer is set to dark mode. */
+  color-scheme: light;
+}
+
 html,
 body,
 #root {
@@ -57,4 +63,17 @@ button {
 img {
   max-width: 100%;
   display: block;
+}
+/* Brand wordmarks keep the typefaces from the logo sheets (the rule above
+   would otherwise force the body font onto them). */
+body .landing-brand-name,
+body .footer-brand-name,
+body .rs-lockup-text strong {
+  font-family: "Noto Serif", Georgia, serif !important;
+}
+body .landing-brand-tag,
+body .footer-brand-slogan,
+body .rs-lockup-text span,
+body .brand-logo-glyph {
+  font-family: "Noto Serif Devanagari", "Noto Sans Devanagari", "Nirmala UI", serif !important;
 }

@@ -19,6 +19,7 @@ import {
 import { RequireAuth, useAuth } from "../lib/auth.jsx";
 import { isBackendConfigured } from "../lib/supabase.js";
 import { LANG_KEY, makeTr } from "../lib/i18n.js";
+import { ErrorBoundary, NotFoundPage } from "../lib/errorPages.jsx";
 import {
   DISCLAIMER, DONATION_GAP_DAYS, MAX_DONOR_AGE, MIN_AGE, MIN_WEIGHT_KG,
   PAYMENT_WARNING, fetchBaseProfile, fetchMyRaktProfile,
@@ -455,11 +456,7 @@ export default function RaktSetuApp() {
                 ? <AdminPage {...props} />
                 : <div className="rs-alert rs-alert--error">Moderation is for the DnyanSetu administrator only.</div>;
               default:
-                return (
-                  <div className="rs-alert">
-                    That page does not exist. <Link to="/raktsetu" navigate={navigate}>Go to RaktSetu home</Link>.
-                  </div>
-                );
+                return <NotFoundPage homeHref="/raktsetu" inline />;
             }
           }}
         </MemberArea>
@@ -470,7 +467,10 @@ export default function RaktSetuApp() {
   return (
     <div className="rs-root">
       <Header path={path} navigate={navigate} user={user} isAdmin={isAdmin} lang={lang} setLang={setLang} tr={tr} />
-      <main className="rs-main" lang={lang === "mr" && page.rest === "/" ? "mr" : undefined}>{body}</main>
+      <main className="rs-main" lang={lang === "mr" && page.rest === "/" ? "mr" : undefined}>
+        {/* A crash in one screen shows a "try again" card; header and footer stay. */}
+        <ErrorBoundary resetKey={path} inline>{body}</ErrorBoundary>
+      </main>
       <Footer tr={tr} />
     </div>
   );
