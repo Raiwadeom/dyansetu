@@ -568,3 +568,100 @@
 @media (max-width: 360px) {
   .rs-back > span:last-child { display: none; }
 }
+
+/* ============================================================================
+   RaktSetu profile page — same layout as the DnyanSetu user profile: header
+   card with cover, round photo and badges, then one card per topic.
+   ========================================================================== */
+
+.rs-profile-page { display: flex; flex-direction: column; gap: 20px; }
+
+.rs-profile-header {
+  overflow: hidden; background: var(--rs-surface);
+  border: 1px solid var(--rs-line); border-radius: 14px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+}
+.rs-profile-cover { position: relative; height: 170px; background: #0b2f5b; }
+.rs-profile-cover::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 5px;
+  background: linear-gradient(90deg, #ff9933 0 33.33%, #ffffff 33.33% 66.66%, #138808 66.66% 100%);
+}
+.rs-profile-cover-pattern {
+  position: absolute; inset: 0; opacity: 0.12;
+  background: repeat center / 46px url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23ffffff' d='M12 21C6.2 16.8 2.5 13.3 2.5 9a4.8 4.8 0 0 1 9.5-1.4A4.8 4.8 0 0 1 21.5 9c0 4.3-3.7 7.8-9.5 12z'/%3E%3C/svg%3E");
+}
+
+.rs-profile-header-content { display: flex; gap: 26px; padding: 0 28px 26px; }
+.rs-profile-avatar-wrap { position: relative; flex: 0 0 auto; align-self: flex-start; margin-top: -64px; z-index: 1; }
+.rs-profile-avatar {
+  width: 132px; height: 132px; border-radius: 50%; object-fit: cover; display: block;
+  border: 5px solid var(--rs-surface); box-shadow: 0 6px 20px rgba(15, 23, 42, 0.16); background: var(--rs-surface);
+}
+.rs-profile-avatar-initials {
+  display: flex; align-items: center; justify-content: center;
+  background: #0b4ea2; color: #fff; font-size: 38px; font-weight: 700; letter-spacing: 2px;
+}
+.rs-profile-group-dot {
+  position: absolute; right: 2px; bottom: 6px; min-width: 42px; height: 42px; padding: 0 6px;
+  border-radius: 999px; display: grid; place-items: center;
+  background: #0b2f5b; color: #fff; font-weight: 800; font-size: 14px;
+  border: 3px solid var(--rs-surface); box-shadow: 0 0 0 2px var(--rs-saffron);
+}
+
+.rs-profile-main { min-width: 0; flex: 1; padding-top: 18px; display: flex; flex-direction: column; gap: 8px; }
+.rs-profile-name-line { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+.rs-profile-name-line h1 { font-size: 28px; line-height: 1.15; text-transform: capitalize; }
+.rs-profile-status {
+  display: inline-flex; align-items: center; gap: 6px; padding: 4px 11px; border-radius: 999px;
+  font-size: 12.5px; font-weight: 700; line-height: 1.3;
+}
+.rs-profile-status.is-eligible { background: var(--rs-ok-soft); color: var(--rs-ok); }
+.rs-profile-status.is-paused { background: var(--rs-warn-soft); color: var(--rs-warn); }
+.rs-profile-headline { color: var(--rs-muted); font-size: 15px; }
+.rs-profile-location { display: flex; align-items: center; gap: 6px; color: var(--rs-muted); font-size: 14px; }
+.rs-profile-metrics { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+.rs-profile-metrics span {
+  display: inline-flex; align-items: baseline; gap: 5px; padding: 6px 12px; border-radius: 999px;
+  background: var(--rs-bg); border: 1px solid var(--rs-line); font-size: 13px; color: var(--rs-muted);
+}
+.rs-profile-metrics strong { color: var(--rs-navy); font-size: 14px; }
+.rs-profile-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
+
+.rs-profile-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; align-items: start; }
+.rs-profile-grid > :last-child:nth-child(odd) { grid-column: 1 / -1; }
+.rs-profile-card {
+  background: var(--rs-surface); border: 1px solid var(--rs-line); border-top: 4px solid var(--tone);
+  border-radius: 12px; padding: 20px 22px; display: flex; flex-direction: column; gap: 14px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+}
+.rs-profile-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.rs-profile-card-head h2 { font-size: 18px; margin-top: 3px; }
+.rs-kicker { display: block; font-size: 11px; letter-spacing: 0.1em; font-weight: 800; color: var(--tone-ink); }
+
+.rs-info-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 18px; margin: 0; }
+.rs-info-grid > div { min-width: 0; padding: 10px 12px; border-radius: 8px; background: var(--rs-bg); }
+.rs-info-grid dt { font-size: 12.5px; color: var(--rs-muted); }
+.rs-info-grid dd { margin: 2px 0 0; font-weight: 700; color: var(--rs-text); overflow-wrap: anywhere; }
+
+.rs-health-state { display: flex; align-items: flex-start; gap: 8px; font-weight: 600; }
+.rs-health-state svg { margin-top: 3px; }
+.rs-health-state.is-ok { color: var(--rs-ok); }
+.rs-health-state.is-missing { color: var(--rs-warn); }
+.rs-health-details summary { cursor: pointer; color: var(--rs-primary); font-weight: 600; font-size: 14px; }
+.rs-health-details .rs-health-list { margin-top: 10px; }
+
+.rs-form--embedded { border: 0; padding: 0; }
+
+@media (max-width: 760px) {
+  .rs-profile-grid { grid-template-columns: minmax(0, 1fr); }
+  .rs-profile-header-content { flex-direction: column; gap: 4px; padding: 0 18px 22px; }
+  .rs-profile-avatar-wrap { margin-top: -54px; }
+  .rs-profile-avatar { width: 108px; height: 108px; }
+  .rs-profile-avatar-initials { font-size: 30px; }
+  .rs-profile-cover { height: 130px; }
+  .rs-profile-main { padding-top: 6px; }
+  .rs-profile-name-line h1 { font-size: 24px; }
+}
+@media (max-width: 400px) {
+  .rs-info-grid { grid-template-columns: minmax(0, 1fr); }
+}

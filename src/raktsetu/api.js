@@ -247,7 +247,7 @@ export async function adminDismiss(id) {
 export async function fetchBaseProfile(userId) {
   if (!isBackendConfigured || !userId) return null;
   return check(
-    await supabase.from("profiles").select("id, name, email, role, restricted, status, terms_accepted_at").eq("id", userId).maybeSingle(),
+    await supabase.from("profiles").select("id, name, email, role, restricted, status, terms_accepted_at, pfp").eq("id", userId).maybeSingle(),
     "Could not load your account.",
   );
 }

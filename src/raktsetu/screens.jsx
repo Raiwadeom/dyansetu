@@ -52,7 +52,7 @@ function ErrorBox({ message }) {
 
 /* ------------------------------------------------------- profile (onboarding) */
 
-export function ProfileForm({ userId, defaultName = "", existing = null, onboarding = false, onSaved }) {
+export function ProfileForm({ userId, defaultName = "", existing = null, onboarding = false, embedded = false, onSaved }) {
   const [form, setForm] = useState(() => ({
     display_name: existing?.display_name || defaultName || "",
     age: existing?.age ?? "",
@@ -108,24 +108,8 @@ export function ProfileForm({ userId, defaultName = "", existing = null, onboard
 
   const blockers = existing ? donorBlockers(existing) : [];
 
-  return (
-    <section className="rs-section rs-narrow">
-      <h1 className="rs-page-title">{onboarding ? "Set up your RaktSetu profile" : "My RaktSetu profile"}</h1>
-      <p className="rs-lead">
-        {onboarding
-          ? "A few details so requests can be shown and matched near you. This is needed once, before anything else."
-          : "Keep this up to date — it decides which requests you are alerted to."}
-      </p>
-
-      {!onboarding && blockers.length > 0 && (
-        <div className="rs-alert">
-          <strong>You cannot volunteer to donate right now:</strong>
-          <ul>{blockers.map((b) => <li key={b}>{b}</li>)}</ul>
-          You can still post requests for someone else.
-        </div>
-      )}
-
-      <form className="rs-card rs-form" onSubmit={submit} noValidate>
+  const formEl = (
+      <form className={embedded ? "rs-form rs-form--embedded" : "rs-card rs-form"} onSubmit={submit} noValidate>
         <div className="rs-age-banner rs-age-banner--compact" role="note">
           <span className="rs-age-badge">{MIN_AGE}+</span>
           <p>RaktSetu is for ages {MIN_AGE} and over. Donors must be {MIN_AGE}–{MAX_DONOR_AGE} and weigh at least {MIN_WEIGHT_KG} kg.</p>
@@ -214,6 +198,28 @@ export function ProfileForm({ userId, defaultName = "", existing = null, onboard
           {saving ? <><Loader2 size={16} className="rs-spin" /> Saving…</> : onboarding ? "Save and continue" : "Save changes"}
         </button>
       </form>
+  );
+
+  if (embedded) return formEl;
+
+  return (
+    <section className="rs-section rs-narrow">
+      <h1 className="rs-page-title">{onboarding ? "Set up your RaktSetu profile" : "My RaktSetu profile"}</h1>
+      <p className="rs-lead">
+        {onboarding
+          ? "A few details so requests can be shown and matched near you. This is needed once, before anything else."
+          : "Keep this up to date — it decides which requests you are alerted to."}
+      </p>
+
+      {!onboarding && blockers.length > 0 && (
+        <div className="rs-alert">
+          <strong>You cannot volunteer to donate right now:</strong>
+          <ul>{blockers.map((b) => <li key={b}>{b}</li>)}</ul>
+          You can still post requests for someone else.
+        </div>
+      )}
+
+      {formEl}
     </section>
   );
 }
@@ -929,5 +935,177 @@ export function AdminPage({ navigate }) {
         </>
       )}
     </section>
+  );
+}
+
+/* ------------------------------------------------------------ profile page */
+
+const GENDER_LABEL = Object.fromEntries(GENDERS.map((g) => [g.value, g.label]));
+
+function InfoGrid({ rows }) {
+  return (
+    <dl className="rs-info-grid">
+      {rows.map(([label, value]) => (
+        <div key={label}>
+          <dt>{label}</dt>
+          <dd>{value}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+function ProfileCard({ kicker, title, tone, action, children }) {
+  return (
+    <section className={`rs-profile-card rs-tone-${tone}`}>
+      <div className="rs-profile-card-head">
+        <div>
+          <span className="rs-kicker">{kicker}</span>
+          <h2>{title}</h2>
+        </div>
+        {action}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+/* The RaktSetu profile, laid out like the DnyanSetu user profile: a header
+   card with cover, photo and badges, then one card per topic. "Edit profile"
+   swaps in the same form used for onboarding. */
+export function ProfilePage({ userId, base, profile, setProfile, navigate }) {
+  const [editing, setEditing] = useState(false);
+  const name = profile.display_name || base?.name || "RaktSetu member";
+  const initials = name.split(/\s+/).filter(Boolean).map((p) => p[0]).slice(0, 2).join("").toUpperCase();
+  const blockers = donorBlockers(profile);
+  const eligible = blockers.length === 0;
+  const next = nextEligibleDate(profile);
+  const role = base?.role === "faculty" ? "Faculty" : base?.role === "admin" ? "Administrator" : "Student";
+
+  if (editing) {
+    return (
+      <div className="rs-profile-page">
+        <ProfileCard
+          kicker="EDIT"
+          title="Update RaktSetu profile"
+          tone={3}
+          action={<button type="button" className="rs-btn rs-btn-ghost rs-btn-sm" onClick={() => setEditing(false)}>Cancel</button>}
+        >
+          <ProfileForm
+            userId={userId}
+            defaultName={base?.name}
+            existing={profile}
+            embedded
+            onSaved={(saved) => { setProfile(saved); setEditing(false); window.scrollTo(0, 0); }}
+          />
+        </ProfileCard>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rs-profile-page">
+      <section className="rs-profile-header">
+        <div className="rs-profile-cover" aria-hidden="true">
+          <div className="rs-profile-cover-pattern" />
+        </div>
+        <div className="rs-profile-header-content">
+          <div className="rs-profile-avatar-wrap">
+            {base?.pfp
+              ? <img className="rs-profile-avatar" src={base.pfp} alt="" />
+              : <div className="rs-profile-avatar rs-profile-avatar-initials">{initials || "RS"}</div>}
+            <span className="rs-profile-group-dot" title={`Blood group ${displayGroup(profile.blood_group)}`}>
+              {displayGroup(profile.blood_group) === "Don't know" ? "?" : displayGroup(profile.blood_group)}
+            </span>
+          </div>
+
+          <div className="rs-profile-main">
+            <div className="rs-profile-name-line">
+              <h1>{name}</h1>
+              <span className={`rs-profile-status ${eligible ? "is-eligible" : "is-paused"}`}>
+                {eligible ? <><CheckCircle2 size={14} /> Eligible donor</> : <><AlertTriangle size={14} /> Not donating right now</>}
+              </span>
+            </div>
+            <p className="rs-profile-headline">RaktSetu volunteer · {role}</p>
+            <p className="rs-profile-location"><MapPin size={14} /> {profile.city}</p>
+
+            <div className="rs-profile-metrics">
+              <span><strong>{displayGroup(profile.blood_group)}</strong> blood group</span>
+              <span><strong>{profile.age}</strong> years</span>
+              <span><strong>{Number(profile.weight_kg)}</strong> kg</span>
+              <span>{GENDER_LABEL[profile.gender] || "—"}</span>
+            </div>
+
+            <div className="rs-profile-actions">
+              <button type="button" className="rs-btn rs-btn-primary" onClick={() => setEditing(true)}>Edit profile</button>
+              <Link to="/raktsetu/settings" navigate={navigate} className="rs-btn rs-btn-ghost">Alert settings</Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {!eligible && (
+        <div className="rs-alert">
+          <strong>You cannot volunteer to donate right now:</strong>
+          <ul>{blockers.map((b) => <li key={b}>{b}</li>)}</ul>
+          You can still post requests for someone else.
+        </div>
+      )}
+
+      <div className="rs-profile-grid">
+        <ProfileCard kicker="DONOR" title="Donor details" tone={1}>
+          <InfoGrid rows={[
+            ["Blood group", displayGroup(profile.blood_group)],
+            ["Age", `${profile.age} years`],
+            ["Weight", `${Number(profile.weight_kg)} kg`],
+            ["Gender", GENDER_LABEL[profile.gender] || "—"],
+          ]} />
+          {profile.blood_group === "unknown" && (
+            <p className="rs-hint rs-hint--box">Find out your blood group at any blood bank or lab, then update it here to receive matching email alerts.</p>
+          )}
+        </ProfileCard>
+
+        <ProfileCard kicker="CONTACT" title="Location & contact" tone={3}>
+          <InfoGrid rows={[
+            ["City", profile.city],
+            ["Phone", profile.phone || "Not added"],
+          ]} />
+          <p className="rs-muted">Your phone is shared with a requester only when you tap “I can help”.</p>
+        </ProfileCard>
+
+        <ProfileCard kicker="DONATION" title="Donation history" tone={2}>
+          <InfoGrid rows={[
+            ["Last donation", profile.last_donation_date ? formatDate(profile.last_donation_date) : "Never recorded"],
+            ["Can donate again", next && next > new Date() ? formatDate(next.toISOString()) : "Now"],
+          ]} />
+          <p className="rs-muted">After every donation there is a 4-month ({DONATION_GAP_DAYS}-day) rest before you are matched again.</p>
+        </ProfileCard>
+
+        <ProfileCard kicker="HEALTH" title="Health declaration" tone={4}>
+          <p className={`rs-health-state ${profile.health_declared ? "is-ok" : "is-missing"}`}>
+            {profile.health_declared
+              ? <><CheckCircle2 size={16} /> Confirmed — none of the listed conditions apply</>
+              : <><AlertTriangle size={16} /> Not confirmed — you will not be asked to donate</>}
+          </p>
+          <details className="rs-health-details">
+            <summary>What you confirmed</summary>
+            <ul className="rs-health-list">{HEALTH_CONDITIONS.map((c) => <li key={c}>{c}</li>)}</ul>
+          </details>
+        </ProfileCard>
+
+        <ProfileCard
+          kicker="ALERTS"
+          title="Notifications"
+          tone={5}
+          action={<Link to="/raktsetu/settings" navigate={navigate} className="rs-btn rs-btn-ghost rs-btn-sm">Change</Link>}
+        >
+          <InfoGrid rows={[
+            ["Browser alerts", profile.notify_push ? "On" : "Paused"],
+            ["Email alerts", profile.notify_email ? `On (${displayGroup(profile.blood_group)} only)` : "Off"],
+            ["Cities", profile.notify_all_cities ? "All cities" : `${profile.city} only`],
+          ]} />
+        </ProfileCard>
+      </div>
+    </div>
   );
 }

@@ -25,7 +25,7 @@ import {
 } from "./api.js";
 import { ensureServiceWorker } from "./push.js";
 import {
-  ActivityPage, AdminPage, NewRequestPage, ProfileForm, RequestDetailPage, RequestsPage, SettingsPage,
+  ActivityPage, AdminPage, NewRequestPage, ProfileForm, ProfilePage, RequestDetailPage, RequestsPage, SettingsPage,
 } from "./screens.jsx";
 import { HeartPulse, HeartbeatLine, Link, RaktSetuLogo, SectionTitle, Spinner } from "./ui.jsx";
 import "./raktsetu.css";
@@ -449,7 +449,7 @@ export default function RaktSetuApp() {
               case "/requests": return <RequestsPage {...props} />;
               case "/new": return <NewRequestPage {...props} />;
               case "/activity": return <ActivityPage {...props} />;
-              case "/profile": return <ProfileForm userId={user.id} defaultName={ctx.base.name} existing={ctx.profile} onSaved={ctx.setProfile} />;
+              case "/profile": return <ProfilePage {...props} />;
               case "/settings": return <SettingsPage {...props} />;
               case "/admin": return ctx.isAdmin
                 ? <AdminPage {...props} />
