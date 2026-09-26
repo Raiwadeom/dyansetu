@@ -15,7 +15,7 @@ import {
   BLOOD_GROUPS, DONATION_GAP_DAYS, GENDERS, HEALTH_CONDITIONS, MAX_DONOR_AGE, MIN_AGE, MIN_WEIGHT_KG,
   adminDismiss, adminRemove, createRequest, deleteMyRaktData, displayGroup, donorBlockers, fetchContact,
   fetchMyRaktProfile, CONSENT_VERSION, PAYMENT_WORDS, GRIEVANCE_EMAIL, listAdminLog,
-  fetchRequest, listAllOpenForAdmin, listMyRequests, listMyResponses, listOpenRequests, listReports,
+  fetchRequest, fetchAdminStats, listRequestsForAdmin, listMyRequests, listMyResponses, listOpenRequests, listReports,
   listResponders, markDonated, nextEligibleDate, reportRequest, respondToRequest, saveMyRaktProfile,
   setRequestStatus, updateMyRaktSettings,
 } from "./api.js";
@@ -897,18 +897,43 @@ export function SettingsPage({ profile, setProfile, clearProfile, userId, naviga
 
 /* ---------------------------------------------------------- admin moderation */
 
+const STATUS_FILTERS = [
+  ["open", "Open"],
+  ["hidden", "Hidden (reported)"],
+  ["fulfilled", "Fulfilled"],
+  ["cancelled", "Cancelled"],
+  ["expired", "Expired"],
+  ["removed", "Removed"],
+  ["", "All"],
+];
+
+function Stat({ value, label, tone }) {
+  return (
+    <div className={`rs-stat rs-tone-${tone}`}>
+      <strong>{value ?? "—"}</strong>
+      <span>{label}</span>
+    </div>
+  );
+}
+
+/* RaktSetu admin: overview numbers, reports to act on, every request with a
+   status filter, and the moderation log. Admin only (checked by the page
+   router and again by the database). */
 export function AdminPage({ navigate }) {
-  const [state, setState] = useState({ loading: true, reports: [], open: [], log: [], error: "" });
+  const [state, setState] = useState({ loading: true, stats: null, reports: [], requests: [], log: [], error: "" });
+  const [filter, setFilter] = useState("open");
   const [reasons, setReasons] = useState({});
 
   const load = useCallback(async () => {
     try {
-      const [reports, open, log] = await Promise.all([listReports(), listAllOpenForAdmin(), listAdminLog()]);
-      setState({ loading: false, reports, open, log, error: "" });
+      const [stats, reports, requests, log] = await Promise.all([
+        fetchAdminStats(), listReports(), listRequestsForAdmin(filter), listAdminLog(),
+      ]);
+      setState({ loading: false, stats, reports, requests, log, error: "" });
     } catch (error) {
-      setState({ loading: false, reports: [], open: [], log: [], error: error.message });
+      setState((s) => ({ ...s, loading: false, error: error.message }));
     }
-  }, []);
+  }, [filter]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -936,18 +961,49 @@ export function AdminPage({ navigate }) {
     </div>
   );
 
+  const st = state.stats || {};
+  const groups = BLOOD_GROUPS.concat("unknown");
+
   return (
     <section className="rs-section">
-      <h1 className="rs-page-title">Moderation</h1>
+      <div className="rs-page-head">
+        <h1 className="rs-page-title">RaktSetu admin</h1>
+        <a className="rs-btn rs-btn-ghost rs-btn-sm" href="/">DnyanSetu admin desk</a>
+      </div>
       <p className="rs-lead">
-        Remove fake, spam or paid requests. A request reported by 3 members is hidden automatically until you
-        remove it or dismiss the reports. To stop someone posting again, restrict their account from the DnyanSetu admin desk.
+        Overview, reports and every request. A request reported by 3 members is hidden automatically until you remove
+        it or dismiss the reports. To stop someone posting again, restrict their account from the DnyanSetu admin desk.
       </p>
       <ErrorBox message={state.error} />
+
       {state.loading ? <Spinner /> : (
         <>
+          <div className="rs-stats">
+            <Stat value={st.members} label="Members" tone={3} />
+            <Stat value={st.eligible_donors} label="Eligible donors" tone={2} />
+            <Stat value={st.requests_open} label="Open requests" tone={1} />
+            <Stat value={st.reports_pending} label="Reports waiting" tone={4} />
+            <Stat value={st.requests_hidden} label="Hidden for review" tone={4} />
+            <Stat value={st.requests_fulfilled} label="Fulfilled requests" tone={2} />
+            <Stat value={st.responses_total} label="“I can help” taps" tone={5} />
+            <Stat value={st.donations_recorded} label="Donations recorded" tone={2} />
+            <Stat value={st.push_browsers} label="Browsers with alerts" tone={3} />
+            <Stat value={`${st.emails_today ?? 0} / 90`} label="Emails today" tone={1} />
+            <Stat value={`${st.emails_month ?? 0} / 2,900`} label="Emails this month" tone={1} />
+            <Stat value={st.requests_total} label="Requests ever" tone={5} />
+          </div>
+
+          <div className="rs-card">
+            <h2 className="rs-card-title">Members by blood group</h2>
+            <div className="rs-group-counts">
+              {groups.map((g) => (
+                <span key={g}><GroupBadge group={g} /> {st.donors_by_group?.[g] || 0}</span>
+              ))}
+            </div>
+          </div>
+
           <h2 className="rs-card-title">Reported requests ({state.reports.length})</h2>
-          {state.reports.length === 0 ? <p className="rs-empty">No open reports.</p> : state.reports.map(({ request, reasons: rs }) => (
+          {state.reports.length === 0 ? <p className="rs-empty">No reports waiting.</p> : state.reports.map(({ request, reasons: rs }) => (
             <div key={request.id} className="rs-card rs-mod-row">
               <RequestCard request={request} navigate={navigate} />
               <ul className="rs-report-reasons">{rs.map((x) => <li key={x.id}>“{x.reason}” <span className="rs-muted">— {formatDateTime(x.created_at)}</span></li>)}</ul>
@@ -958,11 +1014,20 @@ export function AdminPage({ navigate }) {
             </div>
           ))}
 
-          <h2 className="rs-card-title">All open requests ({state.open.length})</h2>
-          {state.open.map((r) => (
+          <div className="rs-page-head">
+            <h2 className="rs-card-title">Requests ({state.requests.length})</h2>
+            <label className="rs-filter-inline">
+              <span className="rs-muted">Show</span>
+              <select value={filter} onChange={(e) => setFilter(e.target.value)}>
+                {STATUS_FILTERS.map(([v, l]) => <option key={v || "all"} value={v}>{l}</option>)}
+              </select>
+            </label>
+          </div>
+          {state.requests.length === 0 ? <p className="rs-empty">No requests here.</p> : state.requests.map((r) => (
             <div key={r.id} className="rs-card rs-mod-row">
               <RequestCard request={r} navigate={navigate} />
-              {removeRow(r)}
+              {r.removed_reason && <p className="rs-muted">Removed: “{r.removed_reason}”</p>}
+              {r.status === "open" && removeRow(r)}
             </div>
           ))}
 

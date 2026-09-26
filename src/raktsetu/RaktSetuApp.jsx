@@ -396,6 +396,18 @@ function MemberArea({ children }) {
     return <Spinner />;
   }
 
+  /* The administrator can open the admin page without being a donor. */
+  const isAdmin = state.base.role === "admin";
+  if (!state.profile && isAdmin && /^\/raktsetu\/admin/.test(window.location.pathname)) {
+    return children({
+      base: state.base,
+      profile: null,
+      setProfile: (profile) => setState((s) => ({ ...s, profile })),
+      clearProfile: () => setState((s) => ({ ...s, profile: null })),
+      isAdmin,
+    });
+  }
+
   if (!state.profile) {
     return (
       <ProfileForm

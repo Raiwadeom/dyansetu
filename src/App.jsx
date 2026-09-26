@@ -2785,6 +2785,16 @@ function AdminPortal({ users, onUpdateUser, onDeleteUser }) {
 
   return (
     <div className="dash-grid">
+      {/* RaktSetu has its own admin page (overview, reports, all requests). */}
+      <a className="card admin-rakt-link" href="/raktsetu/admin" style={{ gridColumn: "1 / -1" }}>
+        <span className="admin-rakt-icon"><Droplet size={20} /></span>
+        <span className="admin-rakt-copy">
+          <strong>RaktSetu admin</strong>
+          <small>Blood-request overview, reports to review, remove fake requests, moderation log</small>
+        </span>
+        <ArrowRight size={18} />
+      </a>
+
       <div style={{ gridColumn: "1 / -1" }} className="card">
         <div>
           <h3><Shield size={20} /> User Directory &amp; Access Control Desk</h3>
@@ -4628,6 +4638,19 @@ function Styles() {
         font-size: 13px; font-weight: 700; color: var(--text-muted);
       }
       .service-card.is-highlighted { animation: searchFlash 2.4s ease-out; }
+
+      .admin-rakt-link {
+        display: flex; align-items: center; gap: 14px; text-decoration: none; color: var(--text-dark);
+        border-left: 4px solid #A51C24; transition: box-shadow 0.2s ease, transform 0.2s ease;
+      }
+      .admin-rakt-link:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+      .admin-rakt-icon {
+        flex: 0 0 auto; width: 44px; height: 44px; border-radius: 10px; display: grid; place-items: center;
+        background: #FCEBEC; color: #A51C24;
+      }
+      .admin-rakt-copy { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+      .admin-rakt-copy strong { font-size: 16px; }
+      .admin-rakt-copy small { font-size: 13px; color: var(--text-muted); }
       @keyframes serviceRise {
         from { opacity: 0; transform: translateY(18px); }
         to { opacity: 1; transform: none; }

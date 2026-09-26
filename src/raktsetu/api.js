@@ -244,11 +244,18 @@ export async function listReports() {
   return [...grouped.values()].filter((g) => g.request);
 }
 
-export async function listAllOpenForAdmin() {
-  return check(
-    await supabase.from("blood_requests").select(REQUEST_COLUMNS).eq("status", "open").order("created_at", { ascending: false }).limit(200),
-    "Could not load requests.",
-  ) || [];
+/* Every request (any status), newest first; the database lets only the
+   administrator see closed and hidden ones. */
+export async function listRequestsForAdmin(status = "") {
+  let query = supabase.from("blood_requests").select(REQUEST_COLUMNS).order("created_at", { ascending: false }).limit(200);
+  if (status === "hidden") query = query.eq("under_review", true);
+  else if (status) query = query.eq("status", status);
+  return check(await query, "Could not load requests.") || [];
+}
+
+/* Counts for the moderation dashboard (admin only; no personal data). */
+export async function fetchAdminStats() {
+  return check(await supabase.rpc("raktsetu_admin_stats"), "Could not load the overview.");
 }
 
 export async function adminRemove(id, reason) {
