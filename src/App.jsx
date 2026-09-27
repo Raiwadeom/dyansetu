@@ -5962,7 +5962,7 @@ function Styles() {
         box-shadow: 0 2px 12px rgba(15,23,42,.06);
       }
       .app-header-inner {
-        width: min(1280px, 100%);
+        width: min(1440px, 100%);
         height: 100%;
         margin: 0 auto;
         padding: 0 28px;
@@ -6000,14 +6000,30 @@ function Styles() {
       /* The bar now lists every destination the account can reach, which is more
          than fits on a narrow laptop. It scrolls sideways rather than pushing
          the sign-out button off the edge. */
+      /* "justify-content: center" on a scrolling row pushes the overflow off
+         BOTH ends, and the left end can never be scrolled back to — that is
+         how Home and RaktSetu vanished. Auto margins centre the row when it
+         fits and fall back to a normal left-aligned scroll when it does not. */
       .app-navigation {
         min-width: 0;
         display: flex;
         align-items: center;
-        justify-content: center;
+        justify-content: flex-start;
         gap: 4px;
         overflow-x: auto;
         scrollbar-width: none;
+      }
+      .app-navigation > :first-child { margin-left: auto; }
+      .app-navigation > :last-child { margin-right: auto; }
+      /* Two short lines instead of one long one, so the links get the room. */
+      .app-brand .app-brand-college { white-space: normal; max-width: 170px; font-size: 12.5px; }
+
+      /* Laptops: the links move to their own row under the brand, as on phones,
+         instead of hiding behind a sideways scroll. */
+      @media (max-width: 1360px) {
+        .app-header { height: auto; }
+        .app-header-inner { min-height: 68px; row-gap: 0; }
+        .app-navigation { grid-column: 1 / -1; grid-row: 2; height: 46px; border-top: 1px solid var(--border-light); }
       }
       .app-navigation::-webkit-scrollbar { display: none; }
       .app-nav-item {
