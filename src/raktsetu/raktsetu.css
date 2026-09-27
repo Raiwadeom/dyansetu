@@ -730,3 +730,55 @@
 }
 .rs-filter-inline { display: inline-flex; align-items: center; gap: 8px; }
 .rs-filter-inline select { width: auto; min-height: 38px; }
+
+/* Alerts and data: status panel, preference switches. */
+.rs-alertstatus {
+  display: flex; flex-direction: column; gap: 16px;
+  border-radius: var(--rs-radius); padding: 22px; border: 1px solid var(--rs-line); border-left-width: 6px;
+}
+.rs-alertstatus.is-off { background: var(--rs-saffron-soft); border-left-color: var(--rs-saffron); }
+.rs-alertstatus.is-on { background: var(--rs-ok-soft); border-left-color: var(--rs-ok); }
+.rs-alertstatus-head { display: flex; gap: 16px; align-items: flex-start; }
+.rs-alertstatus-icon {
+  flex: 0 0 52px; height: 52px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
+  background: var(--rs-surface); border: 2px solid currentColor;
+}
+.is-off .rs-alertstatus-icon { color: var(--rs-saffron); }
+.is-on .rs-alertstatus-icon { color: var(--rs-ok); }
+.rs-alertstatus-kicker { font-size: 12.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--rs-muted); }
+.rs-root .rs-alertstatus h2 { font-size: 24px; margin: 2px 0 6px; }
+.is-off h2 { color: var(--rs-warn) !important; }
+.is-on h2 { color: var(--rs-ok) !important; }
+.rs-alertstatus p { margin: 0; color: var(--rs-text); }
+.rs-alertstatus-btn { align-self: flex-start; min-height: 48px; padding: 12px 22px; font-size: 16px; display: inline-flex; align-items: center; gap: 8px; }
+.rs-alertstatus-help summary { cursor: pointer; font-weight: 600; font-size: 14.5px; color: var(--rs-primary); }
+.rs-alertstatus-help p { margin-top: 8px; font-size: 14px; color: var(--rs-muted); }
+.rs-switches { display: flex; flex-direction: column; padding-bottom: 6px; }
+.rs-switches .rs-card-title { padding-bottom: 10px; border-bottom: 1px solid var(--rs-line); margin-bottom: 0; }
+.rs-switchrow { display: flex; align-items: center; gap: 14px; padding: 14px 0; border-bottom: 1px solid var(--rs-line); }
+.rs-switchrow:last-child { border-bottom: 0; }
+.rs-switchrow-icon {
+  flex: 0 0 38px; height: 38px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
+  background: var(--rs-primary-soft); color: var(--rs-primary);
+}
+.rs-switchrow-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.rs-switchrow-text strong { color: var(--rs-navy); font-size: 15.5px; }
+.rs-switchrow-text span { color: var(--rs-muted); font-size: 14px; }
+.rs-switch {
+  position: relative; flex: 0 0 auto; width: 68px; height: 34px; border-radius: 999px; border: 0; cursor: pointer;
+  background: #9aa5b4; transition: background 0.15s; padding: 0;
+}
+.rs-switch.is-on { background: var(--rs-ok); }
+.rs-switch:disabled { opacity: 0.55; cursor: not-allowed; }
+.rs-switch-knob {
+  position: absolute; top: 4px; left: 4px; width: 26px; height: 26px; border-radius: 50%; background: #fff;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.25); transition: transform 0.15s;
+}
+.rs-switch.is-on .rs-switch-knob { transform: translateX(34px); }
+.rs-switch-label { position: absolute; top: 50%; transform: translateY(-50%); right: 10px; font-size: 12px; font-weight: 700; color: #fff; }
+.rs-switch.is-on .rs-switch-label { right: auto; left: 11px; }
+@media (max-width: 560px) {
+  .rs-alertstatus { padding: 18px 16px; }
+  .rs-alertstatus-icon { flex-basis: 44px; height: 44px; }
+  .rs-alertstatus-btn { align-self: stretch; justify-content: center; }
+}

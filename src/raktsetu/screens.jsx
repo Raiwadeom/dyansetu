@@ -802,78 +802,92 @@ export function SettingsPage({ profile, setProfile, clearProfile, userId, naviga
     navigate("/raktsetu", { replace: true });
   }, "");
 
+  const cityText = profile.notify_all_cities ? `${profile.city} and every other city` : profile.city;
+  const blocked = support.permission === "denied";
+
   return (
     <section className="rs-section rs-narrow">
       <h1 className="rs-page-title">Alerts and data</h1>
 
-      <div className="rs-card rs-setting">
-        <div>
-          <h2 className="rs-card-title">{browserOn ? <Bell size={17} /> : <BellOff size={17} />} Notifications in this browser</h2>
-          <p className="rs-muted">
-            Alerts for new requests in <strong>{profile.city}</strong>{profile.notify_all_cities ? " and every other city" : ""}.
-            Alerts keep arriving after you close the tab or sign out, until you turn them off here.
-          </p>
-          {!support.supported && <p className="rs-hint rs-hint--box">This browser does not support notifications. Try Chrome, Edge or Firefox.</p>}
-          {support.needsHomeScreen && (
-            <p className="rs-hint rs-hint--box">
-              <strong>On iPhone or iPad:</strong> alerts only work after you add this site to your Home Screen
-              (iOS 16.4 or later). Tap the Share button, choose <em>Add to Home Screen</em>, open DnyanSetu from
-              the new icon, go to RaktSetu → Alerts, and turn notifications on there.
+      {/* The one setting that decides whether this phone hears about a request,
+          so it is a status panel with one big action, not one row among many. */}
+      <div className={`rs-alertstatus ${browserOn ? "is-on" : "is-off"}`}>
+        <div className="rs-alertstatus-head">
+          <span className="rs-alertstatus-icon">{browserOn ? <Bell size={24} /> : <BellOff size={24} />}</span>
+          <div>
+            <span className="rs-alertstatus-kicker">Notifications on this device</span>
+            <h2>{browserOn === null ? "Checking…" : browserOn ? "Alerts are ON" : "Alerts are OFF"}</h2>
+            <p>
+              {browserOn
+                ? <>You will be notified of new blood requests in <strong>{cityText}</strong>, even when this tab is closed.</>
+                : <>Turn on to be notified the moment someone in <strong>{cityText}</strong> needs blood.</>}
             </p>
-          )}
-          {support.permission === "denied" && (
-            <p className="rs-hint rs-hint--box">Notifications are blocked for this site. Allow them from the lock icon next to the address bar, then try again.</p>
-          )}
-          <p className="rs-hint">
-            Some phones (for example Xiaomi, Oppo, Vivo) delay browser notifications to save battery, and clearing
-            browser data removes them. Treat alerts as fast but not guaranteed.
-          </p>
+          </div>
         </div>
+
+        {!support.supported && <p className="rs-hint rs-hint--box">This browser does not support notifications. Try Chrome, Edge or Firefox.</p>}
+        {support.needsHomeScreen && (
+          <p className="rs-hint rs-hint--box">
+            <strong>On iPhone or iPad:</strong> first add DnyanSetu to your Home Screen (Share → <em>Add to Home
+            Screen</em>, iOS 16.4 or later), open it from the new icon, then turn alerts on here.
+          </p>
+        )}
+        {blocked && (
+          <p className="rs-hint rs-hint--box">Notifications are blocked for this site. Allow them from the lock icon next to the address bar, then try again.</p>
+        )}
+
         <button
           type="button"
-          className={`rs-btn ${browserOn ? "rs-btn-ghost" : "rs-btn-primary"}`}
+          className={`rs-btn rs-alertstatus-btn ${browserOn ? "rs-btn-ghost" : "rs-btn-primary"}`}
           onClick={toggleBrowser}
           disabled={state.busy || browserOn === null || !support.supported || (!browserOn && support.needsHomeScreen)}
         >
-          {browserOn ? "Turn off" : "Turn on"}
+          {state.busy ? <Loader2 size={16} className="rs-spin" /> : browserOn ? <BellOff size={16} /> : <Bell size={16} />}
+          {browserOn ? "Turn off on this device" : "Turn on alerts"}
         </button>
-      </div>
 
-      <div className="rs-card rs-setting">
-        <div>
-          <h2 className="rs-card-title"><MapPin size={17} /> Alerts from all cities</h2>
-          <p className="rs-muted">Off: only requests in your city. On: requests anywhere.</p>
-        </div>
-        <button type="button" className="rs-btn rs-btn-ghost" onClick={() => toggle("notify_all_cities")} disabled={state.busy} aria-pressed={profile.notify_all_cities}>
-          {profile.notify_all_cities ? "On — turn off" : "Off — turn on"}
-        </button>
-      </div>
-
-      <div className="rs-card rs-setting">
-        <div>
-          <h2 className="rs-card-title"><Mail size={17} /> Email alerts</h2>
-          <p className="rs-muted">
-            Sent only when a request needs exactly your blood group ({displayGroup(profile.blood_group)}) and you are
-            eligible to donate. {profile.blood_group === "unknown" && "Set your blood group on your profile to receive these."}
+        <details className="rs-alertstatus-help">
+          <summary>Not getting alerts?</summary>
+          <p>
+            Some phones (for example Xiaomi, Oppo, Vivo) delay browser notifications to save battery: set your
+            browser's battery use to <em>Unrestricted</em>. Clearing browser data also removes alerts, so turn
+            them on again afterwards. Treat alerts as fast but not guaranteed.
           </p>
-        </div>
-        <button type="button" className="rs-btn rs-btn-ghost" onClick={() => toggle("notify_email")} disabled={state.busy} aria-pressed={profile.notify_email}>
-          {profile.notify_email ? "On — turn off" : "Off — turn on"}
-        </button>
-      </div>
-
-      <div className="rs-card rs-setting">
-        <div>
-          <h2 className="rs-card-title"><Bell size={17} /> Push alerts on all my devices</h2>
-          <p className="rs-muted">Pauses browser alerts everywhere without removing each browser.</p>
-        </div>
-        <button type="button" className="rs-btn rs-btn-ghost" onClick={() => toggle("notify_push")} disabled={state.busy} aria-pressed={profile.notify_push}>
-          {profile.notify_push ? "On — pause" : "Paused — resume"}
-        </button>
+        </details>
       </div>
 
       <ErrorBox message={state.error} />
       {state.ok && <div className="rs-alert rs-alert--ok"><CheckCircle2 size={16} /> {state.ok}</div>}
+
+      <div className="rs-card rs-switches">
+        <h2 className="rs-card-title">Alert preferences</h2>
+        <SwitchRow
+          icon={MapPin}
+          title="Alerts from all cities"
+          detail={profile.notify_all_cities ? "On: requests from anywhere." : `Off: only requests in ${profile.city}.`}
+          on={profile.notify_all_cities}
+          onToggle={() => toggle("notify_all_cities")}
+          disabled={state.busy}
+        />
+        <SwitchRow
+          icon={Mail}
+          title="Email alerts"
+          detail={profile.blood_group === "unknown"
+            ? "Set your blood group on your profile to receive these."
+            : `Only when a request needs exactly ${displayGroup(profile.blood_group)} and you are eligible to donate.`}
+          on={profile.notify_email}
+          onToggle={() => toggle("notify_email")}
+          disabled={state.busy}
+        />
+        <SwitchRow
+          icon={Bell}
+          title="Push alerts on all my devices"
+          detail={profile.notify_push ? "On. Turn off to pause alerts everywhere at once." : "Paused on every device. Turn on to resume."}
+          on={profile.notify_push}
+          onToggle={() => toggle("notify_push")}
+          disabled={state.busy}
+        />
+      </div>
 
       <div className="rs-card rs-danger-zone">
         <h2 className="rs-card-title"><Trash2 size={17} /> Delete my RaktSetu data</h2>
@@ -892,6 +906,32 @@ export function SettingsPage({ profile, setProfile, clearProfile, userId, naviga
         )}
       </div>
     </section>
+  );
+}
+
+/* An on/off preference as a real switch: the state reads at a glance instead
+   of from a sentence like "Off — turn on". */
+function SwitchRow({ icon: Icon, title, detail, on, onToggle, disabled }) {
+  return (
+    <div className="rs-switchrow">
+      <span className="rs-switchrow-icon"><Icon size={18} /></span>
+      <div className="rs-switchrow-text">
+        <strong>{title}</strong>
+        <span>{detail}</span>
+      </div>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={Boolean(on)}
+        aria-label={title}
+        className={`rs-switch ${on ? "is-on" : ""}`}
+        onClick={onToggle}
+        disabled={disabled}
+      >
+        <span className="rs-switch-knob" />
+        <span className="rs-switch-label">{on ? "On" : "Off"}</span>
+      </button>
+    </div>
   );
 }
 
