@@ -363,9 +363,6 @@
 .rs-status--open { background: var(--rs-ok-soft); color: var(--rs-ok); }
 .rs-status--removed, .rs-status--cancelled { background: var(--rs-error-soft); color: var(--rs-error); }
 
-.rs-push-prompt { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; border-left: 4px solid var(--rs-saffron); }
-.rs-push-prompt > svg { color: var(--rs-saffron); }
-.rs-push-prompt > div { flex: 1 1 220px; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 
 .rs-detail { display: flex; flex-direction: column; gap: 20px; }
 .rs-detail-head { display: flex; gap: 16px; align-items: flex-start; }
@@ -781,4 +778,67 @@
   .rs-alertstatus { padding: 18px 16px; }
   .rs-alertstatus-icon { flex-basis: 44px; height: 44px; }
   .rs-alertstatus-btn { align-self: stretch; justify-content: center; }
+}
+
+/* Open requests page. */
+.rs-list-head { align-items: flex-end; }
+.rs-list-head .rs-muted { margin: 6px 0 0; }
+.rs-list-cta { min-height: 46px; padding: 11px 20px; font-size: 16px; display: inline-flex; align-items: center; gap: 8px; }
+
+.rs-push-prompt {
+  display: flex; gap: 14px; align-items: center; flex-wrap: wrap;
+  background: var(--rs-saffron-soft); border: 1px solid var(--rs-line); border-left: 6px solid var(--rs-saffron);
+  border-radius: var(--rs-radius); padding: 16px 18px;
+}
+.rs-push-prompt-icon {
+  flex: 0 0 46px; height: 46px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
+  background: var(--rs-surface); color: var(--rs-saffron); border: 2px solid var(--rs-saffron);
+}
+.rs-push-prompt > div { flex: 1 1 220px; min-width: 0; }
+.rs-push-prompt strong { color: var(--rs-warn); font-size: 17px; }
+.rs-push-prompt p { margin: 2px 0 0; font-size: 14.5px; color: var(--rs-text); }
+.rs-push-prompt .rs-btn { display: inline-flex; align-items: center; gap: 8px; }
+
+.rs-notices {
+  display: flex; flex-direction: column; gap: 8px;
+  background: var(--rs-surface); border: 1px solid var(--rs-line); border-radius: var(--rs-radius); padding: 12px 16px;
+}
+.rs-notices .rs-pay-warning { background: none; border: 0; padding: 0; margin: 0; }
+.rs-notices .rs-emergency { margin: 0; padding: 8px 0 0; border-top: 1px solid var(--rs-line); background: none; border-left: 0; border-radius: 0; font-size: 14px; }
+
+.rs-toolbar { display: flex; flex-wrap: wrap; gap: 16px 24px; align-items: flex-end; }
+.rs-toolbar-block { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.rs-toolbar-block:first-child { flex: 1 1 360px; }
+.rs-toolbar-city { flex: 0 1 260px; }
+.rs-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.rs-chip {
+  min-height: 38px; min-width: 48px; padding: 6px 12px; border-radius: 999px; cursor: pointer;
+  border: 1px solid #8a96a8; background: var(--rs-surface); color: var(--rs-text); font: inherit; font-weight: 700; font-size: 14px;
+}
+.rs-chip:hover { border-color: var(--rs-primary); color: var(--rs-primary); }
+.rs-chip.is-active { background: var(--rs-navy); border-color: var(--rs-navy); color: #fff; }
+.rs-search { position: relative; display: block; }
+.rs-search svg { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--rs-muted); pointer-events: none; }
+.rs-root .rs-search input { padding-left: 36px; }
+
+.rs-result-count { margin: 0; color: var(--rs-muted); font-size: 15px; }
+.rs-result-count strong { color: var(--rs-navy); font-size: 17px; }
+
+.rs-empty-state {
+  display: flex; flex-direction: column; align-items: center; text-align: center; gap: 8px;
+  background: var(--rs-surface); border: 1px dashed var(--rs-line); border-radius: var(--rs-radius); padding: 32px 20px;
+}
+.rs-empty-state strong { color: var(--rs-navy); font-size: 18px; }
+.rs-empty-state .rs-muted { max-width: 46ch; margin: 0; }
+.rs-empty-state .rs-actions { justify-content: center; margin-top: 6px; }
+.rs-empty-icon {
+  width: 56px; height: 56px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
+  background: var(--rs-ok-soft); color: var(--rs-ok); margin-bottom: 4px;
+}
+@media (max-width: 560px) {
+  .rs-list-cta { width: 100%; justify-content: center; }
+  .rs-chips { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin: 0 -4px; padding: 0 4px 2px; }
+  .rs-chips::-webkit-scrollbar { display: none; }
+  .rs-chip { flex: 0 0 auto; }
+  .rs-toolbar-city { flex-basis: 100%; }
 }

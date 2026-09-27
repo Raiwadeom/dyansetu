@@ -244,13 +244,13 @@ function PushPrompt({ navigate }) {
 
   if (state !== "show") return null;
   return (
-    <div className="rs-card rs-push-prompt">
-      <Bell size={20} />
+    <div className="rs-push-prompt">
+      <span className="rs-push-prompt-icon"><Bell size={22} /></span>
       <div>
-        <strong>Get alerts for requests in your city</strong>
-        <p className="rs-muted">Turn on notifications for this browser so you hear about urgent requests even when this tab is closed.</p>
+        <strong>Alerts are off on this device</strong>
+        <p>Turn them on to hear about urgent requests in your city, even when this tab is closed.</p>
       </div>
-      <Link to="/raktsetu/settings" navigate={navigate} className="rs-btn rs-btn-primary rs-btn-sm">Turn on alerts</Link>
+      <Link to="/raktsetu/settings" navigate={navigate} className="rs-btn rs-btn-primary"><Bell size={16} /> Turn on alerts</Link>
     </div>
   );
 }
@@ -297,41 +297,86 @@ export function RequestsPage({ navigate, profile }) {
     return () => clearTimeout(t);
   }, [load]);
 
+  const count = state.rows.length;
+
   return (
     <section className="rs-section">
-      <div className="rs-page-head">
-        <h1 className="rs-page-title">Open blood requests</h1>
-        <Link to="/raktsetu/new" navigate={navigate} className="rs-btn rs-btn-primary rs-btn-sm"><PlusCircle size={15} /> Request blood</Link>
+      <div className="rs-page-head rs-list-head">
+        <div>
+          <h1 className="rs-page-title">Open blood requests</h1>
+          <p className="rs-muted">People who need blood now. Open a request to see the hospital and contact details.</p>
+        </div>
+        <Link to="/raktsetu/new" navigate={navigate} className="rs-btn rs-btn-primary rs-list-cta"><PlusCircle size={17} /> Request blood</Link>
       </div>
-      <PaymentWarning />
-      <EmergencyHelp />
+
       <PushPrompt navigate={navigate} />
 
-      <div className="rs-filters">
-        <Field label="Blood group">
-          <select value={group} onChange={(e) => setGroup(e.target.value)}>
-            <option value="">All groups</option>
-            {BLOOD_GROUPS.map((g) => <option key={g} value={g}>{displayGroup(g)}</option>)}
-          </select>
-        </Field>
-        <Field label="City">
-          <input type="search" value={city} placeholder="Any city" onChange={(e) => setCity(e.target.value)} />
-        </Field>
+      {/* Both safety notices in one box instead of two stacked banners. */}
+      <div className="rs-notices" role="note">
+        <PaymentWarning />
+        <EmergencyHelp />
+      </div>
+
+      <div className="rs-card rs-toolbar">
+        <div className="rs-toolbar-block">
+          <span className="rs-label" id="rs-group-filter">Blood group</span>
+          <div className="rs-chips" role="group" aria-labelledby="rs-group-filter">
+            {[""].concat(BLOOD_GROUPS).map((g) => (
+              <button
+                key={g || "all"}
+                type="button"
+                className={`rs-chip ${group === g ? "is-active" : ""}`}
+                aria-pressed={group === g}
+                onClick={() => setGroup(g)}
+              >
+                {g ? displayGroup(g) : "All"}
+              </button>
+            ))}
+          </div>
+        </div>
+        <label className="rs-toolbar-block rs-toolbar-city">
+          <span className="rs-label">City</span>
+          <span className="rs-search">
+            <MapPin size={16} />
+            <input type="search" value={city} placeholder="Any city" onChange={(e) => setCity(e.target.value)} />
+          </span>
+        </label>
       </div>
 
       <ErrorBox message={state.error} />
-      {state.loading ? <Spinner /> : state.rows.length === 0 ? (
-        <div className="rs-empty">
-          No open requests{group ? ` for ${displayGroup(group)}` : ""}{city ? ` in “${city}”` : ""} right now.
-          {city && <> <button type="button" className="rs-linkbtn" onClick={() => setCity("")}>Show all cities</button></>}
-        </div>
-      ) : (
-        <div className="rs-request-list">
-          {state.rows.map((r) => <RequestCard key={r.id} request={r} navigate={navigate} />)}
-        </div>
+      {state.loading ? <Spinner /> : (
+        <>
+          <p className="rs-result-count" aria-live="polite">
+            <strong>{count}</strong> open request{count === 1 ? "" : "s"}
+            {group ? ` for ${displayGroup(group)}` : ""}{city ? ` in ${city}` : " in all cities"}
+          </p>
+          {count === 0 ? (
+            <div className="rs-empty-state">
+              <span className="rs-empty-icon"><CheckCircle2 size={28} /></span>
+              <strong>No one is waiting for blood{city ? ` in ${city}` : ""} right now</strong>
+              <p className="rs-muted">
+                {alertsHint(city)}
+              </p>
+              <div className="rs-actions">
+                {city && <button type="button" className="rs-btn rs-btn-ghost" onClick={() => setCity("")}>Show all cities</button>}
+                {group && <button type="button" className="rs-btn rs-btn-ghost" onClick={() => setGroup("")}>All blood groups</button>}
+              </div>
+            </div>
+          ) : (
+            <div className="rs-request-list">
+              {state.rows.map((r) => <RequestCard key={r.id} request={r} navigate={navigate} />)}
+            </div>
+          )}
+        </>
       )}
     </section>
   );
+}
+
+function alertsHint(city) {
+  return city
+    ? "That is good news. Keep alerts on and you will be told the moment a new request is posted here."
+    : "That is good news. Keep alerts on and you will be told the moment a new request is posted.";
 }
 
 /* ---------------------------------------------------------- request detail */
