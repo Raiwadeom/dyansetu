@@ -34,13 +34,14 @@ import {
   SCHOLARSHIP_CATEGORIES, scholarshipsFor, documentsFor, expandDocuments,
 } from "./data/resources";
 import { LANG_KEY, LangContext, useLang, makeTr } from "./lib/i18n";
+import { markIosStepsSeen, useInstallApp } from "./lib/installPrompt";
 import {
   Mail, Phone, Lock, User, ArrowRight, ArrowLeft, CheckCircle2, Users, Award, Linkedin, GraduationCap,
   Code2, Compass, MessageSquare, LogOut, MapPin, X, Loader2, Target, Shield, ExternalLink,
   FileText, Edit3, Trash2, Ban, Sparkles, BookOpen, ImagePlus, BarChart3,
   Info, Facebook, Instagram, CalendarDays, Search, Droplet, ClipboardList, ListChecks, Coins, HandHeart,
   ScrollText, NotebookPen, FileDown, AlertTriangle, Newspaper,
-  Languages, Menu, Briefcase, Clock, BadgeCheck, IdCard, RefreshCw,
+  Languages, Menu, Briefcase, Clock, BadgeCheck, IdCard, RefreshCw, Download, Share, SquarePlus,
 } from "lucide-react";
 
 /* ============================================================================
@@ -767,6 +768,7 @@ function Landing({ goAuth, onOpenAbout, onOpenPage, user, onOpenDashboard }) {
         </div>
 
         <div className="nav-actions">
+          <InstallAppButton />
           {user ? (
             <button className="btn btn-primary" onClick={() => { setMobileMenuOpen(false); onOpenDashboard(); }}>
               <User size={15} /> {tr("My dashboard", "माझे डॅशबोर्ड")}
@@ -3292,6 +3294,8 @@ function TopNavApp({ view, go, onHome, onLogout, user }) {
             </span>
           </button>
 
+          <InstallAppButton compact />
+
           <button type="button" className="header-logout" onClick={onLogout} title="Sign out">
             <LogOut size={17} />
           </button>
@@ -4020,6 +4024,62 @@ export default function App() {
 }
 
 /* =============================== Language Picker ============================== */
+
+/* Shown only where installing is possible: opens the browser's install dialog
+   on Android/desktop Chrome, or the Add to Home Screen steps on iPhone. Hidden
+   once the site is running as an installed app. */
+function InstallAppButton({ compact = false }) {
+  const { lang } = useLang();
+  const tr = makeTr(lang);
+  const { mode, install } = useInstallApp();
+  const [showSteps, setShowSteps] = useState(false);
+  /* Kept mounted while the steps are open: "Got it" retires the button on
+     iPhone, and that must not unmount the dialog mid-click. */
+  if (!mode && !showSteps) return null;
+
+  const onClick = () => (mode === "ios" ? setShowSteps(true) : install());
+  const label = tr("Install app", "ॲप इन्स्टॉल करा");
+
+  return (
+    <>
+      {compact ? (
+        <button type="button" className="header-logout" onClick={onClick} title={label} aria-label={label}>
+          <Download size={17} />
+        </button>
+      ) : (
+        <button type="button" className="btn btn-outline install-app-btn" onClick={onClick}>
+          <Download size={15} /> {label}
+        </button>
+      )}
+
+      {showSteps && (
+        <div className="lang-picker-overlay" role="dialog" aria-modal="true" aria-label={label} onClick={() => setShowSteps(false)}>
+          <div className="lang-picker-card install-steps-card" onClick={(e) => e.stopPropagation()}>
+            <div className="lang-picker-icon"><Download size={22} /></div>
+            <h2 className="lang-picker-title">{tr("Install DnyanSetu on your iPhone", "आयफोनवर DnyanSetu इन्स्टॉल करा")}</h2>
+            <ol className="install-steps">
+              <li>
+                <span className="install-step-icon"><Share size={18} /></span>
+                <span>{tr("Tap the Share button in Safari's toolbar.", "Safari च्या टूलबारमधील Share बटणावर टॅप करा.")}</span>
+              </li>
+              <li>
+                <span className="install-step-icon"><SquarePlus size={18} /></span>
+                <span>{tr("Scroll down and tap “Add to Home Screen”.", "खाली स्क्रोल करून “Add to Home Screen” वर टॅप करा.")}</span>
+              </li>
+              <li>
+                <span className="install-step-icon"><CheckCircle2 size={18} /></span>
+                <span>{tr("Tap “Add”. DnyanSetu now opens from your home screen like an app.", "“Add” वर टॅप करा. आता DnyanSetu होम स्क्रीनवरून ॲपसारखे उघडेल.")}</span>
+              </li>
+            </ol>
+            <button type="button" className="btn btn-primary btn-block" onClick={() => { setShowSteps(false); markIosStepsSeen(); }}>
+              {tr("Got it", "समजले")}
+            </button>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
 
 function LanguagePicker({ onChoose }) {
   return (
@@ -5825,6 +5885,16 @@ function Styles() {
       .lang-picker-sub { display: flex; flex-direction: column; gap: 8px; font-size: 13.5px; color: var(--text-subtle); line-height: 1.6; margin: 0 0 36px; }
       .lang-picker-actions { display: flex; gap: 14px; justify-content: center; }
       .lang-picker-btn { flex: 1; max-width: 160px; }
+      .install-app-btn { display: inline-flex; align-items: center; gap: 6px; }
+      .install-steps-card { text-align: left; }
+      .install-steps-card .lang-picker-title { text-align: center; }
+      .install-steps { list-style: none; padding: 0; margin: 0 0 24px; display: flex; flex-direction: column; gap: 14px; }
+      .install-steps li { display: flex; align-items: center; gap: 12px; font-size: 14.5px; color: var(--text-muted); line-height: 1.5; }
+      .install-step-icon {
+        flex: 0 0 36px; height: 36px; border-radius: 50%;
+        display: inline-flex; align-items: center; justify-content: center;
+        background: rgba(29, 78, 216, 0.1); color: var(--abc-blue, #1D4ED8);
+      }
 
       /* Modals & Tables */
       .modal-overlay { position: fixed; inset: 0; background: rgba(11, 30, 46, 0.6); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 100; padding: 24px; }

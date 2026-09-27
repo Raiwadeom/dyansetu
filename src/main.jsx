@@ -4,6 +4,8 @@ import App from "./App.jsx";
 import { AuthProvider } from "./lib/auth.jsx";
 import { CrashPage, ErrorBoundary } from "./lib/errorPages.jsx";
 import "./index.css";
+/* Imported early so the browser's one-time install offer is not missed. */
+import "./lib/installPrompt.js";
 
 /* /raktsetu is its own full page with its own look, but the same site, domain
    and sign-in session — so it shares the AuthProvider and nothing else. */
