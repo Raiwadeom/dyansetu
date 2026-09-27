@@ -103,6 +103,34 @@ export async function enablePush() {
   return sub;
 }
 
+/* Re-links this browser's existing subscription to whoever is signed in now,
+   and renews it if the browser rotated it. Never prompts. */
+export async function syncPush() {
+  const support = pushSupport();
+  if (!support.supported || !isPushConfigured || support.permission !== "granted") return;
+  try {
+    const reg = await registration();
+    await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.getSubscription();
+    if (!sub) return;
+    await callApi("POST", { subscription: sub.toJSON(), sync: true });
+  } catch (error) {
+    console.error("[raktsetu] push sync failed", error);
+  }
+}
+
+/* On sign-out: this device must stop receiving the account's alerts. */
+export async function forgetPushOnThisDevice() {
+  try {
+    if (!("serviceWorker" in navigator)) return;
+    const reg = await navigator.serviceWorker.getRegistration(SW_SCOPE);
+    const sub = reg && await reg.pushManager.getSubscription();
+    if (!sub) return;
+    await callApi("DELETE", { endpoint: sub.endpoint }).catch(() => {});
+    await sub.unsubscribe().catch(() => {});
+  } catch { /* signing out must never fail because of this */ }
+}
+
 export async function disablePush() {
   const sub = await currentSubscription();
   if (!sub) return;

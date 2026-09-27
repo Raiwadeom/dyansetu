@@ -11,6 +11,7 @@
    ========================================================================== */
 
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { forgetPushOnThisDevice } from "../raktsetu/push.js";
 
 import { friendlyError, isBackendConfigured, supabase } from "./supabase.js";
 
@@ -163,6 +164,7 @@ export function AuthProvider({ children }) {
 
   const signOut = useCallback(async () => {
     if (!supabase) return;
+    await forgetPushOnThisDevice();
     await supabase.auth.signOut();
     setSession(null);
   }, []);

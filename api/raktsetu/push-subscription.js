@@ -73,7 +73,10 @@ export default async function handler(req, res) {
     return;
   }
 
-  /* Turning push on in this browser also switches the account preference on. */
-  await admin.from("raktsetu_profiles").update({ notify_push: true }).eq("user_id", caller.user.id);
+  /* Turning push on in this browser also switches the account preference on;
+     a silent re-link on app open leaves the preference as the user set it. */
+  if (!body.sync) {
+    await admin.from("raktsetu_profiles").update({ notify_push: true }).eq("user_id", caller.user.id);
+  }
   res.status(200).json({ ok: true });
 }

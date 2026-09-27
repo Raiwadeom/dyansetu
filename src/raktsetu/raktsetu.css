@@ -49,7 +49,6 @@
   overflow-x: hidden;
 }
 
-
 .rs-root *, .rs-root *::before, .rs-root *::after { box-sizing: border-box; }
 .rs-root a { color: var(--rs-primary); text-underline-offset: 2px; }
 .rs-root :focus-visible { outline: 3px solid var(--rs-focus); outline-offset: 2px; }
@@ -95,20 +94,38 @@
 }
 .rs-back:hover { background: #16202e; }
 
-.rs-nav {
-  background: var(--rs-surface); border-bottom: 1px solid var(--rs-line);
-}
+/* Navy tab bar: white labels, gold underline on the current page, and the
+   one action (Request blood) as a red pill. On phones it is one swipeable row. */
+.rs-nav { background: var(--rs-navy); box-shadow: inset 0 -1px 0 rgba(255,255,255,0.06); }
 .rs-nav-inner {
-  max-width: 1280px; margin: 0 auto; padding: 8px 14px;
-  display: flex; flex-wrap: wrap; gap: 4px 4px;
+  max-width: 1280px; margin: 0 auto; padding: 0 16px;
+  display: flex; align-items: stretch; gap: 2px;
+  overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch;
 }
+.rs-nav-inner::-webkit-scrollbar { display: none; }
 .rs-nav-link {
-  display: inline-flex; align-items: center; gap: 6px; padding: 8px 11px; white-space: nowrap; border-radius: 6px;
-  color: var(--rs-text) !important; text-decoration: none; font-size: 14.5px; font-weight: 600; line-height: 1.2;
-  border-bottom: 3px solid transparent;
+  position: relative; flex: 0 0 auto;
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 15px 14px; white-space: nowrap;
+  color: rgba(255,255,255,0.8) !important; text-decoration: none;
+  font-size: 14.5px; font-weight: 600; line-height: 1.2;
+  transition: color 0.15s ease, background 0.15s ease;
 }
-.rs-nav-link:hover { background: var(--rs-primary-soft); }
-.rs-nav-link.is-active { background: var(--rs-primary-soft); color: var(--rs-primary) !important; border-bottom-color: var(--rs-saffron); }
+.rs-nav-link svg { color: currentColor; opacity: 0.9; }
+.rs-nav-link:hover { color: #fff !important; background: rgba(255,255,255,0.07); }
+.rs-nav-link.is-active { color: #fff !important; background: rgba(255,255,255,0.1); }
+.rs-nav-link.is-active::after {
+  content: ""; position: absolute; left: 12px; right: 12px; bottom: 0;
+  height: 3px; border-radius: 3px 3px 0 0; background: #f4b860;
+}
+.rs-nav-link:focus-visible { outline: 2px solid #f4b860; outline-offset: -2px; }
+.rs-nav-cta {
+  align-self: center; margin: 0 6px; padding: 9px 16px; border-radius: 999px;
+  background: #c62828; color: #fff !important;
+}
+.rs-nav-cta:hover { background: #a61e1e; }
+.rs-nav-cta.is-active { background: #fff; color: #c62828 !important; }
+.rs-nav-cta.is-active::after { display: none; }
 
 /* -------------------------------------------------------------------- main */
 
@@ -400,8 +417,9 @@
   .rs-lockup-text span { font-size: 13.5px; }
   .rs-back { padding: 8px 10px; font-size: 13px; }
   .rs-back .rs-back-long { display: none; }
-  .rs-nav-inner { padding: 8px; gap: 4px; }
-  .rs-nav-link { padding: 7px 9px; font-size: 13.5px; }
+  .rs-nav-inner { padding: 0 6px; }
+  .rs-nav-link { padding: 13px 12px; font-size: 14px; gap: 7px; }
+  .rs-nav-cta { padding: 8px 14px; margin: 0 4px; }
   .rs-main { padding: 20px 16px 40px; }
   .rs-page-title { font-size: 22px; }
   .rs-card { padding: 16px; }
@@ -410,7 +428,6 @@
   .rs-title { font-size: 20px; gap: 10px; }
   .rs-title-heart { width: 32px; height: 32px; }
 }
-
 
 /* ============================================================================
    Multi-colour accents. One tone per section / card / nav item, drawn from a
@@ -424,9 +441,6 @@
 .rs-tone-4 { --tone: #6d44c9; --tone-soft: #f1ecfb; --tone-ink: #5b3aa8; }
 .rs-tone-5 { --tone: #0f8b8d; --tone-soft: #e3f5f5; --tone-ink: #0b6b6d; }
 
-/* Nav items each carry their tone on hover / active. */
-.rs-nav-link svg { color: var(--tone); }
-.rs-nav-link.is-active { border-bottom-color: var(--tone); }
 
 /* Request cards and forms rotate through the tones too. */
 .rs-request-list > :nth-child(5n + 1) { --tone: #e07b00; }
@@ -639,14 +653,22 @@
 .rs-elig-block h3 { display: flex; align-items: center; gap: 10px; font-size: 18px; }
 .rs-check-tiles {
   list-style: none; margin: 0; padding: 0;
-  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px;
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
+  border: 1px solid var(--rs-line); border-radius: 12px; overflow: hidden; background: var(--rs-surface);
 }
 .rs-check-tiles li {
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
-  padding: 16px 10px; border-radius: 10px; background: var(--tone-soft); text-align: center;
+  display: flex; flex-direction: column; align-items: flex-start; gap: 6px;
+  padding: 18px; border-left: 1px solid var(--rs-line);
 }
-.rs-check-tiles strong { font-size: 22px; color: var(--tone-ink); line-height: 1.1; }
-.rs-check-tiles span { font-size: 13.5px; color: var(--rs-text); font-weight: 600; line-height: 1.3; }
+.rs-check-tiles li:first-child { border-left: 0; }
+.rs-check-icon {
+  width: 42px; height: 42px; border-radius: 12px; margin-bottom: 4px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--tone-soft); color: var(--tone-ink);
+}
+.rs-check-tiles strong { font-size: 26px; color: var(--rs-navy); line-height: 1.1; font-weight: 800; }
+.rs-check-tiles strong small { font-size: 14px; font-weight: 700; color: var(--rs-muted); }
+.rs-check-label { font-size: 13.5px; color: var(--rs-muted); font-weight: 600; line-height: 1.35; }
 .rs-reason-groups { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
 .rs-reason-group {
   padding: 14px 16px; border-radius: 10px; background: var(--rs-bg); border: 1px solid var(--rs-line);
@@ -656,10 +678,13 @@
 .rs-reason-group .rs-crosses { display: flex; flex-direction: column; gap: 8px; margin: 0; font-size: 15px; }
 @media (max-width: 760px) {
   .rs-check-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .rs-check-tiles li:nth-child(odd) { border-left: 0; }
+  .rs-check-tiles li:nth-child(n + 3) { border-top: 1px solid var(--rs-line); }
   .rs-reason-groups { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 480px) {
-  .rs-check-tiles strong { font-size: 19px; }
+  .rs-check-tiles li { padding: 14px; }
+  .rs-check-tiles strong { font-size: 21px; }
   .rs-elig-block h3 { font-size: 16.5px; }
   .rs-age-banner { padding: 12px 14px; gap: 12px; }
   .rs-age-badge { width: 48px; height: 48px; font-size: 17px; }

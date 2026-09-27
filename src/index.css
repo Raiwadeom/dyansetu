@@ -73,9 +73,6 @@ body .footer-brand-name,
 body .rs-lockup-text strong {
   font-family: "Noto Serif", Georgia, serif !important;
 }
-body .landing-brand-tag,
-body .footer-brand-slogan,
-body .rs-lockup-text span,
-body .brand-logo-glyph {
+body .landing-brand-tag, body .footer-brand-slogan, body .rs-lockup-text span {
   font-family: "Noto Serif Devanagari", "Noto Sans Devanagari", serif !important;
 }

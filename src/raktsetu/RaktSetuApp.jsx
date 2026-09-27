@@ -10,10 +10,10 @@
    RaktSetu profile, which the database only accepts for ages 18 and over.
    ========================================================================== */
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  AlertTriangle, ArrowLeft, CheckCircle2, ClipboardList, HeartHandshake, Home,
-  PlusCircle, Settings, Shield, UserRound, XCircle,
+  AlertTriangle, ArrowLeft, Bell, CalendarDays, CheckCircle2, ClipboardList, HeartHandshake,
+  HeartPulse as HeartPulseIcon, Home, Hourglass, PlusCircle, Scale, Shield, UserRound, XCircle,
 } from "lucide-react";
 
 import { RequireAuth, useAuth } from "../lib/auth.jsx";
@@ -21,10 +21,10 @@ import { isBackendConfigured } from "../lib/supabase.js";
 import { LANG_KEY, makeTr } from "../lib/i18n.js";
 import { ErrorBoundary, NotFoundPage } from "../lib/errorPages.jsx";
 import {
-  DISCLAIMER, DONATION_GAP_DAYS, MAX_DONOR_AGE, MIN_AGE, MIN_WEIGHT_KG,
+  DISCLAIMER, MAX_DONOR_AGE, MIN_AGE, MIN_WEIGHT_KG,
   PAYMENT_WARNING, fetchBaseProfile, fetchMyRaktProfile,
 } from "./api.js";
-import { ensureServiceWorker } from "./push.js";
+import { ensureServiceWorker, syncPush } from "./push.js";
 import {
   ActivityPage, AdminPage, NewRequestPage, ProfileForm, ProfilePage, RequestDetailPage, RequestsPage, SettingsPage,
 } from "./screens.jsx";
@@ -88,14 +88,20 @@ const T = {
 const NAV = [
   { to: "/raktsetu", label: ["Home", "मुख्यपृष्ठ"], icon: Home, exact: true },
   { to: "/raktsetu/requests", label: ["Requests", "विनंत्या"], icon: HeartHandshake },
-  { to: "/raktsetu/new", label: ["Request blood", "रक्त मागा"], icon: PlusCircle },
+  { to: "/raktsetu/new", label: ["Request blood", "रक्त मागा"], icon: PlusCircle, cta: true },
   { to: "/raktsetu/activity", label: ["My activity", "माझी कामगिरी"], icon: ClipboardList },
   { to: "/raktsetu/profile", label: ["My profile", "माझे प्रोफाइल"], icon: UserRound },
-  { to: "/raktsetu/settings", label: ["Alerts", "सूचना"], icon: Settings },
+  { to: "/raktsetu/settings", label: ["Alerts", "सूचना"], icon: Bell },
 ];
 
 function Header({ path, navigate, user, isAdmin, lang, setLang, tr }) {
   const items = isAdmin ? [...NAV, { to: "/raktsetu/admin", label: ["Moderation", "नियंत्रण"], icon: Shield }] : NAV;
+  const navRef = useRef(null);
+
+  /* On a phone the bar scrolls sideways; keep the current page in view. */
+  useEffect(() => {
+    navRef.current?.querySelector(".is-active")?.scrollIntoView({ block: "nearest", inline: "center" });
+  }, [path]);
   return (
     <header className="rs-header">
       <div className="rs-header-top">
@@ -114,18 +120,18 @@ function Header({ path, navigate, user, isAdmin, lang, setLang, tr }) {
       </div>
       {user && (
         <nav className="rs-nav" aria-label="RaktSetu">
-          <div className="rs-nav-inner">
-            {items.map(({ to, label, icon: Icon, exact }, i) => {
+          <div className="rs-nav-inner" ref={navRef}>
+            {items.map(({ to, label, icon: Icon, exact, cta }) => {
               const active = exact ? path === to : path === to || path.startsWith(`${to}/`);
               return (
                 <Link
                   key={to}
                   to={to}
                   navigate={navigate}
-                  className={`rs-nav-link rs-tone-${(i % 5) + 1} ${active ? "is-active" : ""}`}
+                  className={`rs-nav-link ${cta ? "rs-nav-cta" : ""} ${active ? "is-active" : ""}`}
                   aria-current={active ? "page" : undefined}
                 >
-                  <Icon size={16} /> {tr(label[0], label[1])}
+                  <Icon size={17} /> {tr(label[0], label[1])}
                 </Link>
               );
             })}
@@ -161,10 +167,10 @@ function Footer({ tr }) {
 
 /* Who can donate: four quick checks, shown as tiles. */
 const DONOR_CHECKS = [
-  { value: `${MIN_AGE}–${MAX_DONOR_AGE}`, label: ["Years old", "वर्षे वय"] },
-  { value: `${MIN_WEIGHT_KG}+ kg`, label: ["Body weight", "वजन"] },
-  { value: "✓", label: ["Healthy today", "आज तब्येत चांगली"] },
-  { value: "4 mo", valueMr: "4 महिने", label: ["Since last donation", "मागील रक्तदानापासून"] },
+  { icon: CalendarDays, value: `${MIN_AGE}–${MAX_DONOR_AGE}`, unit: ["years", "वर्षे"], label: ["Age", "वय"] },
+  { icon: Scale, value: `${MIN_WEIGHT_KG}+`, unit: ["kg", "किलो"], label: ["Body weight", "वजन"] },
+  { icon: HeartPulseIcon, value: "Healthy", valueMr: "निरोगी", label: ["Feeling well today", "आज तब्येत चांगली"] },
+  { icon: Hourglass, value: "4", unit: ["months", "महिने"], label: ["Gap since last donation", "मागील रक्तदानापासूनचे अंतर"] },
 ];
 
 /* Who should not donate, grouped so the list is easy to scan. */
@@ -249,10 +255,14 @@ function EligibilityGuide({ tr }) {
       <article className="rs-card rs-elig-block rs-tone-2">
         <h3><span className="rs-icon-chip"><CheckCircle2 size={18} /></span> {tr("You can donate if you are", "तुम्ही रक्तदान करू शकता, जर")}</h3>
         <ul className="rs-check-tiles">
-          {DONOR_CHECKS.map((c) => (
+          {DONOR_CHECKS.map(({ icon: Icon, ...c }) => (
             <li key={c.label[0]}>
-              <strong>{c.valueMr ? tr(c.value, c.valueMr) : c.value}</strong>
-              <span>{pick(tr, c.label)}</span>
+              <span className="rs-check-icon" aria-hidden="true"><Icon size={20} /></span>
+              <strong>
+                {c.valueMr ? tr(c.value, c.valueMr) : c.value}
+                {c.unit && <small> {pick(tr, c.unit)}</small>}
+              </strong>
+              <span className="rs-check-label">{pick(tr, c.label)}</span>
             </li>
           ))}
         </ul>
@@ -449,6 +459,10 @@ export default function RaktSetuApp() {
     document.head.appendChild(icon);
     ensureServiceWorker();
   }, []);
+
+  useEffect(() => {
+    if (user) syncPush();
+  }, [user?.id]);
 
   useEffect(() => {
     if (!user) { setIsAdmin(false); return; }
