@@ -3228,7 +3228,8 @@ function TopNavApp({ view, go, onHome, onLogout, user }) {
   return (
     <header className="app-header">
       <div className="app-header-inner">
-        <button className="app-brand" type="button" onClick={() => go(homeViewFor(user))}>
+        {/* The logo opens the public home page, like the Home link — still signed in. */}
+        <button className="app-brand" type="button" onClick={onHome} title="DnyanSetu home">
           <span className="app-brand-mark">
             <BrandLogo variant="mark" />
           </span>
