@@ -60,10 +60,10 @@ export function friendlyError(error, fallback = "Something went wrong. Please tr
     /* Supabase answers the same way for a wrong password and for an address
        that has no account, so nobody can probe for registered emails. The
        message has to cover both. */
-    return "Incorrect email or password — or there is no account for this email yet. If you have not registered, use Sign up first.";
+    return "Incorrect email or password. Signed up with Google? Use Continue with Google, or tap Forgot password to set a password. New here? Use Sign up first.";
   }
   if (/user already registered|already been registered/i.test(message)) {
-    return "An account with this email already exists. Please log in instead.";
+    return "An account with this email already exists. Log in instead — if you joined with Google, use Continue with Google or Forgot password.";
   }
   if (/password should be at least|password should contain|weak password/i.test(message)) {
     return "Password must be at least 8 characters and include a letter and a number.";
