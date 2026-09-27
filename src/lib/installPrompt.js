@@ -28,7 +28,8 @@ export function isIos() {
 
 if (typeof window !== "undefined") {
   window.addEventListener("beforeinstallprompt", (e) => {
-    e.preventDefault(); /* keep the event for our own button */
+    /* No preventDefault(): that would also hide Chrome's own automatic
+       install popup. The event is only kept so the button can reopen it. */
     deferred = e;
     notify();
   });
