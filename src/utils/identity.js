@@ -21,7 +21,7 @@ function normalizeCity(city = "") {
 
 export function generateTrackingId({ name = "", city = "", role = "student", existingUsers = [] }) {
   const normalizedRole = String(role || "student").trim().toLowerCase();
-  const rolePrefix = normalizedRole === "faculty" ? "FAC" : normalizedRole === "admin" ? "ADM" : "STU";
+  const rolePrefix = normalizedRole === "faculty" ? "FAC" : normalizedRole === "staff" ? "STF" : normalizedRole === "admin" ? "ADM" : "STU";
   const code = CITY_CODES[normalizeCity(city)] || "GEN";
   const namePart = sanitizeName(name);
   const sameCityRoleCount = existingUsers.filter((user) => {

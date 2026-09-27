@@ -29,7 +29,12 @@ import { authenticate } from "./_lib/supabaseAdmin.js";
 
 /* Cloudinary folders this endpoint is willing to sign for. A caller cannot ask
    for an arbitrary path. */
-const ALLOWED_FOLDERS = new Set(["dnyansetu/notes", "dnyansetu/papers", "dnyansetu/avatars"]);
+const FOLDER_ROLES = {
+  "dnyansetu/notes": ["faculty", "admin"],
+  "dnyansetu/papers": ["faculty", "admin"],
+  "dnyansetu/avatars": ["faculty", "admin"],
+  "dnyansetu/id-proofs": ["faculty", "staff"],
+};
 
 /* ------------------------------- the handler ------------------------------ */
 
@@ -73,7 +78,7 @@ export async function handleSignUpload(body) {
   const folder = typeof body?.folder === "string" ? body.folder : "";
 
   if (!token) return { status: 401, json: { error: "Sign in to upload." } };
-  if (!ALLOWED_FOLDERS.has(folder)) {
+  if (!Object.hasOwn(FOLDER_ROLES, folder)) {
     return { status: 400, json: { error: "That upload destination is not allowed." } };
   }
 
@@ -88,8 +93,14 @@ export async function handleSignUpload(body) {
     return { status: 401, json: { error: "Your session is not valid. Please sign in again." } };
   }
 
-  if (!["faculty", "admin"].includes(caller.profile.role)) {
-    return { status: 403, json: { error: "Only faculty may upload files." } };
+  const role = caller.profile.role;
+  if (!FOLDER_ROLES[folder].includes(role)) {
+    return { status: 403, json: { error: "Your account cannot upload files here." } };
+  }
+  /* Notes stay closed until the administrator has approved the teacher. */
+  const publishing = folder === "dnyansetu/notes" || folder === "dnyansetu/papers";
+  if (publishing && role === "faculty" && caller.profile.approval_status && caller.profile.approval_status !== "approved") {
+    return { status: 403, json: { error: "Your faculty account is waiting for administrator approval." } };
   }
 
   /* Cloudinary signs the alphabetically sorted parameters, then the secret. */

@@ -15,14 +15,13 @@ import { isBackendConfigured } from "./lib/supabase";
 import { ErrorBoundary, NotFoundPage } from "./lib/errorPages";
 import {
   useAuth, acceptTerms, readOAuthIntent, clearOAuthIntent, safeNext,
-  getAssuranceLevel, getVerifiedFactor, startAuthenticatorSetup, verifyAuthenticatorCode,
 } from "./lib/auth";
 import {
   fetchProfile, updateProfile, listProfiles, adminUpdateProfile, adminDeleteProfile,
-  markNotesOpened,
+  markNotesOpened, submitIdProof, listPendingApprovals, adminReviewPending,
 } from "./lib/profiles";
 import { fetchMyNotes, uploadNote, deleteNote } from "./lib/notes";
-import { uploadFile } from "./lib/cloudinary";
+import { uploadFile, shrinkPhoto } from "./lib/cloudinary";
 import { fetchAttempts } from "./lib/quizProgress";
 import {
   newSessionId, claimAdminSession, beatAdminSession, releaseAdminSession,
@@ -39,7 +38,7 @@ import {
   FileText, Edit3, Trash2, Ban, Sparkles, BookOpen, ImagePlus, BarChart3,
   Info, Facebook, Instagram, CalendarDays, Search, Droplet, ClipboardList, ListChecks, Coins, HandHeart,
   ScrollText, NotebookPen, FileDown, AlertTriangle, Newspaper, Megaphone,
-  Languages, Menu,
+  Languages, Menu, Briefcase, Clock, BadgeCheck, IdCard, RefreshCw,
 } from "lucide-react";
 
 /* ============================================================================
@@ -130,13 +129,42 @@ function initialRoute() {
   return { view: "notfound", direct: true };
 }
 
+/* Faculty and non-teaching staff share one portal; only faculty publish notes. */
+const isStaffRole = (role) => role === "faculty" || role === "staff";
+
+/* A new faculty/staff account waits for the administrator before its portal opens. */
+const isAwaitingApproval = (u) =>
+  Boolean(u) && isStaffRole(u.role) && Boolean(u.approvalStatus) && u.approvalStatus !== "approved";
+
+/* The page a signed-in account treats as "Home" -- never the public landing
+   page, which shows Log in / Sign up and looks exactly like being signed out. */
+function homeViewFor(u) {
+  if (!u) return "landing";
+  if (u.role === "admin") return "admin-portal";
+  if (isAwaitingApproval(u)) return "pending-approval";
+  if (isStaffRole(u.role)) return u.qualification ? "faculty-portal" : "faculty-setup";
+  return "profile";
+}
+
+/* Notes, papers, quizzes and scholarships are for students and faculty only. */
+const STUDY_PAGES = new Set(["notes", "pyq", "quiz", "scholarships"]);
+
+const STAFF_DESIGNATIONS = [
+  "Office Superintendent", "Head Clerk", "Clerk", "Accountant", "Librarian",
+  "Lab Assistant", "Computer Operator", "Support Staff", "Other",
+];
+const FACULTY_DESIGNATIONS = ["Professor", "Associate Professor", "Assistant Professor"];
+
 /* A restored view still has to be one this account may actually open — a stale
    entry must never hand out a portal the user has no right to. */
 function mayOpenView(view, profile) {
   if (!view || view === "auth" || view === "accept-terms") return false;
+  if (view === "pending-approval") return isAwaitingApproval(profile);
+  if (isAwaitingApproval(profile)) return false;
+  if (profile?.role === "staff" && STUDY_PAGES.has(view)) return false;
   if (MEMBERS_ONLY_PAGES.has(view)) return Boolean(profile);
   if (view === "profile") return profile?.role === "student";
-  if (view === "faculty-portal" || view === "faculty-setup") return profile?.role === "faculty";
+  if (view === "faculty-portal" || view === "faculty-setup") return isStaffRole(profile?.role);
   if (view === "admin-portal") return profile?.role === "admin";
   return true;
 }
@@ -459,7 +487,7 @@ function generateStudentRecommendations(student) {
 
 function RoleBadge({ role }) {
   const r = (role || "student").toLowerCase();
-  const label = r === "admin" ? "ADMIN" : r === "faculty" ? "FACULTY" : "STUDENT";
+  const label = r === "admin" ? "ADMIN" : r === "faculty" ? "FACULTY" : r === "staff" ? "STAFF" : "STUDENT";
   return <span className={`role-chip role-${r}`}>{label}</span>;
 }
 
@@ -494,13 +522,19 @@ function SelectField({ label, icon: Icon, options, ...props }) {
 }
 
 /* DnyanSetu mark (brand sheet): the letter ज्ञ on a Setu Indigo tile with a
-   marigold bridge arch. Drawn inline so it stays sharp at every size. */
+   marigold bridge arch. The glyph is a baked image, not live text: it is a
+   conjunct that needs correct ligature shaping, and phones do not reliably
+   have a Devanagari font available (or fast enough to load) for live SVG
+   text -- this looked like a missing/wrong letter on some phones. Baking it
+   once makes it render identically everywhere. */
+const DNYANSETU_GLYPH = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAZAAAAGQCAYAAACAvzbMAAAIUElEQVR4nOzdW27bSBBAUSXI/recceAxMs44tnTZpMjuc/4TwIJYt0vU4/sNAILvNwAIBASAREAASAQEgERAAEgEBIBEQABIBASAREAASAQEgERAAEgEBIBEQABIBASAREAASAQEgERAAEgEBIBEQABIBASAREAASAQEgERAAEgEBIBEQABIBASAREAASAQEgERAAEgEBIBEQABIBASAREAASAQEgERAAEgEBIBEQABIBASAREAASAQEgERAAEgEBIBEQABIBASAREAASAQEgERAAEgEBIBEQABIBASAREAASAQEgERAAEgEBIBEQABIBASAREAASAQEgERAAEgEBIBEQABIBASAREAASAQEgERAAEgEBIBEQABIBASAREAASAQEgERAAEgEBIBEQABIBASAREAASAQEgERAAEgEBIBEQABIBASAREAASAQEgERAAEgEBIBEQABIBASAREAASAQEgERAAEgEBIBEQABIBASAREAASAQEgERAAEgEBIBEQABIBASAREAASAQEgERAAEgEBIBEQABIBASAREAASAQEgERAAEgEBIBEQABIBASAREAASAQEgERAAEgEBIBEQABIBASAREAASAQEgERAAEgEBIBEQABIBASAREAASAQEgERAAEgEBIBEQABIBASA5MeN6fx8cYODfHtxY0k2EAASAQE2sfGuS0CAzURkTQIyIa9JA0cwaCbmVMjRHF7WYgMBhnFoWYuATMxpENiTAbMAp0KO5vCyBhsIAIlTwiJsIRzNFjI/GwiwC4eW+QnIIpwGgdEMlcU4FXI0h5d52UCAXTm0zEtAFuM0CIximCzKqZCjObzMxwYCQOJEsDBbCEezhczFBgJAIiALcxoEthCQxYkIUBkecEJH3Z9ygGALGwgAiYAAkAgIAImAAJAICACJgACQCAgAiYAAkAgIAImAAJAICACJgACQCAgAiYAAkAgIAImAAJAICACJgACQCAgAyY8bDHbU73kDz2UDASAREAASAQEgERCG+/biBkxPQNiFiMD8BASAREDYjS0E5iYg7EpEYF4Cwu5EBOYkIAAkAsIhbCEwHwHhMCICcxEQABIB4VC2EJiHgHA4EYE5CAhPISJwfQICQCIgPI0tBK5NQHgqEYHrEhAAkh83eLJRW8jPF7cBzrAVjfpbYE82EKYxMkQGOHxNQJjKyO1BROBzAgJAIiBMxxYCxxAQpiQisD8BYVoiAvsSELiTiMB7AsLUfNId9iMg8ABbCPwmIExv9BYiIvBKQABIBAQCWwgICItwMx3GExCIbCGsTkAASAQENrCFsDIBASDxi4Rs9sgp3M1smIeAkNSXbt7+3Uwh+fU3CSMrEhAeNuJ1/xlDAqtxD4SHjL5p7CY0XJeAcLe9hr2IwDUJCHfZe8hf/f+HFQkIp2HIw7UICF86crBfNSLix4q8C4vpGe6wDxsIpzNy4IsH7EdA+NSzBrDBD+fnJSymdWSEfCCSFdlAOK0tAbDBwP5sIExHPOAYAsKpPfJFhcIBxxIQLk844DkEhE/9Ov0/e0D/uYWcLRhuoLMqAeESbBlwPt6FBUBiA4ENvHzFymwgfMmQBD5iA4FIWFmdDYS7GJbAn2wgEAgq2EB4gKH5yuMArwSEhxiewBsB4WErR0RA4Tf3QOBO4gHv2UBIVhum4gH/ZwMhexuqs39PlXjAx2wgbDbzgBUP+DsbCEOc4WvfRxIO+JqAMMwsL2mJB9xHQBjuqiERDniMgLCbq4REOKAREHZ31pAIB2wjIBzmLL9rLhwwhoDwFEfGRDBgHwLC0418C7BYwHEEhGmIBxzLJ9E5hRHDf/avVIGzERCmMktEvv3rBicmIJzGqIHpK1XgGO6BMKW3iMwwgFf51mOuxwbCqYwe+LYR2I8NhOnZRmAfNhBOZ69BbxuBsWwgLMU2AuM4xXBaRwzGWU7y9bGyybCFJw+ndtTpetWQCAhbuAcCt7k+gHiDg3iycXpHD/eVthHBYQtPHi7hWRvC1QfsV4+bgLCFd2HBJ67+ri3v1GJPTh9cxhmG4JVP7B89fjYQtvDk4VLOdJK+6vD972MoIGzhJSwIrjx4RYNRvI2XSzH84DxcjFzSM1/KEjF45ULgsp4REfGA39wDgTuJB7znguDSfFcWPI+LgsvbOyLiAR9zYTCFvSIiHvB3Lg6mMToi4gGfc4EwlVEREQ/4mouE6WyNiHjAfVwoTMlPvML+XCxMy8+7wr58FxbTEgTYlwuM6flpV9iHi4YlfBYR8YDGhcMy/CIfjOXiYSl+jQ/GcQGxnF8REQ/YzkUEQOJtvAAkAgJAIiAAJAICQCIgACQCAkAiIAAkAgJAIiAAJAICQCIgACQCAkAiIAAkAgJAIiAAJAICQCIgACQCAkAiIAAkAgJAIiAAJAICQCIgACQCAkAiIAAkAgJAIiAAJAICQCIgACQCAkAiIAAkAgJAIiAAJAICQCIgACQCAkAiIAAkAgJAIiAAJAICQCIgACQCAkAiIAAkAgJAIiAAJAICQCIgACQCAkAiIAAkAgJAIiAAJAICQCIgACQCAkAiIAAkAgJAIiAAJAICQCIgACQCAkAiIAAkAgJAIiAAJAICQCIgACQCAkAiIAAkAgJAIiAAJAICQCIgACQCAkAiIAAkAgJAIiAAJAICQCIgACQCAkAiIAAkAgJAIiAAJAICQCIgACQCAkAiIAAkAgJAIiAAJAICQCIgACQCAkAiIAAkAgJAIiAAJAICQCIgACQCAkAiIAAkAgJAIiAAJAICQCIgACQCAkAiIAAkAgJAIiAAJAICQCIgACQCAkAiIAAkAgJAIiAAJAICQCIgACQCAkDyDwAAAP//HDdsEAAAAAZJREFUAwD6D7+duQaHHgAAAABJRU5ErkJggg==";
+
 function BrandLogo({ variant = "mark", className = "", alt = "DnyanSetu logo" }) {
   return (
     <span className={`brand-logo-frame brand-logo-frame--${variant} ${className}`.trim()} role="img" aria-label={alt}>
       <svg viewBox="0 0 100 100" className="brand-logo-svg" aria-hidden="true">
         <rect width="100" height="100" rx="22" fill="#1E3A5F" />
-        <text x="50" y="62" textAnchor="middle" className="brand-logo-glyph">ज्ञ</text>
+        <image x="0" y="0" width="100" height="100" href={DNYANSETU_GLYPH} />
         <path d="M20 82 Q50 66 80 82" fill="none" stroke="#E9B04A" strokeWidth="6" strokeLinecap="round" />
       </svg>
     </span>
@@ -819,7 +853,7 @@ function Landing({ goAuth, onOpenAbout, onOpenPage }) {
       </section>
 
       {/* Study · Career · Social Services hubs — also the targets of the nav search */}
-      {LANDING_HUBS.map((hub) => {
+      {[...LANDING_HUBS].sort((a, b) => (a.id === "social" ? -1 : b.id === "social" ? 1 : 0)).map((hub) => {
         const HubIcon = hub.icon;
         const isScheme = hub.id === "social";
         return (
@@ -1005,7 +1039,7 @@ function Landing({ goAuth, onOpenAbout, onOpenPage }) {
           <span className="footer-author">
             {tr("Built by", "यांनी तयार केले")}{" "}
             <a
-              href="https://portfolio-zeta-one-nhmx6ncw7b.vercel.app/"
+              href="https://www.omrushikeshraiwade.space/"
               target="_blank"
               rel="noopener noreferrer"
               className="footer-author-link"
@@ -1372,7 +1406,7 @@ function AuthScreen({ mode, setMode, onSubmit, goLanding, roleScope = "student",
     setGoogleBusy(true);
     const result = await signInWithGoogle({
       intent: mode === "signup" ? "signup" : "login",
-      role: selectedRole === "faculty" ? "faculty" : selectedRole === "admin" ? "admin" : "student",
+      role: ["faculty", "staff", "admin"].includes(selectedRole) ? selectedRole : "student",
       termsAccepted: mode === "signup" && termsAccepted,
       next,
     });
@@ -1531,6 +1565,9 @@ function AuthScreen({ mode, setMode, onSubmit, goLanding, roleScope = "student",
                     <button type="button" className={`role-tab ${selectedRole === "faculty" ? "role-tab-active" : ""}`} onClick={() => setSelectedRole("faculty")}>
                       <NotebookPen size={16} /> Faculty
                     </button>
+                    <button type="button" className={`role-tab ${selectedRole === "staff" ? "role-tab-active" : ""}`} onClick={() => setSelectedRole("staff")}>
+                      <Briefcase size={16} /> Staff
+                    </button>
                     {/* Administration is a single fixed account, so it is never a signup option. */}
                     {mode === "login" && (
                       <button type="button" className={`role-tab ${selectedRole === "admin" ? "role-tab-active" : ""}`} onClick={() => setSelectedRole("admin")}>
@@ -1538,6 +1575,12 @@ function AuthScreen({ mode, setMode, onSubmit, goLanding, roleScope = "student",
                       </button>
                     )}
                   </div>
+                  {mode === "signup" && (
+                    <p className="auth-staff-note">
+                      Faculty and staff accounts are checked by the college administrator. After you
+                      sign up and log in, upload a photo of your college ID card to get approved.
+                    </p>
+                  )}
                 </>
               ) : (
                 <div className="role-current-chip">
@@ -1683,46 +1726,64 @@ function AcceptTermsScreen({ user, onAccept, onSignOut }) {
   );
 }
 
-/* 2-step verification for the administrator. First time: scan a QR code in an
-   authenticator app and confirm one code. Every login after: enter the
-   current 6-digit code. */
-function AdminMfaScreen({ user, onVerified, onSignOut }) {
-  const [state, setState] = useState({ loading: true, factorId: "", qr: "", secret: "", setup: false, error: "" });
-  const [code, setCode] = useState("");
+/* A new faculty/staff account waits here until the administrator approves it.
+   Sending an ID-card photo is how they prove they work at the college. */
+function PendingApprovalScreen({ user, onRefresh, onSignOut }) {
+  const [file, setFile] = useState(null);
+  const [preview, setPreview] = useState("");
   const [busy, setBusy] = useState(false);
+  const [checking, setChecking] = useState(false);
+  const [error, setError] = useState("");
+  const [sent, setSent] = useState(false);
+  const inputRef = useRef(null);
 
+  const roleLabel = user.role === "staff" ? "Staff" : "Faculty";
+  const rejected = user.approvalStatus === "rejected";
+  const hasProof = Boolean(user.idProofUrl);
+
+  useEffect(() => () => { if (preview) URL.revokeObjectURL(preview); }, [preview]);
+
+  /* Picks up the decision on its own while the page is left open. */
   useEffect(() => {
-    let active = true;
-    (async () => {
-      try {
-        const factor = await getVerifiedFactor();
-        if (factor) {
-          if (active) setState({ loading: false, factorId: factor.id, qr: "", secret: "", setup: false, error: "" });
-          return;
-        }
-        const started = await startAuthenticatorSetup();
-        if (active) setState({ loading: false, ...started, setup: true, error: "" });
-      } catch (error) {
-        if (active) setState((s) => ({ ...s, loading: false, error: error.message }));
-      }
-    })();
-    return () => { active = false; };
-  }, []);
+    const timer = setInterval(() => { onRefresh().catch(() => {}); }, 30000);
+    return () => clearInterval(timer);
+  }, [onRefresh]);
 
-  const submit = async (e) => {
-    e.preventDefault();
-    if (busy || !/^\d{6}$/.test(code.trim())) {
-      setState((s) => ({ ...s, error: "Enter the 6-digit code from your authenticator app." }));
-      return;
-    }
-    setBusy(true);
+  const pick = async (event) => {
+    const chosen = event.target.files?.[0];
+    event.target.value = "";
+    if (!chosen) return;
+    setError("");
     try {
-      await verifyAuthenticatorCode(state.factorId, code);
-      await onVerified();
-    } catch (error) {
-      setState((s) => ({ ...s, error: error.message }));
+      const small = await shrinkPhoto(chosen);
+      if (preview) URL.revokeObjectURL(preview);
+      setFile(small);
+      setPreview(URL.createObjectURL(small));
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  const send = async () => {
+    if (!file || busy) return;
+    setBusy(true);
+    setError("");
+    try {
+      const uploaded = await uploadFile(file, { folder: "dnyansetu/id-proofs" });
+      await submitIdProof(uploaded.url);
+      setSent(true);
+      setFile(null);
+      await onRefresh();
+    } catch (err) {
+      setError(err.message || "Could not send your ID card. Please try again.");
+    } finally {
       setBusy(false);
     }
+  };
+
+  const check = async () => {
+    setChecking(true);
+    try { await onRefresh(); } finally { setChecking(false); }
   };
 
   return (
@@ -1732,47 +1793,58 @@ function AdminMfaScreen({ user, onVerified, onSignOut }) {
       </div>
       <div className="auth-form-panel">
         <div className="auth-heading">
-          <h2 className="auth-title">{state.setup ? "Set up 2-step verification" : "Enter your security code"}</h2>
+          <span className={`pending-status ${rejected ? "pending-status--rejected" : ""}`}>
+            <Clock size={14} /> {rejected ? "Not approved yet" : "Waiting for approval"}
+          </span>
+          <h2 className="auth-title">{roleLabel} account under review</h2>
           <p className="auth-sub">
-            {state.setup
-              ? "The admin account needs a second step. Scan this QR code with an authenticator app (Google Authenticator, Microsoft Authenticator or similar), then enter the 6-digit code it shows."
-              : `Signed in as ${user.email}. Open your authenticator app and enter the current 6-digit code for DnyanSetu.`}
+            Signed in as <strong>{user.email}</strong>. The college administrator checks every
+            {user.role === "staff" ? " staff" : " faculty"} account before it opens. Upload a clear photo
+            of your college ID card (or appointment letter) to help them approve you quickly.
           </p>
         </div>
 
-        {state.loading && <div className="boot-screen"><Loader2 size={20} className="spin" /> Preparing…</div>}
-
-        {state.setup && state.qr && (
-          <div className="mfa-setup">
-            <img src={state.qr} alt="QR code for your authenticator app" className="mfa-qr" />
-            <p className="mfa-secret">
-              Can't scan? Enter this key manually: <code>{state.secret}</code>
-            </p>
+        {rejected && user.idProofNote && (
+          <div className="form-error"><strong>Administrator&apos;s note:</strong> {user.idProofNote}</div>
+        )}
+        {(hasProof || sent) && !file && !rejected && (
+          <div className="form-success">
+            <CheckCircle2 size={15} />
+            <span>Your ID card has been sent. You will get in as soon as the administrator approves it.</span>
           </div>
         )}
+        {error && <div className="form-error">{error}</div>}
 
-        {state.error && <div className="form-error">{state.error}</div>}
-
-        {!state.loading && state.factorId && (
-          <form onSubmit={submit}>
-            <Field
-              label="6-digit code"
-              icon={Lock}
-              type="text"
-              inputMode="numeric"
-              autoComplete="one-time-code"
-              maxLength={6}
-              placeholder="123456"
-              value={code}
-              onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
-            />
-            <button type="submit" className="btn btn-primary btn-block btn-lg" style={{ marginTop: 16 }} disabled={busy}>
-              {busy ? <><Loader2 size={16} className="spin" /> Checking…</> : <>Verify and open admin desk <ArrowRight size={16} /></>}
+        <div className="pending-upload">
+          <button type="button" className="pending-drop" onClick={() => inputRef.current?.click()} disabled={busy}>
+            {preview || user.idProofUrl ? (
+              <img src={preview || user.idProofUrl} alt="Your college ID card" />
+            ) : (
+              <span className="pending-drop-empty">
+                <IdCard size={30} />
+                <strong>Add photo of your college ID card</strong>
+                <small>JPG, PNG or WebP · shrunk to 300 KB automatically</small>
+              </span>
+            )}
+          </button>
+          <input ref={inputRef} type="file" accept="image/png,image/jpeg,image/webp" capture="environment" hidden onChange={pick} />
+          {(preview || user.idProofUrl) && (
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => inputRef.current?.click()} disabled={busy}>
+              <ImagePlus size={15} /> Choose a different photo
             </button>
-          </form>
+          )}
+        </div>
+
+        {file && (
+          <button type="button" className="btn btn-primary btn-block btn-lg" onClick={send} disabled={busy}>
+            {busy ? <><Loader2 size={16} className="spin" /> Sending…</> : <>Send for approval <ArrowRight size={16} /></>}
+          </button>
         )}
 
-        <button type="button" className="btn btn-ghost btn-block" style={{ marginTop: 10 }} onClick={onSignOut}>
+        <button type="button" className="btn btn-outline btn-block" style={{ marginTop: 10 }} onClick={check} disabled={checking}>
+          {checking ? <><Loader2 size={15} className="spin" /> Checking…</> : <><RefreshCw size={15} /> Check approval status</>}
+        </button>
+        <button type="button" className="btn btn-ghost btn-block" style={{ marginTop: 6 }} onClick={onSignOut}>
           Sign out
         </button>
       </div>
@@ -1783,16 +1855,17 @@ function AdminMfaScreen({ user, onVerified, onSignOut }) {
 /* =============================== VIEW: Faculty Setup ============================== */
 
 function FacultyProfileSetup({ profile, onComplete }) {
+  const isStaff = profile.role === "staff";
   const [form, setForm] = useState({
     name: profile.name || "",
-    designation: profile.designation || "Associate Professor",
-    department: profile.department || "School of Physical Sciences",
-    qualification: profile.qualification || "Ph.D. in Physics (IIT Bombay)",
-    specialization: profile.specialization || "Electromagnetism, Quantum Mechanics",
+    designation: profile.designation || (isStaff ? "Clerk" : "Associate Professor"),
+    department: profile.department || (isStaff ? "Administration" : "School of Physical Sciences"),
+    qualification: profile.qualification || (isStaff ? "" : "Ph.D. in Physics (IIT Bombay)"),
+    specialization: profile.specialization || (isStaff ? "" : "Electromagnetism, Quantum Mechanics"),
     orcid: profile.orcid || "",
     googleScholar: profile.googleScholar || "",
     linkedin: profile.linkedin || "",
-    college: profile.college || "Department of Physics",
+    college: profile.college || (isStaff ? INSTITUTION.short : "Department of Physics"),
     university: profile.university || "SRTM University, Nanded",
     city: profile.city || "Udgir"
   });
@@ -1805,27 +1878,35 @@ function FacultyProfileSetup({ profile, onComplete }) {
   return (
     <div className="wizard-screen">
       <div className="card wizard-card">
-        <h2 className="wizard-title"><NotebookPen size={24} /> Complete Faculty Profile</h2>
-        <p className="wizard-sub">Setup research links, profile avatar, and credentials</p>
+        <h2 className="wizard-title">
+          {isStaff ? <><Briefcase size={24} /> Complete Staff Profile</> : <><NotebookPen size={24} /> Complete Faculty Profile</>}
+        </h2>
+        <p className="wizard-sub">{isStaff ? "Add your post, section and qualification" : "Setup research links, profile avatar, and credentials"}</p>
 
         <form onSubmit={handleSubmit}>
           <Field label="Full Name" icon={User} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
           <div className="two-col">
-            <SelectField label="Designation" value={form.designation} onChange={(e) => setForm({ ...form, designation: e.target.value })} options={["Professor", "Associate Professor", "Assistant Professor"]} />
-            <Field label="Department" icon={GraduationCap} value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })} required />
+            <SelectField label="Designation" value={form.designation} onChange={(e) => setForm({ ...form, designation: e.target.value })} options={isStaff ? STAFF_DESIGNATIONS : FACULTY_DESIGNATIONS} />
+            <Field label={isStaff ? "Section / Office" : "Department"} icon={GraduationCap} value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })} required />
           </div>
-          <Field label="Qualifications" icon={Award} value={form.qualification} onChange={(e) => setForm({ ...form, qualification: e.target.value })} required />
-          <Field label="Specializations" icon={Sparkles} value={form.specialization} onChange={(e) => setForm({ ...form, specialization: e.target.value })} required />
-          
-          <div className="two-col">
+          <Field label={isStaff ? "Highest Qualification" : "Qualifications"} icon={Award} value={form.qualification} onChange={(e) => setForm({ ...form, qualification: e.target.value })} placeholder={isStaff ? "e.g. B.Com" : ""} required />
+          <Field label={isStaff ? "Responsibilities (optional)" : "Specializations"} icon={Sparkles} value={form.specialization} onChange={(e) => setForm({ ...form, specialization: e.target.value })} required={!isStaff} />
+
+          {isStaff ? (
             <Field label="LinkedIn Profile URL (optional)" icon={Linkedin} value={form.linkedin} onChange={(e) => setForm({ ...form, linkedin: e.target.value })} />
-            <Field label="ORCID iD (optional)" icon={ExternalLink} value={form.orcid} onChange={(e) => setForm({ ...form, orcid: e.target.value })} />
-          </div>
-          <Field label="Google Scholar Link (optional)" icon={ExternalLink} value={form.googleScholar} onChange={(e) => setForm({ ...form, googleScholar: e.target.value })} />
+          ) : (
+            <>
+              <div className="two-col">
+                <Field label="LinkedIn Profile URL (optional)" icon={Linkedin} value={form.linkedin} onChange={(e) => setForm({ ...form, linkedin: e.target.value })} />
+                <Field label="ORCID iD (optional)" icon={ExternalLink} value={form.orcid} onChange={(e) => setForm({ ...form, orcid: e.target.value })} />
+              </div>
+              <Field label="Google Scholar Link (optional)" icon={ExternalLink} value={form.googleScholar} onChange={(e) => setForm({ ...form, googleScholar: e.target.value })} />
+            </>
+          )}
           <SelectField label="City" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} options={["Udgir", "Latur", "Parbhani", "Hingoli", "Nanded"]} />
 
           <button type="submit" className="btn btn-primary btn-block btn-lg" style={{ marginTop: 20 }}>
-            Enter Faculty Studio <ArrowRight size={16} />
+            {isStaff ? "Open My Profile" : "Enter Faculty Studio"} <ArrowRight size={16} />
           </button>
         </form>
       </div>
@@ -2106,7 +2187,6 @@ function StudentProfile({ profile, onSaveProfile }) {
         </div>
 
         <div className="profile-header-content">
-          {/* Initials rather than an uploaded photo — students do not upload images. */}
           <div className="profile-avatar-wrap">
             <div className="profile-avatar profile-avatar-initials">{initials || "ST"}</div>
             <span className="profile-online-dot" title="Active" />
@@ -2249,14 +2329,9 @@ function StudentProfile({ profile, onSaveProfile }) {
 /* =============================== VIEW: Faculty Portal (Redesigned Profile & Videos) ============================== */
 
 function FacultyPortal({ profile, onSaveProfile }) {
+  const isStaff = profile.role === "staff";
   const [showNotesModal, setShowNotesModal] = useState(false);
   const [uploadError, setUploadError] = useState("");
-
-  /* Profile photograph. The field was stored and edited but never displayed or
-     captured, so every teacher showed the same grey silhouette. */
-  const [pfpBusy, setPfpBusy] = useState(false);
-  const [pfpError, setPfpError] = useState("");
-  const pfpInputRef = useRef(null);
 
   const facultyInitials = (profile.name || "Faculty")
     .split(" ")
@@ -2265,38 +2340,6 @@ function FacultyPortal({ profile, onSaveProfile }) {
     .slice(0, 2)
     .join("")
     .toUpperCase();
-
-  const handlePfpPick = async (event) => {
-    const file = event.target.files?.[0];
-    /* Clear it straight away, so choosing the same file twice fires again. */
-    event.target.value = "";
-    if (!file) return;
-
-    if (!file.type.startsWith("image/")) {
-      setPfpError("Choose an image — a JPG, PNG or WebP.");
-      return;
-    }
-
-    setPfpBusy(true);
-    setPfpError("");
-    try {
-      const uploaded = await uploadFile(file, { folder: "dnyansetu/avatars" });
-      await onSaveProfile({ ...profile, pfp: uploaded.url });
-    } catch (err) {
-      setPfpError(err.message || "Could not upload that photo.");
-    } finally {
-      setPfpBusy(false);
-    }
-  };
-
-  const removePfp = async () => {
-    setPfpError("");
-    try {
-      await onSaveProfile({ ...profile, pfp: "" });
-    } catch (err) {
-      setPfpError(err.message || "Could not remove the photo.");
-    }
-  };
 
   /* The teacher's own uploads, so they can withdraw one later. */
   const [myNotes, setMyNotes] = useState([]);
@@ -2327,15 +2370,19 @@ function FacultyPortal({ profile, onSaveProfile }) {
     }
   };
 
-  useEffect(() => { refreshMyNotes(); }, [profile.id]);
+  useEffect(() => {
+    if (isStaff) { setNotesLoading(false); return; }
+    refreshMyNotes();
+  }, [profile.id, isStaff]);
   const [showProfileEditor, setShowProfileEditor] = useState(false);
 
   const [profileForm, setProfileForm] = useState({
     name: profile.name || "",
-    designation: profile.designation || "Associate Professor",
-    department: profile.department || "School of Physical Sciences",
-    qualification: profile.qualification || "Ph.D. in Physics (IIT Bombay)",
-    specialization: profile.specialization || "Electromagnetism, Quantum Mechanics",
+    designation: profile.designation || (isStaff ? "Clerk" : "Associate Professor"),
+    department: profile.department || (isStaff ? "Administration" : "School of Physical Sciences"),
+    qualification: profile.qualification || "",
+    specialization: profile.specialization || "",
+    about: profile.about || "",
     orcid: profile.orcid || "",
     googleScholar: profile.googleScholar || "",
     linkedin: profile.linkedin || "",
@@ -2347,10 +2394,11 @@ function FacultyPortal({ profile, onSaveProfile }) {
   useEffect(() => {
     setProfileForm({
       name: profile.name || "",
-      designation: profile.designation || "Associate Professor",
-      department: profile.department || "School of Physical Sciences",
-      qualification: profile.qualification || "Ph.D. in Physics (IIT Bombay)",
-      specialization: profile.specialization || "Electromagnetism, Quantum Mechanics",
+      designation: profile.designation || (isStaff ? "Clerk" : "Associate Professor"),
+      department: profile.department || (isStaff ? "Administration" : "School of Physical Sciences"),
+      qualification: profile.qualification || "",
+      specialization: profile.specialization || "",
+      about: profile.about || "",
       orcid: profile.orcid || "",
       googleScholar: profile.googleScholar || "",
       linkedin: profile.linkedin || "",
@@ -2413,49 +2461,19 @@ function FacultyPortal({ profile, onSaveProfile }) {
         <div className="fac-hero-cover" />
         <div className="fac-hero-main">
           <div className="fac-pfp-wrap">
-            <button
-              type="button"
-              className="fac-pfp-button"
-              onClick={() => pfpInputRef.current?.click()}
-              disabled={pfpBusy}
-              title={profile.pfp ? "Change your photo" : "Add a photo"}
-              aria-label={profile.pfp ? "Change your profile photo" : "Add a profile photo"}
-            >
-              {profile.pfp ? (
-                <img src={profile.pfp} alt={`${profile.name || "Faculty"} profile photograph`} className="fac-pfp-large" />
-              ) : (
-                <div className="fac-pfp-placeholder">
-                  {facultyInitials || <User size={36} />}
-                </div>
-              )}
-              <span className="fac-pfp-edit" aria-hidden="true">
-                {pfpBusy ? <Loader2 size={14} className="spin" /> : <ImagePlus size={14} />}
-              </span>
-            </button>
-
-            <input
-              ref={pfpInputRef}
-              type="file"
-              accept="image/png,image/jpeg,image/webp"
-              hidden
-              onChange={handlePfpPick}
-            />
-
-            {profile.pfp && !pfpBusy && (
-              <button type="button" className="fac-pfp-remove" onClick={removePfp}>
-                Remove photo
-              </button>
-            )}
-            {pfpError && <p className="fac-pfp-error">{pfpError}</p>}
+            <div className="fac-pfp-placeholder">
+              {facultyInitials || <User size={36} />}
+            </div>
           </div>
 
           <div className="fac-info">
             <div className="fac-name-row">
               <h2 className="dash-name">{profile.name}</h2>
-              <RoleBadge role="faculty" />
+              <RoleBadge role={profile.role} />
             </div>
             <p className="fac-designation-meta">{profile.designation} · {profile.department}</p>
-            <p className="fac-institution-meta"><GraduationCap size={14} /> {profile.college || "Department of Physics"} · {profile.university || "SRTM University, Nanded"}</p>
+            {profile.about && <p className="fac-about">{profile.about}</p>}
+            <p className="fac-institution-meta"><GraduationCap size={14} /> {profile.college || (isStaff ? INSTITUTION.short : "Department of Physics")} · {profile.university || "SRTM University, Nanded"}</p>
             
             {/* Properly Arranged Social & Research Links Grid */}
             <div className="fac-social-grid">
@@ -2487,9 +2505,11 @@ function FacultyPortal({ profile, onSaveProfile }) {
         </div>
 
         <div className="fac-hero-actions">
-          <button className="btn btn-primary btn-lg" onClick={() => setShowNotesModal(true)}>
-            <NotebookPen size={18} /> Upload Notes
-          </button>
+          {!isStaff && (
+            <button className="btn btn-primary btn-lg" onClick={() => setShowNotesModal(true)}>
+              <NotebookPen size={18} /> Upload Notes
+            </button>
+          )}
           <button className="btn btn-outline btn-lg" onClick={() => setShowProfileEditor((prev) => !prev)}>
             <Edit3 size={18} /> Edit Profile
           </button>
@@ -2501,7 +2521,7 @@ function FacultyPortal({ profile, onSaveProfile }) {
           <div className="profile-card-heading">
             <div>
               <span className="profile-section-kicker">EDIT</span>
-              <h2>Update Faculty Profile</h2>
+              <h2>{isStaff ? "Update Staff Profile" : "Update Faculty Profile"}</h2>
             </div>
             <button type="button" className="btn btn-ghost btn-sm" onClick={() => setShowProfileEditor(false)}><X size={16} /></button>
           </div>
@@ -2515,11 +2535,20 @@ function FacultyPortal({ profile, onSaveProfile }) {
               <Field label="Department" icon={GraduationCap} value={profileForm.department} onChange={(e) => setProfileForm({ ...profileForm, department: e.target.value })} />
             </div>
             <div className="two-col">
-              <SelectField label="Designation" value={profileForm.designation} onChange={(e) => setProfileForm({ ...profileForm, designation: e.target.value })} options={["Professor", "Associate Professor", "Assistant Professor"]} />
+              <SelectField label="Designation" value={profileForm.designation} onChange={(e) => setProfileForm({ ...profileForm, designation: e.target.value })} options={isStaff ? STAFF_DESIGNATIONS : FACULTY_DESIGNATIONS} />
               <Field label="College" icon={GraduationCap} value={profileForm.college} onChange={(e) => setProfileForm({ ...profileForm, college: e.target.value })} />
             </div>
             <Field label="Qualifications" icon={Award} value={profileForm.qualification} onChange={(e) => setProfileForm({ ...profileForm, qualification: e.target.value })} />
-            <Field label="Specializations" icon={Sparkles} value={profileForm.specialization} onChange={(e) => setProfileForm({ ...profileForm, specialization: e.target.value })} />
+            <Field label={isStaff ? "Responsibilities" : "Specializations"} icon={Sparkles} value={profileForm.specialization} onChange={(e) => setProfileForm({ ...profileForm, specialization: e.target.value })} />
+            <label className="field-label" style={{ marginTop: 12, display: "block" }}>About</label>
+            <textarea
+              className="field-input"
+              rows={3}
+              maxLength={600}
+              value={profileForm.about}
+              onChange={(e) => setProfileForm({ ...profileForm, about: e.target.value })}
+              placeholder="A few lines about yourself and your work at the college"
+            />
             <div className="two-col">
               <Field label="LinkedIn Profile URL" icon={Linkedin} value={profileForm.linkedin} onChange={(e) => setProfileForm({ ...profileForm, linkedin: e.target.value })} />
               <Field label="ORCID iD" icon={ExternalLink} value={profileForm.orcid} onChange={(e) => setProfileForm({ ...profileForm, orcid: e.target.value })} />
@@ -2528,11 +2557,12 @@ function FacultyPortal({ profile, onSaveProfile }) {
               <Field label="Google Scholar Link" icon={ExternalLink} value={profileForm.googleScholar} onChange={(e) => setProfileForm({ ...profileForm, googleScholar: e.target.value })} />
               <Field label="University" icon={Compass} value={profileForm.university} onChange={(e) => setProfileForm({ ...profileForm, university: e.target.value })} />
             </div>
-            <button type="submit" className="btn btn-primary btn-block btn-lg" style={{ marginTop: 16 }}>Save Faculty Profile</button>
+            <button type="submit" className="btn btn-primary btn-block btn-lg" style={{ marginTop: 16 }}>{isStaff ? "Save Staff Profile" : "Save Faculty Profile"}</button>
           </form>
         </section>
       )}
 
+      {!isStaff && (
       <div className="dash-modules">
         <h3 className="dash-section-title">
           <NotebookPen size={20} /> My Uploaded Notes ({myNotes.length})
@@ -2608,8 +2638,9 @@ function FacultyPortal({ profile, onSaveProfile }) {
           </div>
         )}
       </div>
+      )}
 
-      {showNotesModal && (
+      {showNotesModal && !isStaff && (
         <div className="modal-overlay">
           <div className="modal-card">
             <div className="modal-head">
@@ -2714,7 +2745,132 @@ function FacultyPortal({ profile, onSaveProfile }) {
 
 /* =============================== VIEW: Admin Portal ============================== */
 
-function AdminPortal({ users, onUpdateUser, onDeleteUser }) {
+/* New faculty/staff accounts waiting for the administrator. Approve works with
+   or without an ID-card photo -- the photo only helps the decision. */
+function PendingApprovalsPanel({ onChanged }) {
+  const [rows, setRows] = useState(null);
+  const [error, setError] = useState("");
+  const [busyId, setBusyId] = useState("");
+  const [rejecting, setRejecting] = useState(null);
+  const [reason, setReason] = useState("");
+  const [zoom, setZoom] = useState("");
+
+  const load = useCallback(async () => {
+    try {
+      setRows(await listPendingApprovals());
+      setError("");
+    } catch (err) {
+      setError(err.message);
+      setRows([]);
+    }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const decide = async (row, approve) => {
+    setBusyId(row.id);
+    setError("");
+    try {
+      await adminReviewPending(row.id, approve, approve ? "" : reason.trim());
+      setRejecting(null);
+      setReason("");
+      await load();
+      onChanged?.();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusyId("");
+    }
+  };
+
+  return (
+    <div className="card pending-panel" style={{ gridColumn: "1 / -1" }}>
+      <div className="pending-panel-head">
+        <div>
+          <h3><BadgeCheck size={20} /> Pending faculty &amp; staff approvals</h3>
+          <p className="dash-meta">Check the ID card, then approve. Approved accounts open their profile straight away.</p>
+        </div>
+        <button type="button" className="btn btn-outline btn-sm" onClick={load}><RefreshCw size={14} /> Refresh</button>
+      </div>
+
+      {error && <p className="upload-error">{error}</p>}
+      {rows === null ? (
+        <p className="notes-loading"><Loader2 size={18} className="spin" /> Loading…</p>
+      ) : rows.length === 0 ? (
+        <p className="resource-empty">No one is waiting for approval.</p>
+      ) : (
+        <div className="pending-list">
+          {rows.map((row) => (
+            <article className="pending-card" key={row.id}>
+              <button
+                type="button"
+                className="pending-card-proof"
+                onClick={() => row.idProofUrl && setZoom(row.idProofUrl)}
+                disabled={!row.idProofUrl}
+                aria-label={row.idProofUrl ? `View ID card of ${row.name}` : "No ID card uploaded"}
+              >
+                {row.idProofUrl
+                  ? <img src={row.idProofUrl} alt={`ID card of ${row.name}`} />
+                  : <span><IdCard size={22} /> No ID card yet</span>}
+              </button>
+              <div className="pending-card-body">
+                <div className="pending-card-name">
+                  <strong>{row.name || "Unnamed"}</strong>
+                  <RoleBadge role={row.role} />
+                </div>
+                <p className="pending-card-email"><Mail size={13} /> {row.email}</p>
+                {row.joined > 0 && (
+                  <p className="pending-card-date">Signed up {new Date(row.joined).toLocaleDateString("en-IN")}</p>
+                )}
+
+                {rejecting === row.id ? (
+                  <div className="pending-reject">
+                    <input
+                      className="field-input"
+                      value={reason}
+                      maxLength={300}
+                      onChange={(e) => setReason(e.target.value)}
+                      placeholder="Reason (shown to them), e.g. ID card photo is blurry"
+                    />
+                    <div className="pending-actions">
+                      <button type="button" className="btn btn-xs btn-outline" onClick={() => { setRejecting(null); setReason(""); }} disabled={busyId === row.id}>Cancel</button>
+                      <button type="button" className="btn btn-xs btn-danger" onClick={() => decide(row, false)} disabled={busyId === row.id}>
+                        {busyId === row.id ? <Loader2 size={13} className="spin" /> : <X size={13} />} Reject
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="pending-actions">
+                    <button type="button" className="btn btn-sm btn-primary" onClick={() => decide(row, true)} disabled={busyId === row.id}>
+                      {busyId === row.id ? <Loader2 size={14} className="spin" /> : <CheckCircle2 size={14} />} Approve
+                    </button>
+                    <button type="button" className="btn btn-sm btn-outline" onClick={() => setRejecting(row.id)} disabled={busyId === row.id}>
+                      Reject
+                    </button>
+                  </div>
+                )}
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
+
+      {zoom && (
+        <div className="modal-overlay" onClick={() => setZoom("")} role="dialog" aria-label="ID card">
+          <div className="modal-card pending-zoom" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-head">
+              <h3>ID card</h3>
+              <button type="button" className="btn btn-ghost" onClick={() => setZoom("")}><X size={18} /></button>
+            </div>
+            <img src={zoom} alt="ID card, full size" />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AdminPortal({ users, onUpdateUser, onDeleteUser, onRefreshUsers }) {
   const [search, setSearch] = useState("");
 
   /* Quiz participation. Loaded on demand: it is one read per account, so it
@@ -2757,6 +2913,7 @@ function AdminPortal({ users, onUpdateUser, onDeleteUser }) {
      my teaching staff. */
   const students = users.filter((u) => u.role === "student" && matches(u));
   const faculty = users.filter((u) => u.role === "faculty" && matches(u));
+  const staff = users.filter((u) => u.role === "staff" && matches(u));
   const admins = users.filter((u) => u.role === "admin" && matches(u));
 
   const activeUsers = users.filter((u) => !u.restricted).length;
@@ -2905,6 +3062,8 @@ function AdminPortal({ users, onUpdateUser, onDeleteUser }) {
         <ArrowRight size={18} />
       </a>
 
+      <PendingApprovalsPanel onChanged={onRefreshUsers} />
+
       <div style={{ gridColumn: "1 / -1" }} className="card">
         <div>
           <h3><Shield size={20} /> User Directory &amp; Access Control Desk</h3>
@@ -2916,6 +3075,7 @@ function AdminPortal({ users, onUpdateUser, onDeleteUser }) {
             { label: "Total accounts", value: users.length, tone: "total" },
             { label: "Students", value: users.filter((u) => u.role === "student").length },
             { label: "Faculty", value: users.filter((u) => u.role === "faculty").length },
+            { label: "Staff", value: users.filter((u) => u.role === "staff").length },
             { label: "Active", value: activeUsers, tone: "ok" },
             { label: "Restricted", value: blockedUsers, tone: blockedUsers ? "warn" : undefined },
           ].map((stat) => (
@@ -2962,6 +3122,7 @@ function AdminPortal({ users, onUpdateUser, onDeleteUser }) {
 
       {section("Students", students, "students", GraduationCap)}
       {section("Faculty", faculty, "faculty", NotebookPen)}
+      {section("Staff", staff, "staff", Briefcase)}
 
       {admins.length > 0 && section("Administrator", admins, "administrators", Shield)}
     </div>
@@ -2983,11 +3144,12 @@ function TopNavApp({ view, go, onLogout, user }) {
     : "";
 
   const isStudent = user.role === "student";
+  const isStaffOnly = user.role === "staff";
 
   return (
     <header className="app-header">
       <div className="app-header-inner">
-        <button className="app-brand" type="button" onClick={() => go(isStudent ? "profile" : user.role === "faculty" ? "faculty-portal" : "admin-portal")}>
+        <button className="app-brand" type="button" onClick={() => go(homeViewFor(user))}>
           <span className="app-brand-mark">
             <BrandLogo variant="mark" />
           </span>
@@ -3002,19 +3164,15 @@ function TopNavApp({ view, go, onLogout, user }) {
             browser's back button. Every destination the account may open is
             listed here instead. */}
         <nav className="app-navigation" aria-label="Application navigation">
-          <button type="button" className="app-nav-item" onClick={() => go("landing")}>
-            Home
-          </button>
-
           {isStudent && (
             <button type="button" className={`app-nav-item ${view === "profile" ? "active" : ""}`} onClick={() => go("profile")}>
               Profile
             </button>
           )}
 
-          {user.role === "faculty" && (
-            <button type="button" className={`app-nav-item ${view === "faculty-portal" ? "active" : ""}`} onClick={() => go("faculty-portal")}>
-              Faculty Studio
+          {isStaffRole(user.role) && (
+            <button type="button" className={`app-nav-item ${view === "faculty-portal" ? "active" : ""}`} onClick={() => go(homeViewFor(user))}>
+              {user.role === "staff" ? "My Profile" : "Faculty Studio"}
             </button>
           )}
 
@@ -3024,9 +3182,11 @@ function TopNavApp({ view, go, onLogout, user }) {
             </button>
           )}
 
-          <button type="button" className={`app-nav-item ${view === "notes" ? "active" : ""}`} onClick={() => go("notes")}>
-            Subject Notes
-          </button>
+          {!isStaffOnly && (
+            <button type="button" className={`app-nav-item ${view === "notes" ? "active" : ""}`} onClick={() => go("notes")}>
+              Subject Notes
+            </button>
+          )}
 
           {isStudent && (
             <button type="button" className={`app-nav-item ${view === "quiz" ? "active" : ""}`} onClick={() => go("quiz")}>
@@ -3034,13 +3194,17 @@ function TopNavApp({ view, go, onLogout, user }) {
             </button>
           )}
 
-          <button type="button" className={`app-nav-item ${view === "pyq" ? "active" : ""}`} onClick={() => go("pyq")}>
-            Question Papers
-          </button>
+          {!isStaffOnly && (
+            <button type="button" className={`app-nav-item ${view === "pyq" ? "active" : ""}`} onClick={() => go("pyq")}>
+              Question Papers
+            </button>
+          )}
 
-          <button type="button" className={`app-nav-item ${view === "scholarships" ? "active" : ""}`} onClick={() => go("scholarships")}>
-            Scholarships
-          </button>
+          {!isStaffOnly && (
+            <button type="button" className={`app-nav-item ${view === "scholarships" ? "active" : ""}`} onClick={() => go("scholarships")}>
+              Scholarships
+            </button>
+          )}
         </nav>
 
         <div className="app-header-right">
@@ -3050,14 +3214,11 @@ function TopNavApp({ view, go, onLogout, user }) {
           <button
             type="button"
             className="header-profile-button"
-            onClick={() => isStudent && go("profile")}
-            disabled={!isStudent}
-            title={isStudent ? "Open profile" : user.role}
+            onClick={() => go(homeViewFor(user))}
+            title="Open your profile"
           >
             <span className="header-avatar">
-              {user.pfp
-                ? <img src={user.pfp} alt="" className="header-avatar-img" />
-                : hasFullName ? initials : <User size={15} />}
+              {hasFullName ? initials : <User size={15} />}
             </span>
             <span className="header-user-info">
               <strong>{user.name || "User"}</strong>
@@ -3098,12 +3259,12 @@ export default function App() {
   /* The members-only page a signed-out visitor tried to open, so signing in
      takes them there instead of dumping them on their profile. */
   const [pendingPage, setPendingPage] = useState(null);
+  /* Faculty/staff picked on the staff page, carried to the terms screen for a
+     brand-new Google account. */
+  const [pendingRole, setPendingRole] = useState("");
   /* "idle" | "checking" | "held" | "denied" — the administrator desk opens in
      one window at a time. */
   const [adminLock, setAdminLock] = useState("idle");
-  /* The admin desk opens only after the authenticator code is checked in
-     this login (the database enforces the same rule). */
-  const [adminVerified, setAdminVerified] = useState(false);
   const adminSessionRef = useRef(null);
 
   /* Language for the public-facing pages (landing, about, scholarships, and
@@ -3187,16 +3348,14 @@ export default function App() {
       return;
     }
     /* Straight back to whatever they were trying to open before signing in. */
-    if (pendingPage) {
+    if (pendingPage && !isAwaitingApproval(u)) {
       const target = pendingPage;
       setPendingPage(null);
       setNotice("");
       replaceView(target);
       return;
     }
-    if (u.role === "admin") replaceView("admin-portal");
-    else if (u.role === "faculty") replaceView(u.qualification ? "faculty-portal" : "faculty-setup");
-    else replaceView("profile");
+    replaceView(homeViewFor(u));
   };
 
   /* Pulls the signed-in user's profile, and for an admin the user directory
@@ -3220,12 +3379,7 @@ export default function App() {
 
       const full = normalizeStudentProfile(profile);
       setCurrentUser(full);
-      let verified = true;
       if (full.role === "admin") {
-        verified = (await getAssuranceLevel()).current === "aal2";
-        setAdminVerified(verified);
-      }
-      if (full.role === "admin" && verified) {
         /* A denied directory read used to be swallowed here, so a broken admin
            profile looked identical to a platform with no users on it. Say what
            actually happened instead. */
@@ -3277,6 +3431,7 @@ export default function App() {
 
     if (!current.termsAcceptedAt) {
       if (next) setPendingNext(next);
+      setPendingRole(isStaffRole(intent?.role) ? intent.role : "");
       replaceView("accept-terms");
       return;
     }
@@ -3384,7 +3539,7 @@ export default function App() {
      refused; if this one dies without releasing, the heartbeat stops and the
      lock goes stale so the next window can take over. */
   useEffect(() => {
-    if (demoMode || currentUser?.role !== "admin" || !adminVerified) {
+    if (demoMode || currentUser?.role !== "admin") {
       setAdminLock("idle");
       return undefined;
     }
@@ -3427,7 +3582,7 @@ export default function App() {
       releaseAdminSession(sessionId);
       adminSessionRef.current = null;
     };
-  }, [currentUser?.role, currentUser?.id, demoMode, adminVerified]);
+  }, [currentUser?.role, currentUser?.id, demoMode]);
 
   /* Stamps the account when it opens the notes library, so the admin desk can
      show who has actually used it. Fire-and-forget; failure never blocks reading. */
@@ -3435,6 +3590,31 @@ export default function App() {
     if (demoMode || view !== "notes" || !currentUser?.id) return;
     markNotesOpened(currentUser.id);
   }, [view, currentUser?.id, demoMode]);
+
+  useEffect(() => {
+    if (booting || !currentUser) return;
+    const awaiting = isAwaitingApproval(currentUser);
+    if (view === "landing"
+      || (awaiting && !["pending-approval", "terms", "privacy", "about", "notfound"].includes(view))
+      || (!awaiting && view === "pending-approval")
+      || (currentUser.role === "staff" && STUDY_PAGES.has(view))) {
+      replaceView(homeViewFor(currentUser));
+    }
+  }, [view, currentUser, booting]);
+
+  /* Re-reads the account so an approval shows up without signing in again. */
+  const refreshApproval = useCallback(async () => {
+    if (!currentUser?.id) return null;
+    const fresh = await fetchProfile(currentUser.id);
+    if (!fresh) return null;
+    const full = normalizeStudentProfile(fresh);
+    setCurrentUser(full);
+    return full;
+  }, [currentUser?.id]);
+
+  const refreshUsers = async () => {
+    try { setUsers(await listProfiles()); } catch (e) { console.error(e); }
+  };
 
   /* Catches the cases the click guard cannot: a session that expired while the
      page was open, or the back button landing on a members-only view. */
@@ -3522,18 +3702,8 @@ export default function App() {
     return { success: true, message: "Login successful." };
   };
 
-  const handleAdminVerified = async () => {
-    setAdminVerified(true);
-    try {
-      setUsers(await listProfiles());
-    } catch (e) {
-      console.error(e);
-    }
-    replaceView("admin-portal");
-  };
-
   const handleAcceptTerms = async () => {
-    const result = await acceptTerms(currentUser?.role);
+    const result = await acceptTerms(pendingRole || currentUser?.role);
     if (!result.success) return result;
     const refreshed = normalizeStudentProfile(await fetchProfile(currentUser.id));
     setCurrentUser(refreshed);
@@ -3544,7 +3714,7 @@ export default function App() {
 
   const handleFacultySetupComplete = async (data) => {
     const trackingId = currentUser?.trackingId
-      || generateTrackingId({ name: data.name, city: data.city, role: "faculty", existingUsers: [] });
+      || generateTrackingId({ name: data.name, city: data.city, role: currentUser?.role || "faculty", existingUsers: [] });
     const updated = { ...currentUser, ...data, trackingId };
     setCurrentUser(updated);
     if (!demoMode) {
@@ -3710,17 +3880,17 @@ export default function App() {
         {view === "accept-terms" && currentUser && (
           <AcceptTermsScreen user={currentUser} onAccept={handleAcceptTerms} onSignOut={logout} />
         )}
-        {view === "faculty-setup" && <FacultyProfileSetup profile={currentUser} onComplete={handleFacultySetupComplete} />}
+        {view === "pending-approval" && currentUser && (
+          <PendingApprovalScreen user={currentUser} onRefresh={refreshApproval} onSignOut={logout} />
+        )}
+        {view === "faculty-setup" && currentUser && <FacultyProfileSetup profile={currentUser} onComplete={handleFacultySetupComplete} />}
         {view === "profile" && currentUser?.role === "student" && (
           <StudentProfile profile={currentUser} onSaveProfile={handleProfileEdit} />
         )}
-        {view === "faculty-portal" && (
+        {view === "faculty-portal" && currentUser && (
           <FacultyPortal profile={currentUser} onSaveProfile={handleProfileEdit} />
         )}
-        {view === "admin-portal" && !demoMode && currentUser?.role === "admin" && !adminVerified && (
-        <AdminMfaScreen user={currentUser} onVerified={handleAdminVerified} onSignOut={logout} />
-      )}
-      {view === "admin-portal" && (demoMode || adminVerified) && adminLock === "denied" && (
+        {view === "admin-portal" && adminLock === "denied" && (
           <main className="resource-page pyq-page">
             <div className="resource-head">
               <div className="resource-head-copy">
@@ -3743,11 +3913,11 @@ export default function App() {
             </div>
           </main>
         )}
-        {view === "admin-portal" && (demoMode || adminVerified) && adminLock === "checking" && (
+        {view === "admin-portal" && adminLock === "checking" && (
           <div className="boot-screen"><Loader2 size={20} className="spin" /> Checking administrator session…</div>
         )}
-        {view === "admin-portal" && (demoMode || adminVerified) && (adminLock === "held" || adminLock === "idle") && (
-          <AdminPortal users={users} onUpdateUser={handleUpdateUser} onDeleteUser={handleDeleteUser} />
+        {view === "admin-portal" && (adminLock === "held" || adminLock === "idle") && (
+          <AdminPortal users={users} onUpdateUser={handleUpdateUser} onDeleteUser={handleDeleteUser} onRefreshUsers={refreshUsers} />
         )}
       {view === "notfound" && <NotFoundPage />}
       </ErrorBoundary>
@@ -4084,12 +4254,6 @@ function Styles() {
         box-shadow: 0 4px 14px rgba(30, 58, 95, 0.22);
       }
       .brand-logo-svg { display: block; width: 100%; height: 100%; }
-      .brand-logo-glyph {
-        font-family: 'Noto Serif Devanagari', 'Nirmala UI', 'Mangal', serif;
-        font-weight: 700;
-        font-size: 50px;
-        fill: #FFFFFF;
-      }
       .brand-logo-frame--mark,
       .brand-logo-frame--nav,
       .brand-logo-frame--footer {
@@ -4780,10 +4944,6 @@ function Styles() {
       }
       .service-card.is-highlighted { animation: searchFlash 2.4s ease-out; }
 
-      .mfa-setup { display: flex; flex-direction: column; align-items: center; gap: 10px; margin-bottom: 16px; }
-      .mfa-qr { width: 190px; height: 190px; background: #FFFFFF; padding: 8px; border: 1px solid var(--border-light); border-radius: 12px; }
-      .mfa-secret { font-size: 12.5px; color: var(--text-muted); text-align: center; word-break: break-all; }
-      .mfa-secret code { font-size: 12px; color: var(--text-dark); background: #F1F5F9; padding: 2px 6px; border-radius: 4px; }
 
       .admin-rakt-link {
         display: flex; align-items: center; gap: 14px; text-decoration: none; color: var(--text-dark);
@@ -5508,6 +5668,7 @@ function Styles() {
       .auth-title { font-size: 28px; line-height: 1.25; color: var(--abc-navy); letter-spacing: -0.02em; }
       .auth-sub { color: var(--text-muted); font-size: 14px; line-height: 1.65; max-width: 42ch; }
       .auth-host-note { font-size: 12.5px; line-height: 1.5; color: var(--abc-blue); word-break: break-all; }
+      .auth-staff-note { font-size: 12.5px; line-height: 1.55; color: var(--text-subtle); background: #F8FAFC; border: 1px solid var(--border-light); border-radius: 10px; padding: 9px 12px; margin: 0; }
       .btn-google {
         display: inline-flex; align-items: center; justify-content: center; gap: 10px;
         background: #fff; color: var(--text-dark); border: 1px solid var(--border-strong);
@@ -5732,6 +5893,43 @@ function Styles() {
       .fac-info { display: flex; flex-direction: column; gap: 4px; flex: 1; }
       .fac-name-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
       .fac-designation-meta { font-size: 14px; font-weight: 600; color: var(--abc-navy); margin-top: 2px; }
+      .fac-about { font-size: 13.5px; line-height: 1.6; color: var(--text-subtle); margin: 8px 0 0; max-width: 640px; white-space: pre-line; }
+      .profile-pfp-remove { display: block; margin: 6px auto 0; }
+
+      .pending-status { display: inline-flex; align-items: center; gap: 6px; padding: 5px 11px; border-radius: 999px; background: #FFF7ED; color: #B45309; border: 1px solid #FED7AA; font-size: 12px; font-weight: 700; margin-bottom: 10px; }
+      .pending-status--rejected { background: #FEF2F2; color: #B91C1C; border-color: #FECACA; }
+      .pending-upload { display: flex; flex-direction: column; align-items: center; gap: 8px; margin: 14px 0 16px; }
+      .pending-drop { width: 100%; min-height: 170px; border: 2px dashed var(--border-strong); border-radius: 14px; background: #F8FAFC; display: flex; align-items: center; justify-content: center; overflow: hidden; cursor: pointer; padding: 0; }
+      .pending-drop:hover { border-color: var(--abc-navy); }
+      .pending-drop img { width: 100%; max-height: 260px; object-fit: contain; background: #FFFFFF; display: block; }
+      .pending-drop-empty { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 22px 16px; color: var(--abc-navy); text-align: center; }
+      .pending-drop-empty strong { font-size: 14px; }
+      .pending-drop-empty small { font-size: 12px; color: var(--text-muted); }
+
+      .pending-panel { border-left: 4px solid #F59E0B; }
+      .pending-panel-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+      .pending-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; margin-top: 14px; }
+      .pending-card { display: flex; gap: 12px; padding: 12px; border: 1px solid var(--border-light); border-radius: 12px; background: #FFFFFF; min-width: 0; }
+      .pending-card-proof { flex: 0 0 104px; height: 78px; border: 1px solid var(--border-light); border-radius: 8px; background: #F1F5F9; padding: 0; overflow: hidden; cursor: zoom-in; display: flex; align-items: center; justify-content: center; }
+      .pending-card-proof:disabled { cursor: default; }
+      .pending-card-proof img { width: 100%; height: 100%; object-fit: cover; display: block; }
+      .pending-card-proof span { display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 11px; color: var(--text-muted); text-align: center; padding: 4px; }
+      .pending-card-body { flex: 1; min-width: 0; }
+      .pending-card-name { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+      .pending-card-name strong { font-size: 14.5px; color: var(--text-dark); overflow-wrap: anywhere; }
+      .pending-card-email { display: flex; align-items: center; gap: 5px; margin: 4px 0 0; font-size: 12.5px; color: var(--text-subtle); overflow-wrap: anywhere; }
+      .pending-card-date { margin: 2px 0 0; font-size: 11.5px; color: var(--text-muted); }
+      .pending-actions { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+      .pending-reject { margin-top: 10px; }
+      .pending-reject .field-input { width: 100%; font-size: 13px; }
+      .pending-zoom { max-width: 720px; }
+      .pending-zoom img { width: 100%; max-height: 75vh; object-fit: contain; display: block; }
+      @media (max-width: 520px) {
+        .pending-list { grid-template-columns: 1fr; }
+        .pending-card { flex-direction: column; }
+        .pending-card-proof { flex-basis: auto; width: 100%; height: 150px; }
+        .pending-actions .btn { flex: 1; justify-content: center; }
+      }
       .fac-institution-meta { font-size: 13px; color: var(--text-muted); display: flex; align-items: center; gap: 4px; margin-top: 2px; }
       
       .fac-social-grid { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; align-items: center; }
@@ -5960,6 +6158,7 @@ function Styles() {
       }
       .role-student { background: #E0F2FE; color: #0369A1; border-color: #BAE6FD; }
       .role-faculty { background: #ECFDF5; color: #047857; border-color: #A7F3D0; }
+      .role-staff { background: #FFF7ED; color: #B45309; border-color: #FED7AA; }
       .role-admin { background: #FFF7ED; color: #B45309; border-color: #FED7AA; }
 
       .profile-page {

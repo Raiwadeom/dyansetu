@@ -42,7 +42,7 @@ const ALLOWED_TYPES = new Set([
 async function requestSignature(folder) {
   const accessToken = isBackendConfigured ? await getAccessToken() : "";
   if (!accessToken) {
-    throw new Error("Sign in as faculty to upload files.");
+    throw new Error("Sign in to upload files.");
   }
 
   const response = await fetch(SIGN_URL, {
@@ -131,4 +131,46 @@ export async function uploadFiles(files, options = {}) {
 export function downloadUrl(file) {
   if (!file?.url) return "";
   return file.url.replace("/upload/", "/upload/fl_attachment/");
+}
+
+export const MAX_PHOTO_BYTES = 300 * 1024;
+
+function loadImage(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => { URL.revokeObjectURL(url); resolve(img); };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("That image could not be read. Try a JPG or PNG.")); };
+    img.src = url;
+  });
+}
+
+/* Phone cameras produce multi-megabyte photos; profile and ID-card photos are
+   capped at 300 KB, so shrink them here (JPEG, stepping down size and quality)
+   instead of rejecting them. */
+export async function shrinkPhoto(file, maxBytes = MAX_PHOTO_BYTES) {
+  if (!file?.type?.startsWith("image/")) throw new Error("Choose an image — a JPG, PNG or WebP.");
+  if (file.size <= maxBytes) return file;
+
+  const img = await loadImage(file);
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+  let side = 1600;
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    const scale = Math.min(1, side / Math.max(img.naturalWidth, img.naturalHeight));
+    canvas.width = Math.max(1, Math.round(img.naturalWidth * scale));
+    canvas.height = Math.max(1, Math.round(img.naturalHeight * scale));
+    ctx.fillStyle = "#FFFFFF";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    for (const quality of [0.85, 0.72, 0.6]) {
+      const blob = await new Promise((r) => canvas.toBlob(r, "image/jpeg", quality));
+      if (blob && blob.size <= maxBytes) {
+        const name = (file.name || "photo").replace(/\.[^.]+$/, "") + ".jpg";
+        return new File([blob], name, { type: "image/jpeg" });
+      }
+    }
+    side = Math.round(side * 0.75);
+  }
+  throw new Error("This photo is too large even after shrinking. Try a smaller one (under 300 KB).");
 }

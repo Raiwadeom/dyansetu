@@ -37,6 +37,7 @@ const PRIVILEGED = new Set(["role", "status", "restricted"]);
 const READ_ONLY = new Set([
   "id", "joined", "password", "email", "termsAcceptedAt", "termsVersion",
   "legacyFirebaseUid", "createdAt", "updatedAt",
+  "approvalStatus", "idProofUrl", "idProofNote",
 ]);
 
 function toProfile(row) {
@@ -54,6 +55,9 @@ function toProfile(row) {
     restricted: row.restricted,
     termsAcceptedAt: row.terms_accepted_at,
     termsVersion: row.terms_version,
+    approvalStatus: row.approval_status || "approved",
+    idProofUrl: row.id_proof_url || "",
+    idProofNote: row.id_proof_note || "",
     id: row.id,
     joined: row.created_at ? Date.parse(row.created_at) : Date.now(),
   };
@@ -140,4 +144,31 @@ export async function adminDeleteProfile(userId) {
     supabase.from("profiles").update({ status: "deleted", restricted: true }).eq("id", userId),
     "Could not remove that account.",
   );
+}
+
+/* --------------------------- faculty/staff approval --------------------------- */
+
+/* The pending account's own proof (an ID-card photo). Scoped to the caller by
+   the database function. */
+export async function submitIdProof(url, note = "") {
+  if (!isBackendConfigured) return;
+  const { error } = await supabase.rpc("submit_id_proof", { p_url: url, p_note: note });
+  if (error) throw new Error(friendlyError(error, "Could not send your ID proof."));
+}
+
+export async function listPendingApprovals() {
+  if (!isBackendConfigured) return [];
+  const { data, error } = await supabase.rpc("list_pending_approvals");
+  if (error) throw new Error(friendlyError(error, "Could not read pending sign-ups."));
+  return (data || []).map((r) => ({
+    id: r.id, name: r.name, email: r.email, role: r.role,
+    idProofUrl: r.id_proof_url || "", idProofNote: r.id_proof_note || "",
+    joined: r.created_at ? Date.parse(r.created_at) : 0,
+  }));
+}
+
+export async function adminReviewPending(userId, approve, note = "") {
+  if (!isBackendConfigured) return;
+  const { error } = await supabase.rpc("admin_review_pending", { p_user_id: userId, p_approve: approve, p_note: note });
+  if (error) throw new Error(friendlyError(error, "Could not save that decision."));
 }
