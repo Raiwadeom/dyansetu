@@ -3896,6 +3896,7 @@ export default function App() {
       <Styles />
 
       {askLang && <LanguagePicker onChoose={setLang} />}
+      {!askLang && <InstallAppButton variant="banner" />}
 
       {/* Without backend keys the app runs on seed data, which is easy to miss
           until a signup silently fails to persist. Say so plainly. */}
@@ -4028,11 +4029,23 @@ export default function App() {
 /* Shown only where installing is possible: opens the browser's install dialog
    on Android/desktop Chrome, or the Add to Home Screen steps on iPhone. Hidden
    once the site is running as an installed app. */
-function InstallAppButton({ compact = false }) {
+/* The phone-only strip is closed for the rest of this visit, then comes back
+   on the next one until the app is installed. */
+const INSTALL_BANNER_KEY = "dnyansetu:install-banner-closed";
+
+function InstallAppButton({ compact = false, variant = compact ? "compact" : "button" }) {
   const { lang } = useLang();
   const tr = makeTr(lang);
   const { mode, install } = useInstallApp();
   const [showSteps, setShowSteps] = useState(false);
+  const [bannerClosed, setBannerClosed] = useState(() => {
+    try { return sessionStorage.getItem(INSTALL_BANNER_KEY) === "1"; } catch { return false; }
+  });
+  const closeBanner = () => {
+    setBannerClosed(true);
+    try { sessionStorage.setItem(INSTALL_BANNER_KEY, "1"); } catch { /* storage blocked */ }
+  };
+  if (variant === "banner" && bannerClosed && !showSteps) return null;
   /* Kept mounted while the steps are open: "Got it" retires the button on
      iPhone, and that must not unmount the dialog mid-click. */
   if (!mode && !showSteps) return null;
@@ -4042,7 +4055,21 @@ function InstallAppButton({ compact = false }) {
 
   return (
     <>
-      {compact ? (
+      {variant === "banner" ? (!bannerClosed && mode && (
+        <div className="install-banner" role="region" aria-label={label}>
+          <span className="install-banner-icon"><Download size={16} /></span>
+          <span className="install-banner-text">
+            <strong>{tr("Install DnyanSetu", "DnyanSetu इन्स्टॉल करा")}</strong>
+            <small>{tr("Open it from your home screen like an app.", "होम स्क्रीनवरून ॲपसारखे उघडा.")}</small>
+          </span>
+          <button type="button" className="btn btn-primary install-banner-cta" onClick={onClick}>
+            {tr("Install", "इन्स्टॉल")}
+          </button>
+          <button type="button" className="install-banner-close" onClick={closeBanner} aria-label={tr("Close", "बंद करा")}>
+            <X size={16} />
+          </button>
+        </div>
+      )) : variant === "compact" ? (
         <button type="button" className="header-logout" onClick={onClick} title={label} aria-label={label}>
           <Download size={17} />
         </button>
@@ -5886,6 +5913,28 @@ function Styles() {
       .lang-picker-actions { display: flex; gap: 14px; justify-content: center; }
       .lang-picker-btn { flex: 1; max-width: 160px; }
       .install-app-btn { display: inline-flex; align-items: center; gap: 6px; }
+      /* Phones only: desktop visitors have the nav button. */
+      .install-banner { display: none; }
+      @media (max-width: 760px) {
+        .install-banner {
+          display: flex; align-items: center; gap: 10px;
+          padding: 10px 12px 10px 16px;
+          background: #FFF8EC; border-bottom: 1px solid #F1D9B0; border-left: 4px solid var(--abc-saffron);
+        }
+      }
+      .install-banner-icon {
+        flex: 0 0 32px; height: 32px; border-radius: 50%;
+        display: inline-flex; align-items: center; justify-content: center;
+        background: #FFFFFF; color: var(--abc-navy); border: 1px solid #F1D9B0;
+      }
+      .install-banner-text { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.3; }
+      .install-banner-text strong { font-size: 14px; color: var(--abc-navy); }
+      .install-banner-text small { font-size: 12.5px; color: var(--text-muted); }
+      .install-banner-cta { flex: 0 0 auto; min-height: 36px; padding: 0 14px; font-size: 13.5px; }
+      .install-banner-close {
+        flex: 0 0 36px; height: 36px; border: 0; background: transparent; color: var(--text-muted);
+        display: inline-flex; align-items: center; justify-content: center; border-radius: 8px; cursor: pointer;
+      }
       .install-steps-card { text-align: left; }
       .install-steps-card .lang-picker-title { text-align: center; }
       .install-steps { list-style: none; padding: 0; margin: 0 0 24px; display: flex; flex-direction: column; gap: 14px; }
