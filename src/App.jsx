@@ -595,6 +595,16 @@ function Landing({ goAuth, onOpenAbout, onOpenPage, user, onOpenDashboard }) {
   const [isScrolled, setIsScrolled] = useState(false);
   const searchWrapRef = useRef(null);
   const searchResults = searchLanding(searchQuery);
+  const langSwitch = (className) => (
+    <div className={className} role="group" aria-label="Choose language / भाषा निवडा">
+      <button type="button" className={`nav-lang-btn ${lang === "en" ? "is-active" : ""}`} onClick={() => setLang("en")}>
+        EN
+      </button>
+      <button type="button" className={`nav-lang-btn ${lang === "mr" ? "is-active" : ""}`} onClick={() => setLang("mr")}>
+        मराठी
+      </button>
+    </div>
+  );
 
   /* Nav floats free of the top edge once the page has scrolled past the
      identity strip, the way ux4g.gov.in's nav condenses on scroll. */
@@ -658,7 +668,7 @@ function Landing({ goAuth, onOpenAbout, onOpenPage, user, onOpenDashboard }) {
         </span>
       </div>
 
-      <nav className={`nav-marketing anim-nav-enter ${isScrolled ? "is-floating" : ""}`}>
+      <nav className={`nav-marketing anim-nav-enter ${isScrolled ? "is-floating" : ""} ${user ? "has-user" : ""}`}>
         <div className="nav-gov-brand">
           <CollegeCrest size={38} />
           <span className="landing-brand-divider" aria-hidden="true" />
@@ -671,22 +681,17 @@ function Landing({ goAuth, onOpenAbout, onOpenPage, user, onOpenDashboard }) {
           </div>
         </div>
 
-        <div className="nav-lang-switch" role="group" aria-label="Choose language / भाषा निवडा">
-          <button
-            type="button"
-            className={`nav-lang-btn ${lang === "en" ? "is-active" : ""}`}
-            onClick={() => setLang("en")}
-          >
-            EN
+        {langSwitch("nav-lang-switch")}
+
+        {/* Signed in, on phones and tablets: "My dashboard" takes the language
+            switch's place in the bar, and the switch moves into the menu. */}
+        {user && (
+          <button type="button" className="btn btn-primary nav-dash-bar" onClick={() => { setMobileMenuOpen(false); onOpenDashboard(); }}>
+            <User size={14} />
+            <span className="nav-dash-long">{tr("My dashboard", "माझे डॅशबोर्ड")}</span>
+            <span className="nav-dash-short">{tr("Dashboard", "डॅशबोर्ड")}</span>
           </button>
-          <button
-            type="button"
-            className={`nav-lang-btn ${lang === "mr" ? "is-active" : ""}`}
-            onClick={() => setLang("mr")}
-          >
-            मराठी
-          </button>
-        </div>
+        )}
 
         <button
           type="button"
@@ -699,6 +704,7 @@ function Landing({ goAuth, onOpenAbout, onOpenPage, user, onOpenDashboard }) {
         </button>
 
         <div className={`nav-collapse ${mobileMenuOpen ? "is-open" : ""}`}>
+        {user && langSwitch("nav-lang-switch nav-lang-in-menu")}
         <div className="nav-search" ref={searchWrapRef}>
           <div className={`nav-search-field ${searchOpen && searchResults.length ? "is-open" : ""}`}>
             <Search size={16} className="nav-search-icon" />
@@ -770,7 +776,7 @@ function Landing({ goAuth, onOpenAbout, onOpenPage, user, onOpenDashboard }) {
         <div className="nav-actions">
           <InstallAppButton />
           {user ? (
-            <button className="btn btn-primary" onClick={() => { setMobileMenuOpen(false); onOpenDashboard(); }}>
+            <button className="btn btn-primary nav-dash-menu" onClick={() => { setMobileMenuOpen(false); onOpenDashboard(); }}>
               <User size={15} /> {tr("My dashboard", "माझे डॅशबोर्ड")}
             </button>
           ) : (
@@ -5430,6 +5436,13 @@ function Styles() {
         cursor: pointer;
       }
       .nav-collapse { display: contents; }
+      .nav-dash-bar, .nav-lang-in-menu, .nav-dash-short { display: none; }
+      .nav-dash-bar { align-items: center; gap: 6px; flex: 0 0 auto; margin-left: auto; white-space: nowrap; min-height: 38px; padding: 8px 14px; font-size: 13px; }
+      /* The smallest phones (320–360 px): signed in, the bar also carries the
+         Dashboard button, so the square logo steps aside for the wordmark. */
+      @media (max-width: 360px) {
+        .nav-marketing.has-user .brand-logo-frame--nav { display: none; }
+      }
       .nav-staff-link {
         display: inline-flex; align-items: center; gap: 6px;
         border: 1px solid var(--border-strong); background: #FFFFFF; cursor: pointer;
@@ -6344,6 +6357,10 @@ function Styles() {
         .landing-brand-copy { min-width: 0; }
         .nav-topstrip-text { font-size: 10.5px; }
         .nav-menu-toggle { display: inline-flex; }
+        .nav-marketing.has-user > .nav-lang-switch { display: none; }
+        .nav-marketing.has-user .nav-dash-bar { display: inline-flex; }
+        .nav-marketing.has-user .nav-dash-menu { display: none; }
+        .nav-collapse.is-open .nav-lang-in-menu { display: inline-flex; align-self: flex-start; }
         .nav-collapse { display: none; }
         .nav-collapse.is-open {
           display: flex; flex-direction: column; gap: 14px; align-items: stretch;
@@ -6488,6 +6505,10 @@ function Styles() {
         .landing-brand-tag { display: none; }
         .landing-brand-name { font-size: 18px; }
         .nav-lang-btn { padding: 5px 8px; }
+        .nav-dash-long { display: none; }
+        .nav-dash-short { display: inline; }
+        .nav-dash-bar { padding: 8px 11px; font-size: 12.5px; min-height: 36px; }
+        .nav-marketing.has-user .nav-gov-brand > .college-crest { display: none; }
         /* Small phones: the floating bar drops the college crest (the college
            name stays in the strip above) so the full wordmark always fits. */
         .nav-marketing.is-floating .nav-gov-brand > .college-crest { display: none; }
