@@ -26,7 +26,7 @@ import { fetchMyNotes, uploadNote, deleteNote } from "./lib/notes";
 import { uploadFile, shrinkPhoto } from "./lib/cloudinary";
 import { fetchAttempts } from "./lib/quizProgress";
 import {
-  newSessionId, claimAdminSession, beatAdminSession, releaseAdminSession,
+  browserSessionId, claimAdminSession, beatAdminSession, releaseAdminSession,
   watchAdminSession, HEARTBEAT_MS,
 } from "./lib/adminSession";
 import { NOTE_STREAMS, SEMESTERS, ACCEPTED_NOTE_TYPES, formatBytes } from "./data/notes";
@@ -3119,7 +3119,7 @@ function AdminPortal({ users, onUpdateUser, onDeleteUser, onRefreshUsers }) {
 
         <div className="admin-stat-row">
           {[
-            { label: "Total accounts", value: users.length, tone: "total" },
+            { label: "Total", value: users.length, tone: "total" },
             { label: "Students", value: users.filter((u) => u.role === "student").length },
             { label: "Faculty", value: users.filter((u) => u.role === "faculty").length },
             { label: "Staff", value: users.filter((u) => u.role === "staff").length },
@@ -3312,6 +3312,10 @@ export default function App() {
   /* "idle" | "checking" | "held" | "denied" — the administrator desk opens in
      one window at a time. */
   const [adminLock, setAdminLock] = useState("idle");
+  /* Bumped to re-run the admin claim: a periodic retry while refused, or an
+     explicit "use it here" take-over. */
+  const [adminClaimTry, setAdminClaimTry] = useState(0);
+  const adminForceRef = useRef(false);
   const adminSessionRef = useRef(null);
 
   /* Language for the public-facing pages (landing, about, scholarships, and
@@ -3592,19 +3596,24 @@ export default function App() {
     }
 
     let cancelled = false;
-    const sessionId = newSessionId();
+    const sessionId = browserSessionId();
     adminSessionRef.current = sessionId;
-    setAdminLock("checking");
+    const force = adminForceRef.current;
+    adminForceRef.current = false;
+    if (adminClaimTry === 0) setAdminLock("checking");
 
     let beat;
+    let retry;
     let unwatch = () => {};
 
     (async () => {
-      const result = await claimAdminSession(currentUser.id, sessionId);
+      const result = await claimAdminSession(currentUser.id, sessionId, { force });
       if (cancelled) return;
 
       if (!result.ok) {
         setAdminLock("denied");
+        /* The other window may close any moment; look again shortly. */
+        retry = setTimeout(() => setAdminClaimTry((n) => n + 1), 8000);
         return;
       }
 
@@ -3624,12 +3633,19 @@ export default function App() {
     return () => {
       cancelled = true;
       clearInterval(beat);
+      clearTimeout(retry);
       unwatch();
       window.removeEventListener("pagehide", onLeave);
       releaseAdminSession(sessionId);
       adminSessionRef.current = null;
     };
-  }, [currentUser?.role, currentUser?.id, demoMode]);
+  }, [currentUser?.role, currentUser?.id, demoMode, adminClaimTry]);
+
+  const takeOverAdminDesk = () => {
+    adminForceRef.current = true;
+    setAdminLock("checking");
+    setAdminClaimTry((n) => n + 1);
+  };
 
   /* Stamps the account when it opens the notes library, so the admin desk can
      show who has actually used it. Fire-and-forget; failure never blocks reading. */
@@ -3942,17 +3958,17 @@ export default function App() {
             <div className="resource-head">
               <div className="resource-head-copy">
                 <p className="section-eyebrow"><Shield size={14} /> Access denied</p>
-                <h1 className="resource-title">The administrator desk is open elsewhere</h1>
+                <h1 className="resource-title">The administrator desk is open on another device</h1>
                 <p className="resource-sub">
-                  This account may be used in one window at a time. Close the other tab, window
-                  or device that has it open, then try again — the session is released as soon as
-                  that window closes.
+                  The admin account can be used on one device or browser at a time. This page
+                  checks again every few seconds and opens by itself once the other one is closed —
+                  or move the desk here now.
                 </p>
               </div>
             </div>
             <div className="admin-denied">
-              <button type="button" className="btn btn-primary" onClick={() => window.location.reload()}>
-                Try again
+              <button type="button" className="btn btn-primary" onClick={takeOverAdminDesk}>
+                Use the admin desk here
               </button>
               <button type="button" className="btn btn-ghost" onClick={logout}>
                 Sign out
@@ -6593,6 +6609,29 @@ function Styles() {
       .legal-contact a { color: var(--abc-blue); font-weight: 600; }
 
       /* Section headings for the split admin directory. */
+      /* Admin desk polish (all sizes) */
+      .status-tag { display: inline-flex; align-items: center; padding: 3px 9px; border-radius: 999px; font-size: 11px; font-weight: 800; letter-spacing: 0.04em; }
+      .status-active { background: #DCFCE7; color: #15803D; }
+      .status-blocked { background: #FEE2E2; color: #B91C1C; }
+      .dash-grid input.field-input[aria-label="Search users"] { border: 1px solid var(--border-strong); border-radius: 10px; padding: 11px 14px; background: #FFFFFF; }
+      .pending-panel-head { align-items: center; }
+      .pending-panel .resource-empty { margin-top: 14px; }
+      .pending-panel-head h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 4px; }
+      .admin-activity-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 14px; }
+      @media (max-width: 640px) {
+        .admin-stat-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+        .admin-stat { padding: 10px 10px; min-width: 0; }
+        .admin-stat-label { font-size: 9.5px; letter-spacing: 0.03em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .admin-stat-value { font-size: 20px; }
+        .pending-panel-head { flex-direction: column; align-items: stretch; gap: 10px; }
+        .pending-panel-head .btn { align-self: flex-start; }
+        .pending-panel-head h3 { font-size: 16px; }
+        .admin-activity-bar .btn { width: 100%; justify-content: center; }
+        .admin-person-head { flex-direction: column; align-items: flex-start; gap: 8px; }
+        .admin-person-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .admin-person-actions .btn { min-height: 38px; justify-content: center; font-size: 13px; }
+        .dash-grid > .card { padding: 16px; }
+      }
       .admin-section-head {
         display: flex; align-items: center; justify-content: space-between;
         gap: 14px; flex-wrap: wrap; margin-bottom: 14px;

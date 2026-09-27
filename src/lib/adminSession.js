@@ -26,6 +26,23 @@ const LOCK_ID = "current";
 export const HEARTBEAT_MS = 15000;
 export const STALE_MS = 50000;
 
+/* One id per browser, kept across reloads and tabs. A reload (or switching a
+   device-emulation view, which reloads) then finds its own lock instead of
+   being refused by the page it replaced. Other browsers/devices still are. */
+const BROWSER_KEY = "dnyansetu:admin-browser";
+export function browserSessionId() {
+  try {
+    let id = localStorage.getItem(BROWSER_KEY);
+    if (!id) {
+      id = newSessionId();
+      localStorage.setItem(BROWSER_KEY, id);
+    }
+    return id;
+  } catch {
+    return newSessionId();
+  }
+}
+
 export function newSessionId() {
   if (typeof crypto !== "undefined" && crypto.randomUUID) return crypto.randomUUID();
   return `s-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
@@ -57,12 +74,12 @@ function isStale(data) {
 
 /* Returns { ok: true } when this window now holds the lock, or
    { ok: false, since } when another live window already has it. */
-export async function claimAdminSession(uid, sessionId) {
+export async function claimAdminSession(uid, sessionId, { force = false } = {}) {
   if (!isBackendConfigured) return { ok: true };
   try {
     const held = await readLock();
 
-    if (held && held.sessionId !== sessionId && !isStale(held)) {
+    if (!force && held && held.sessionId !== sessionId && !isStale(held)) {
       return { ok: false, since: Number(held.claimedAt) || null };
     }
 
