@@ -102,6 +102,7 @@ const MEMBERS_ONLY_PAGES = new Set(["notes", "quiz"]);
    the landing page and looked like being signed out. Per-tab (sessionStorage)
    rather than shared, so two tabs do not fight over one another's position. */
 const VIEW_KEY = "dnyansetu:view";
+const HOME_KEY = "dnyansetu:browsing-home";
 
 /* Real addresses for the pages people link to or bookmark directly. Everything
    else keeps the old single-address behaviour and shows "/". /raktsetu is its
@@ -3341,10 +3342,20 @@ export default function App() {
   const [authRoleScope, setAuthRoleScope] = useState(route.scope || "student");
   /* Where to go after signing in, from /login?next=… (used by /raktsetu). */
   /* Set by the header's Home button: a signed-in account may look at the
-     public landing page without being bounced back to its portal. Cleared as
-     soon as it goes anywhere else, so a stray "/" still lands on the portal. */
-  const [browsingHome, setBrowsingHome] = useState(false);
-  useEffect(() => { if (view !== "landing") setBrowsingHome(false); }, [view]);
+     public landing page without being bounced back to its portal. Cleared
+     when the account returns to its own dashboard, so a fresh visit to "/"
+     still lands on the portal. */
+  /* Kept per tab like the current page, so refreshing the landing page stays
+     on the landing page instead of jumping to the portal. */
+  const [browsingHome, setBrowsingHome] = useState(() => {
+    try { return sessionStorage.getItem(HOME_KEY) === "1"; } catch { return false; }
+  });
+  useEffect(() => {
+    try {
+      if (browsingHome) sessionStorage.setItem(HOME_KEY, "1");
+      else sessionStorage.removeItem(HOME_KEY);
+    } catch { /* storage blocked — a refresh just returns to the portal */ }
+  }, [browsingHome]);
   const [pendingNext, setPendingNext] = useState(
     () => safeNext(new URLSearchParams(window.location.search).get("next") || ""),
   );
@@ -3714,6 +3725,12 @@ export default function App() {
     }
   }, [view, currentUser, booting, browsingHome]);
 
+  /* Going back to one's own dashboard ends "browsing home"; visiting Notes or
+     About from the landing page and pressing Back returns to the landing page. */
+  useEffect(() => {
+    if (!booting && currentUser && view === homeViewFor(currentUser)) setBrowsingHome(false);
+  }, [view, booting, currentUser]);
+
   /* Re-reads the account so an approval shows up without signing in again. */
   const refreshApproval = useCallback(async () => {
     if (!currentUser?.id) return null;
@@ -3879,6 +3896,7 @@ export default function App() {
     setUsers([]);
     setPendingPage(null);
     try { sessionStorage.removeItem(VIEW_KEY); } catch { /* ignore */ }
+    setBrowsingHome(false);
     replaceView("landing");
   };
 
