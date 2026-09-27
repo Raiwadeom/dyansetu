@@ -595,6 +595,21 @@ function Landing({ goAuth, onOpenAbout, onOpenPage, user, onOpenDashboard }) {
   const [isScrolled, setIsScrolled] = useState(false);
   const searchWrapRef = useRef(null);
   const searchResults = searchLanding(searchQuery);
+
+  /* Social Services plays its phone entrance only once it scrolls into view
+     (otherwise it would finish off-screen during page load). */
+  const serviceListRef = useRef(null);
+  useEffect(() => {
+    const el = serviceListRef.current;
+    if (!el || typeof IntersectionObserver === "undefined") return undefined;
+    const io = new IntersectionObserver(([entry]) => {
+      if (!entry.isIntersecting) return;
+      el.classList.add("is-in");
+      io.disconnect();
+    }, { threshold: 0.15 });
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
   const langSwitch = (className) => (
     <div className={className} role="group" aria-label="Choose language / भाषा निवडा">
       <button type="button" className={`nav-lang-btn ${lang === "en" ? "is-active" : ""}`} onClick={() => setLang("en")}>
@@ -931,7 +946,7 @@ function Landing({ goAuth, onOpenAbout, onOpenPage, user, onOpenDashboard }) {
               <p className="hub-intro">{tr(hub.intro, hub.introMr)}</p>
             </div>
 
-            <div className={isScheme ? "service-cards" : "hub-grid"}>
+            <div className={isScheme ? "service-cards" : "hub-grid"} ref={isScheme ? serviceListRef : undefined}>
               {hub.items.map((item, index) => {
                 const ItemIcon = item.icon;
                 const cardId = `hub-${hub.id}-${item.id}`;
@@ -5090,9 +5105,58 @@ function Styles() {
         to { opacity: 1; transform: none; }
       }
       @media (max-width: 980px) { .service-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-      @media (max-width: 640px) { .service-cards { grid-template-columns: minmax(0, 1fr); gap: 18px; } }
+      /* Phones: the three services become one compact panel of rows (picture,
+         title, two-line summary, pill button) instead of three tall cards,
+         sliding in one after another when the panel scrolls into view. */
+      @media (max-width: 640px) {
+        .service-cards {
+          grid-template-columns: minmax(0, 1fr); gap: 0;
+          background: #FFFFFF; border: 1px solid rgba(15, 23, 42, 0.1); border-radius: 14px;
+          overflow: hidden; box-shadow: 0 6px 18px rgba(15, 23, 42, 0.07);
+        }
+        .service-card {
+          flex-direction: row; align-items: stretch;
+          border: 0; border-left: 4px solid var(--svc); border-radius: 0; box-shadow: none;
+          animation: none; transition: background 0.2s ease;
+        }
+        .service-card + .service-card { border-top: 1px solid rgba(15, 23, 42, 0.08); }
+        .service-cards.is-in .service-card { animation: serviceSlide 0.55s cubic-bezier(0.22, 1, 0.36, 1) both; }
+        .service-card:hover { transform: none; box-shadow: none; }
+        .service-card:active { background: var(--svc-soft); }
+        .service-card-media { flex: 0 0 96px; aspect-ratio: auto; }
+        .service-card-media::after { background: linear-gradient(0deg, rgba(15, 23, 42, 0.35), rgba(15, 23, 42, 0.05)); }
+        .service-card-index { top: 6px; left: 6px; padding: 2px 7px; font-size: 10.5px; }
+        .service-card-icon {
+          right: auto; bottom: auto; left: 50%; top: 55%; transform: translate(-50%, -50%);
+          width: 38px; height: 38px; border-radius: 10px; border-width: 2px;
+        }
+        .service-cards.is-in .service-card-icon { animation: serviceIconPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both; animation-delay: inherit; }
+        .service-card-body { padding: 12px 14px; gap: 4px; min-width: 0; }
+        .service-card-body h3 { font-size: 16px; padding-right: 0; }
+        .service-card-body p {
+          flex: none; font-size: 13px; line-height: 1.45;
+          display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+        }
+        .service-card-action { margin-top: 6px; }
+        .service-card .service-row-btn { width: auto; padding: 7px 14px; border-radius: 999px; font-size: 13px; }
+        .service-card .service-row-btn svg { animation: serviceNudge 1.8s ease-in-out infinite; }
+        .service-card .service-row-pending { width: auto; padding: 6px 12px; font-size: 12px; }
+      }
+      @keyframes serviceSlide {
+        from { opacity: 0; transform: translateX(-18px); }
+        to { opacity: 1; transform: none; }
+      }
+      @keyframes serviceIconPop {
+        from { opacity: 0; transform: translate(-50%, -50%) scale(0.4); }
+        to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+      }
+      @keyframes serviceNudge {
+        0%, 60%, 100% { transform: translateX(0); }
+        30% { transform: translateX(3px); }
+      }
       @media (prefers-reduced-motion: reduce) {
-        .service-card, .service-card-media img { animation: none; transition: none; }
+        .service-card, .service-card-media img, .service-cards.is-in .service-card,
+        .service-cards.is-in .service-card-icon, .service-card .service-row-btn svg { animation: none !important; transition: none; }
         .service-card:hover { transform: none; }
       }
 
