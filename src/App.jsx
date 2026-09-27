@@ -4029,22 +4029,15 @@ export default function App() {
 /* Shown only where installing is possible: opens the browser's install dialog
    on Android/desktop Chrome, or the Add to Home Screen steps on iPhone. Hidden
    once the site is running as an installed app. */
-/* The phone-only strip is closed for the rest of this visit, then comes back
-   on the next one until the app is installed. */
-const INSTALL_BANNER_KEY = "dnyansetu:install-banner-closed";
-
 function InstallAppButton({ compact = false, variant = compact ? "compact" : "button" }) {
   const { lang } = useLang();
   const tr = makeTr(lang);
   const { mode, install } = useInstallApp();
   const [showSteps, setShowSteps] = useState(false);
-  const [bannerClosed, setBannerClosed] = useState(() => {
-    try { return sessionStorage.getItem(INSTALL_BANNER_KEY) === "1"; } catch { return false; }
-  });
-  const closeBanner = () => {
-    setBannerClosed(true);
-    try { sessionStorage.setItem(INSTALL_BANNER_KEY, "1"); } catch { /* storage blocked */ }
-  };
+  /* Closing the phone strip lasts only until the page is loaded again: every
+     refresh or visit brings it back until the app is installed. */
+  const [bannerClosed, setBannerClosed] = useState(false);
+  const closeBanner = () => setBannerClosed(true);
   if (variant === "banner" && bannerClosed && !showSteps) return null;
   /* Kept mounted while the steps are open: "Got it" retires the button on
      iPhone, and that must not unmount the dialog mid-click. */
