@@ -4814,21 +4814,28 @@ function Styles() {
         .hero-full-content { padding: 0 28px 110px; }
         .hero-full-controls { padding: 0 28px; }
       }
+      /* Phones: the photo keeps the same wide 16:10 frame as on a laptop, so the
+         whole picture shows instead of a tall, zoomed-in crop; the text sits
+         on navy right under it. The hero spans the full viewport width, so
+         62.5vw is exactly the photo's height. */
       @media (max-width: 640px) {
-        .hero-full { height: clamp(500px, calc(100svh - var(--hero-offset-m, 101px)), 720px); }
+        .hero-full { height: auto; }
+        .hero-full-slides { position: relative; inset: auto; width: 100%; aspect-ratio: 16 / 10; overflow: hidden; }
         .hero-full-shade {
-          background: linear-gradient(0deg, rgba(8,20,33,0.95) 0%, rgba(8,20,33,0.7) 50%, rgba(8,20,33,0.25) 100%);
+          inset: 0 0 auto 0; height: 62.5vw;
+          background: linear-gradient(0deg, rgba(8,20,33,0.72) 0%, rgba(8,20,33,0) 45%);
         }
-        .hero-full-content { justify-content: flex-end; padding: 0 18px 92px; gap: 10px; }
+        .hero-full-content { height: auto; justify-content: flex-start; padding: 20px 18px 26px; gap: 10px; background: #081421; }
         .hero-full .hero-full-eyebrow { font-size: 11.5px; padding: 6px 12px; }
         .hero-full .hero-full-trust { font-size: 12.5px; margin-top: 2px; }
         .hero-full .hero-full-title { font-size: clamp(27px, 8.2vw, 36px); }
         .hero-full .hero-full-tagline { font-size: 14.5px; line-height: 1.55; }
-        .hero-full-actions { width: 100%; flex-direction: column; gap: 10px; margin-top: 8px; }
-        .hero-full-actions .btn { width: 100%; justify-content: center; }
-        .hero-full-controls { bottom: 22px; padding: 0 18px; gap: 12px; }
+        .hero-full-actions { width: 100%; gap: 10px; margin-top: 8px; }
+        .hero-full-actions .btn { flex: 1 1 140px; justify-content: center; }
+        .hero-full-controls { top: calc(62.5vw - 50px); bottom: auto; padding: 0 14px; gap: 12px; }
         .hero-full-progress { max-width: none; }
-        .hero-full-arrows button { width: 40px; height: 40px; }
+        .hero-full-arrows button { width: 36px; height: 36px; }
+        .hero-full-count { font-size: 13px; }
       }
       @media (prefers-reduced-motion: reduce) {
         .hero-full-slide { transition: opacity 0.4s ease; transform: none; }
