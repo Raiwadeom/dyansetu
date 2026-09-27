@@ -907,12 +907,57 @@ const STATUS_FILTERS = [
   ["", "All"],
 ];
 
-function Stat({ value, label, tone }) {
+/* One labelled number inside an overview panel. */
+function StatRow({ label, value, strong }) {
   return (
-    <div className={`rs-stat rs-tone-${tone}`}>
-      <strong>{value ?? "—"}</strong>
-      <span>{label}</span>
+    <div className={`rs-statrow${strong ? " rs-statrow--strong" : ""}`}>
+      <dt>{label}</dt>
+      <dd>{value ?? "—"}</dd>
     </div>
+  );
+}
+
+/* A daily/monthly sending quota as a bar, so "12 / 2,900" reads at a glance. */
+function QuotaRow({ label, used, limit }) {
+  const n = Number(used) || 0;
+  const pct = Math.min(100, Math.round((n / limit) * 100));
+  return (
+    <div className="rs-quota">
+      <div className="rs-quota-head">
+        <span>{label}</span>
+        <strong>{n.toLocaleString("en-IN")} <span className="rs-muted">/ {limit.toLocaleString("en-IN")}</span></strong>
+      </div>
+      <div className={`rs-quota-bar${pct >= 80 ? " is-high" : ""}`} role="progressbar" aria-valuenow={n} aria-valuemin={0} aria-valuemax={limit} aria-label={label}>
+        <span style={{ width: `${pct}%` }} />
+      </div>
+    </div>
+  );
+}
+
+function StatPanel({ title, tone, children }) {
+  return (
+    <section className={`rs-card rs-statpanel rs-tone-${tone}`}>
+      <h2 className="rs-statpanel-title">{title}</h2>
+      {children}
+    </section>
+  );
+}
+
+function AdminBlock({ title, count, note, action, children }) {
+  return (
+    <section className="rs-card rs-admin-block">
+      <div className="rs-admin-block-head">
+        <div>
+          <h2 className="rs-card-title">
+            {title}
+            {count !== undefined && <span className="rs-count">{count}</span>}
+          </h2>
+          {note && <p className="rs-muted">{note}</p>}
+        </div>
+        {action}
+      </div>
+      {children}
+    </section>
   );
 }
 
@@ -931,12 +976,12 @@ export function AdminPage({ navigate }) {
       ]);
       setState({ loading: false, stats, reports, requests, log, error: "" });
     } catch (error) {
-      const needsCode = /administrators only/i.test(error.message || "");
+      const denied = /administrators only/i.test(error.message || "");
       setState((s) => ({
         ...s,
         loading: false,
-        error: needsCode
-          ? "Admin actions need your 2-step verification code. Open the DnyanSetu admin desk, enter the 6-digit code, then come back here."
+        error: denied
+          ? "This page is for the administrator account only. Sign in as the administrator and try again."
           : error.message,
       }));
     }
@@ -985,72 +1030,103 @@ export function AdminPage({ navigate }) {
 
       {state.loading ? <Spinner /> : (
         <>
-          <div className="rs-stats">
-            <Stat value={st.members} label="Members" tone={3} />
-            <Stat value={st.eligible_donors} label="Eligible donors" tone={2} />
-            <Stat value={st.requests_open} label="Open requests" tone={1} />
-            <Stat value={st.reports_pending} label="Reports waiting" tone={4} />
-            <Stat value={st.requests_hidden} label="Hidden for review" tone={4} />
-            <Stat value={st.requests_fulfilled} label="Fulfilled requests" tone={2} />
-            <Stat value={st.responses_total} label="“I can help” taps" tone={5} />
-            <Stat value={st.donations_recorded} label="Donations recorded" tone={2} />
-            <Stat value={st.push_browsers} label="Browsers with alerts" tone={3} />
-            <Stat value={`${st.emails_today ?? 0} / 90`} label="Emails today" tone={1} />
-            <Stat value={`${st.emails_month ?? 0} / 2,900`} label="Emails this month" tone={1} />
-            <Stat value={st.requests_total} label="Requests ever" tone={5} />
+          <div className="rs-statpanels">
+            <StatPanel title="Community" tone={3}>
+              <dl className="rs-statlist">
+                <StatRow label="Members" value={st.members} strong />
+                <StatRow label="Eligible donors" value={st.eligible_donors} />
+                <StatRow label="Donations recorded" value={st.donations_recorded} />
+              </dl>
+            </StatPanel>
+            <StatPanel title="Requests" tone={1}>
+              <dl className="rs-statlist">
+                <StatRow label="Open now" value={st.requests_open} strong />
+                <StatRow label="Fulfilled" value={st.requests_fulfilled} />
+                <StatRow label="Total ever" value={st.requests_total} />
+                <StatRow label="“I can help” taps" value={st.responses_total} />
+              </dl>
+            </StatPanel>
+            <StatPanel title="Moderation" tone={4}>
+              <dl className="rs-statlist">
+                <StatRow label="Reports waiting" value={st.reports_pending} strong />
+                <StatRow label="Hidden for review" value={st.requests_hidden} />
+              </dl>
+            </StatPanel>
+            <StatPanel title="Alerts & email" tone={5}>
+              <dl className="rs-statlist">
+                <StatRow label="Browsers with alerts" value={st.push_browsers} strong />
+              </dl>
+              <QuotaRow label="Emails today" used={st.emails_today} limit={90} />
+              <QuotaRow label="Emails this month" used={st.emails_month} limit={2900} />
+            </StatPanel>
           </div>
 
-          <div className="rs-card">
-            <h2 className="rs-card-title">Members by blood group</h2>
-            <div className="rs-group-counts">
+          <AdminBlock title="Members by blood group">
+            <div className="rs-group-grid">
               {groups.map((g) => (
-                <span key={g}><GroupBadge group={g} /> {st.donors_by_group?.[g] || 0}</span>
+                <div key={g} className="rs-group-tile">
+                  <GroupBadge group={g} />
+                  <strong>{st.donors_by_group?.[g] || 0}</strong>
+                </div>
               ))}
             </div>
-          </div>
+          </AdminBlock>
 
-          <h2 className="rs-card-title">Reported requests ({state.reports.length})</h2>
-          {state.reports.length === 0 ? <p className="rs-empty">No reports waiting.</p> : state.reports.map(({ request, reasons: rs }) => (
-            <div key={request.id} className="rs-card rs-mod-row">
-              <RequestCard request={request} navigate={navigate} />
-              <ul className="rs-report-reasons">{rs.map((x) => <li key={x.id}>“{x.reason}” <span className="rs-muted">— {formatDateTime(x.created_at)}</span></li>)}</ul>
-              <div className="rs-actions">
-                {request.status === "open" && removeRow(request)}
-                <button type="button" className="rs-btn rs-btn-ghost rs-btn-sm" onClick={() => act(() => adminDismiss(request.id))}>Dismiss reports</button>
+          <AdminBlock title="Reported requests" count={state.reports.length}>
+            {state.reports.length === 0 ? <p className="rs-empty">No reports waiting.</p> : (
+              <div className="rs-admin-list">
+                {state.reports.map(({ request, reasons: rs }) => (
+                  <div key={request.id} className="rs-mod-row">
+                    <RequestCard request={request} navigate={navigate} />
+                    <ul className="rs-report-reasons">{rs.map((x) => <li key={x.id}>“{x.reason}” <span className="rs-muted">— {formatDateTime(x.created_at)}</span></li>)}</ul>
+                    <div className="rs-actions">
+                      {request.status === "open" && removeRow(request)}
+                      <button type="button" className="rs-btn rs-btn-ghost rs-btn-sm" onClick={() => act(() => adminDismiss(request.id))}>Dismiss reports</button>
+                    </div>
+                  </div>
+                ))}
               </div>
-            </div>
-          ))}
+            )}
+          </AdminBlock>
 
-          <div className="rs-page-head">
-            <h2 className="rs-card-title">Requests ({state.requests.length})</h2>
-            <label className="rs-filter-inline">
-              <span className="rs-muted">Show</span>
-              <select value={filter} onChange={(e) => setFilter(e.target.value)}>
-                {STATUS_FILTERS.map(([v, l]) => <option key={v || "all"} value={v}>{l}</option>)}
-              </select>
-            </label>
-          </div>
-          {state.requests.length === 0 ? <p className="rs-empty">No requests here.</p> : state.requests.map((r) => (
-            <div key={r.id} className="rs-card rs-mod-row">
-              <RequestCard request={r} navigate={navigate} />
-              {r.removed_reason && <p className="rs-muted">Removed: “{r.removed_reason}”</p>}
-              {r.status === "open" && removeRow(r)}
-            </div>
-          ))}
+          <AdminBlock
+            title="Requests"
+            count={state.requests.length}
+            action={(
+              <label className="rs-filter-inline">
+                <span className="rs-muted">Show</span>
+                <select value={filter} onChange={(e) => setFilter(e.target.value)}>
+                  {STATUS_FILTERS.map(([v, l]) => <option key={v || "all"} value={v}>{l}</option>)}
+                </select>
+              </label>
+            )}
+          >
+            {state.requests.length === 0 ? <p className="rs-empty">No requests here.</p> : (
+              <div className="rs-admin-list">
+                {state.requests.map((r) => (
+                  <div key={r.id} className="rs-mod-row">
+                    <RequestCard request={r} navigate={navigate} />
+                    {r.removed_reason && <p className="rs-muted">Removed: “{r.removed_reason}”</p>}
+                    {r.status === "open" && removeRow(r)}
+                  </div>
+                ))}
+              </div>
+            )}
+          </AdminBlock>
 
-          <h2 className="rs-card-title">Moderation log</h2>
-          <p className="rs-muted">Every removal and dismissed report is recorded here, with who did it and why.</p>
-          {state.log.length === 0 ? <p className="rs-empty">No moderation actions yet.</p> : (
-            <ul className="rs-card rs-admin-log">
-              {state.log.map((x) => (
-                <li key={x.id}>
-                  <strong>{x.action === "remove_request" ? "Removed request" : "Dismissed reports"}</strong>
-                  {x.reason && <> — “{x.reason}”</>}
-                  <span className="rs-muted"> · {formatDateTime(x.created_at)}</span>
-                </li>
-              ))}
-            </ul>
-          )}
+          <AdminBlock title="Moderation log" note="Every removal and dismissed report is recorded here, with who did it and why.">
+            {state.log.length === 0 ? <p className="rs-empty">No moderation actions yet.</p> : (
+              <ul className="rs-admin-log">
+                {state.log.map((x) => (
+                  <li key={x.id}>
+                    <strong>{x.action === "remove_request" ? "Removed request" : "Dismissed reports"}</strong>
+                    {x.reason && <> — “{x.reason}”</>}
+                    <span className="rs-muted"> · {formatDateTime(x.created_at)}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </AdminBlock>
         </>
       )}
     </section>

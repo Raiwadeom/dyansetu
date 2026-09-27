@@ -165,7 +165,10 @@ export function AuthProvider({ children }) {
   const signOut = useCallback(async () => {
     if (!supabase) return;
     await forgetPushOnThisDevice();
-    await supabase.auth.signOut();
+    /* "local" ends only this browser's session. The default ("global") revokes
+       every device's refresh token, so logging out on a phone silently logged
+       the laptop out too. */
+    await supabase.auth.signOut({ scope: "local" });
     setSession(null);
   }, []);
 
