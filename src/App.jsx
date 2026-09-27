@@ -583,7 +583,7 @@ function InstitutionLockup({ size = 34, tone = "light", showMeta = true, classNa
 
 /* =============================== VIEW: Landing Page ============================== */
 
-function Landing({ goAuth, onOpenAbout, onOpenPage }) {
+function Landing({ goAuth, onOpenAbout, onOpenPage, user, onOpenDashboard }) {
   const { lang, setLang } = useLang();
   const tr = makeTr(lang);
   const [activeHeroSlide, setActiveHeroSlide] = useState(0);
@@ -767,10 +767,18 @@ function Landing({ goAuth, onOpenAbout, onOpenPage }) {
         </div>
 
         <div className="nav-actions">
-          <button type="button" className="nav-staff-link" onClick={() => { setMobileMenuOpen(false); goAuth("login", "staff"); }}>
-            <Shield size={13} /> <span>{tr("Staff Login", "कर्मचारी लॉगिन")}</span>
-          </button>
-          <button className="btn btn-primary" onClick={() => { setMobileMenuOpen(false); goAuth("login"); }}>{tr("Log in", "लॉग इन")}</button>
+          {user ? (
+            <button className="btn btn-primary" onClick={() => { setMobileMenuOpen(false); onOpenDashboard(); }}>
+              <User size={15} /> {tr("My dashboard", "माझे डॅशबोर्ड")}
+            </button>
+          ) : (
+            <>
+              <button type="button" className="nav-staff-link" onClick={() => { setMobileMenuOpen(false); goAuth("login", "staff"); }}>
+                <Shield size={13} /> <span>{tr("Staff Login", "कर्मचारी लॉगिन")}</span>
+              </button>
+              <button className="btn btn-primary" onClick={() => { setMobileMenuOpen(false); goAuth("login"); }}>{tr("Log in", "लॉग इन")}</button>
+            </>
+          )}
         </div>
         </div>
       </nav>
@@ -3178,7 +3186,7 @@ function AdminPortal({ users, onUpdateUser, onDeleteUser, onRefreshUsers }) {
 
 /* =============================== Top Nav Bar ============================== */
 
-function TopNavApp({ view, go, onLogout, user }) {
+function TopNavApp({ view, go, onHome, onLogout, user }) {
   const hasFullName = Boolean(user.name && user.name.trim().includes(" "));
   const initials = hasFullName
     ? (user.name || "User")
@@ -3211,6 +3219,11 @@ function TopNavApp({ view, go, onLogout, user }) {
             browser's back button. Every destination the account may open is
             listed here instead. */}
         <nav className="app-navigation" aria-label="Application navigation">
+          {/* The public home page, still signed in (see browsingHome in App). */}
+          <button type="button" className="app-nav-item" onClick={onHome}>
+            Home
+          </button>
+
           {isStudent && (
             <button type="button" className={`app-nav-item ${view === "profile" ? "active" : ""}`} onClick={() => go("profile")}>
               Profile
@@ -3252,6 +3265,12 @@ function TopNavApp({ view, go, onLogout, user }) {
               Scholarships
             </button>
           )}
+
+          {/* A separate app on the same domain and session, so a plain link
+              opens it already signed in. */}
+          <a className="app-nav-item" href={RAKTSETU_APP_URL}>
+            RaktSetu
+          </a>
         </nav>
 
         <div className="app-header-right">
@@ -3296,6 +3315,11 @@ export default function App() {
      only way to reach the Faculty / Admin tabs. */
   const [authRoleScope, setAuthRoleScope] = useState(route.scope || "student");
   /* Where to go after signing in, from /login?next=… (used by /raktsetu). */
+  /* Set by the header's Home button: a signed-in account may look at the
+     public landing page without being bounced back to its portal. Cleared as
+     soon as it goes anywhere else, so a stray "/" still lands on the portal. */
+  const [browsingHome, setBrowsingHome] = useState(false);
+  useEffect(() => { if (view !== "landing") setBrowsingHome(false); }, [view]);
   const [pendingNext, setPendingNext] = useState(
     () => safeNext(new URLSearchParams(window.location.search).get("next") || ""),
   );
@@ -3657,13 +3681,13 @@ export default function App() {
   useEffect(() => {
     if (booting || !currentUser) return;
     const awaiting = isAwaitingApproval(currentUser);
-    if (view === "landing"
+    if ((view === "landing" && !browsingHome)
       || (awaiting && !["pending-approval", "terms", "privacy", "about", "notfound"].includes(view))
       || (!awaiting && view === "pending-approval")
       || (currentUser.role === "staff" && STUDY_PAGES.has(view))) {
       replaceView(homeViewFor(currentUser));
     }
-  }, [view, currentUser, booting]);
+  }, [view, currentUser, booting, browsingHome]);
 
   /* Re-reads the account so an approval shows up without signing in again. */
   const refreshApproval = useCallback(async () => {
@@ -3896,6 +3920,7 @@ export default function App() {
         <TopNavApp
           view={view}
           go={navigateTo}
+          onHome={() => { setBrowsingHome(true); navigateTo("landing"); }}
           onLogout={logout}
           user={currentUser}
         />
@@ -3906,9 +3931,14 @@ export default function App() {
       <ErrorBoundary resetKey={view} inline>
         {view === "landing" && (
           <Landing
-            goAuth={(m, scope) => { setAuthMode(m); setAuthRoleScope(scope || "student"); navigateTo("auth"); }}
+            goAuth={(m, scope) => {
+              if (currentUser) { navigateTo(homeViewFor(currentUser)); return; }
+              setAuthMode(m); setAuthRoleScope(scope || "student"); navigateTo("auth");
+            }}
             onOpenAbout={() => navigateTo("about")}
             onOpenPage={openPage}
+            user={currentUser}
+            onOpenDashboard={() => navigateTo(homeViewFor(currentUser))}
           />
         )}
         {view === "about" && <AboutPage onBack={goBack} />}
@@ -5882,6 +5912,7 @@ function Styles() {
         font-size: 13px;
         font-weight: 600;
         white-space: nowrap;
+        text-decoration: none;
       }
       .app-nav-item:hover { color: var(--abc-navy); background: #F8FAFC; }
       .app-nav-item.active { color: var(--abc-navy); font-weight: 700; }
