@@ -331,11 +331,6 @@
 
 /* ---------------------------------------------------------------- requests */
 
-.rs-filters {
-  display: grid; grid-template-columns: minmax(0, 220px) minmax(0, 1fr); gap: 16px;
-  background: var(--rs-surface); border: 1px solid var(--rs-line); border-radius: var(--rs-radius); padding: 16px;
-}
-@media (max-width: 520px) { .rs-filters { grid-template-columns: minmax(0, 1fr); } }
 .rs-request-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); gap: 14px; }
 .rs-grid-2--wide .rs-request-list { grid-template-columns: minmax(0, 1fr); }
 .rs-request-card {
@@ -381,9 +376,6 @@
 .rs-success { display: flex; flex-direction: column; gap: 14px; align-items: flex-start; border-top: 4px solid var(--rs-green); }
 .rs-success > svg { color: var(--rs-ok); }
 
-.rs-setting { display: flex; gap: 16px; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; }
-.rs-setting > div { flex: 1 1 280px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
-.rs-setting > .rs-btn { min-width: 150px; }
 .rs-danger-zone { display: flex; flex-direction: column; gap: 12px; align-items: flex-start; border-top: 4px solid var(--rs-error); }
 
 .rs-mod-row { display: flex; flex-direction: column; gap: 12px; }
@@ -448,10 +440,6 @@
 .rs-request-card { border-left-color: var(--tone); }
 .rs-request-card .rs-group--lg { border-bottom-color: var(--tone); }
 .rs-form { border-top: 4px solid var(--tone); }
-.rs-setting { border-left: 4px solid var(--tone); }
-.rs-narrow > .rs-card.rs-setting:nth-of-type(2) { --tone: #138808; }
-.rs-narrow > .rs-card.rs-setting:nth-of-type(3) { --tone: #0b4ea2; }
-.rs-narrow > .rs-card.rs-setting:nth-of-type(4) { --tone: #6d44c9; }
 .rs-card-title svg { color: var(--tone); }
 
 /* ============================================================================
