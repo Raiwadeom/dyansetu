@@ -19,14 +19,29 @@ const isRaktSetu = /^\/raktsetu(\/|$)/i.test(window.location.pathname);
 const root = document.getElementById("root");
 
 /* The start-up screen in index.html stays for at least ~1.5 s (it used to
-   flash past too quickly to read) and then fades out over the app. */
+   flash past too quickly to read) and fades out once, over the finished page.
+   It waits until the app has drawn its real first screen: while signing in
+   is still being checked, App shows its own copy of the splash, and fading
+   over that copy restarted the animations and then cut to the page — the
+   jump seen on laptops and PCs, which load fast enough to hit that moment. */
 const boot = document.getElementById("ds-boot");
 if (boot) {
-  const wait = Math.max(0, 1500 - performance.now());
-  setTimeout(() => {
+  let left = false;
+  const leave = () => {
+    if (left) return;
+    left = true;
+    observer.disconnect();
     boot.classList.add("is-leaving");
     setTimeout(() => boot.remove(), 500);
-  }, wait);
+  };
+  const pageReady = () => root.childElementCount > 0 && !root.querySelector(".ds-splash");
+  const tryLeave = () => {
+    if (pageReady()) setTimeout(leave, Math.max(0, 1500 - performance.now()));
+  };
+  const observer = new MutationObserver(tryLeave);
+  observer.observe(root, { childList: true, subtree: true });
+  /* Never hold the page back for long, whatever happens. */
+  setTimeout(leave, 10000);
 }
 
 ReactDOM.createRoot(root).render(
