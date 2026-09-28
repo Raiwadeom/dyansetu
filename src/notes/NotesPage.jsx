@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useMemo } from "react";
 import {
   ArrowLeft, ArrowRight, ChevronRight, GraduationCap, Search, Download,
-  NotebookPen, FileText, ImageIcon, Loader2, AlertTriangle, Calendar, User,
+  NotebookPen, FileText, ImageIcon, Loader2, AlertTriangle, Calendar, User, Trash2, Upload,
 } from "lucide-react";
 
 import { NOTE_STREAMS, SEMESTERS, noteStreamById, formatBytes } from "../data/notes.js";
-import { fetchNotes } from "../lib/notes.js";
+import { fetchNotes, deleteNote } from "../lib/notes.js";
 import { downloadUrl } from "../lib/cloudinary.js";
 import { isBackendConfigured } from "../lib/supabase.js";
 
@@ -31,7 +31,14 @@ function timeAgo(ts) {
   return months === 1 ? "a month ago" : `${months} months ago`;
 }
 
-export default function NotesPage({ onBack, onRegisterBack }) {
+/* UploadModal is handed in only for the administrator, who uploads and
+   deletes notes right here in the library (faculty use their own studio). */
+export default function NotesPage({ onBack, onRegisterBack, user, UploadModal = null }) {
+  const canManage = Boolean(UploadModal);
+  const [showUpload, setShowUpload] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState("");
+  const [deletingId, setDeletingId] = useState("");
+  const [reloadKey, setReloadKey] = useState(0);
   const [streamId, setStreamId] = useState(null);
   const [notes, setNotes] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -71,7 +78,21 @@ export default function NotesPage({ onBack, onRegisterBack }) {
       }
     })();
     return () => { active = false; };
-  }, []);
+  }, [reloadKey]);
+
+  const removeNote = async (note) => {
+    setDeletingId(note.id);
+    setError("");
+    try {
+      await deleteNote(note);
+      setNotes((prev) => prev.filter((n) => n.id !== note.id));
+      setConfirmDelete("");
+    } catch (err) {
+      setError(err.message || "Could not delete that note.");
+    } finally {
+      setDeletingId("");
+    }
+  };
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -119,8 +140,21 @@ export default function NotesPage({ onBack, onRegisterBack }) {
             Choose your stream to see what your teachers have shared, or search across every
             stream if you already know the subject or topic.
           </p>
+          {canManage && (
+            <button type="button" className="btn btn-primary btn-sm" style={{ marginTop: 12 }} onClick={() => setShowUpload(true)}>
+              <Upload size={15} /> Upload Notes
+            </button>
+          )}
         </div>
       </div>
+
+      {showUpload && UploadModal && (
+        <UploadModal
+          author={user}
+          onClose={() => setShowUpload(false)}
+          onUploaded={() => setReloadKey((k) => k + 1)}
+        />
+      )}
 
       {/* Search is always available, even before a stream is chosen. */}
       <div className="resource-toolbar">
@@ -273,6 +307,28 @@ export default function NotesPage({ onBack, onRegisterBack }) {
                               );
                             })}
                           </div>
+
+                          {canManage && (
+                            <div className="note-actions">
+                              {confirmDelete === note.id ? (
+                                <>
+                                  <span className="note-confirm">Delete this note for everyone?</span>
+                                  <button type="button" className="btn btn-xs btn-outline" onClick={() => setConfirmDelete("")} disabled={deletingId === note.id}>
+                                    Cancel
+                                  </button>
+                                  <button type="button" className="btn btn-xs btn-danger" onClick={() => removeNote(note)} disabled={deletingId === note.id}>
+                                    {deletingId === note.id
+                                      ? <><Loader2 size={13} className="spin" /> Deleting…</>
+                                      : <><Trash2 size={13} /> Delete</>}
+                                  </button>
+                                </>
+                              ) : (
+                                <button type="button" className="btn btn-xs btn-outline" onClick={() => setConfirmDelete(note.id)}>
+                                  <Trash2 size={13} /> Delete
+                                </button>
+                              )}
+                            </div>
+                          )}
                         </article>
                       ))}
                     </div>

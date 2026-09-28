@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback, Suspense, lazy } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo, Suspense, lazy } from "react";
 import collegeLogo from "./img/college-logo.jpg";
 import principalPhoto from "./img/principal.jpg";
 import heroOne from "../media/slideshow 1.jpeg";
@@ -22,9 +22,10 @@ import {
   fetchProfile, updateProfile, listProfiles, adminUpdateProfile, adminDeleteProfile, fetchSignIns,
   markNotesOpened, submitIdProof, listPendingApprovals, adminReviewPending,
 } from "./lib/profiles";
-import { fetchNotes, fetchMyNotes, uploadNote, deleteNote } from "./lib/notes";
+import { fetchMyNotes, uploadNote, deleteNote } from "./lib/notes";
 import { uploadFile, shrinkPhoto } from "./lib/cloudinary";
-import { fetchAttempts } from "./lib/quizProgress";
+import { fetchAllAttempts } from "./lib/quizProgress";
+import { streamById, subjectOf } from "./data/quiz/curriculum.js";
 import {
   browserSessionId, claimAdminSession, beatAdminSession, releaseAdminSession,
   watchAdminSession, HEARTBEAT_MS,
@@ -161,6 +162,9 @@ const FACULTY_DESIGNATIONS = ["Professor", "Associate Professor", "Assistant Pro
 
 /* A restored view still has to be one this account may actually open — a stale
    entry must never hand out a portal the user has no right to. */
+/* The administrator's pages, each its own entry in the header. */
+const ADMIN_VIEWS = new Set(["admin-portal", "admin-approvals", "admin-quiz"]);
+
 function mayOpenView(view, profile) {
   if (!view || view === "auth" || view === "accept-terms") return false;
   if (view === "pending-approval") return isAwaitingApproval(profile);
@@ -169,7 +173,7 @@ function mayOpenView(view, profile) {
   if (MEMBERS_ONLY_PAGES.has(view)) return Boolean(profile);
   if (view === "profile") return profile?.role === "student";
   if (view === "faculty-portal" || view === "faculty-setup") return isStaffRole(profile?.role);
-  if (view === "admin-portal") return profile?.role === "admin";
+  if (ADMIN_VIEWS.has(view)) return profile?.role === "admin";
   return true;
 }
 
@@ -2743,7 +2747,7 @@ function NoteUploadModal({ author, onClose, onUploaded }) {
 
 /* Uploaded notes with a delete button on each. Deleting removes the row, so
    the note disappears from the student library as well. */
-function NotesManageList({ title, notes, loading, error, emptyText, onDeleted, showAuthor = false }) {
+function NotesManageList({ title, notes, loading, error, emptyText, onDeleted }) {
   const [deletingId, setDeletingId] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [deleteError, setDeleteError] = useState("");
@@ -3115,85 +3119,328 @@ function SignInListPanel({ users, onUpdateUser }) {
   );
 }
 
-/* The whole notes library for the administrator: upload like a teacher, and
-   delete any note, whoever uploaded it. */
-function AdminNotesPanel({ profile }) {
-  const [notes, setNotes] = useState([]);
-  const [loading, setLoading] = useState(true);
+/* Faculty/staff sign-ups: the ones waiting, plus the ones already decided so a
+   decision can be reversed (withdraw an approval, or approve after all). */
+function AdminApprovalsPage({ users, onRefreshUsers }) {
+  const [busyId, setBusyId] = useState("");
+  const [confirmId, setConfirmId] = useState("");
   const [error, setError] = useState("");
-  const [showUpload, setShowUpload] = useState(false);
 
-  const refresh = async () => {
-    setLoading(true);
+  const staffAccounts = users.filter((u) => isStaffRole(u.role));
+  const approved = staffAccounts.filter((u) => u.approvalStatus === "approved");
+  const rejected = staffAccounts.filter((u) => u.approvalStatus === "rejected");
+
+  const decide = async (u, approve) => {
+    setBusyId(u.id);
+    setError("");
     try {
-      setNotes(await fetchNotes());
-      setError("");
+      await adminReviewPending(u.id, approve, approve ? "" : "Approval withdrawn by the administrator.");
+      setConfirmId("");
+      await onRefreshUsers?.();
     } catch (err) {
-      setError(err?.message || "Could not load the notes library.");
+      setError(err.message || "Could not save that decision.");
     } finally {
-      setLoading(false);
+      setBusyId("");
     }
   };
 
-  useEffect(() => { refresh(); }, []);
+  const list = (rows, empty, action) => (
+    rows.length === 0 ? (
+      <p className="resource-empty" style={{ margin: 0 }}>{empty}</p>
+    ) : (
+      <div className="admin-signin-list">
+        {rows.map((u) => (
+          <div className="admin-signin-row" key={u.id}>
+            <div className="admin-person-id">
+              <strong>{u.name || "—"}</strong>
+              <span className="admin-person-email">{u.email}</span>
+            </div>
+            <div className="admin-signin-meta">
+              <RoleBadge role={u.role} />
+              {u.designation && <span className="admin-signin-when">{u.designation}</span>}
+              {u.restricted && <span className="status-tag status-blocked">RESTRICTED</span>}
+            </div>
+            {action(u)}
+          </div>
+        ))}
+      </div>
+    )
+  );
 
   return (
-    <div className="card" style={{ gridColumn: "1 / -1" }}>
-      <div className="admin-section-head">
-        <h3><NotebookPen size={18} /> Notes library</h3>
-        <button type="button" className="btn btn-primary btn-sm" onClick={() => setShowUpload(true)}>
-          <NotebookPen size={15} /> Upload Notes
-        </button>
+    <div className="dash-grid">
+      <PendingApprovalsPanel onChanged={onRefreshUsers} />
+
+      {error && <p className="upload-error" style={{ gridColumn: "1 / -1" }}>{error}</p>}
+
+      <div className="card" style={{ gridColumn: "1 / -1" }}>
+        <div className="admin-section-head">
+          <h3><CheckCircle2 size={18} /> Approved faculty &amp; staff ({approved.length})</h3>
+        </div>
+        {list(approved, "No approved faculty or staff yet.", (u) => (
+          confirmId === u.id ? (
+            <div className="admin-signin-tools">
+              <button type="button" className="btn btn-xs btn-outline" onClick={() => setConfirmId("")} disabled={busyId === u.id}>Cancel</button>
+              <button type="button" className="btn btn-xs btn-danger" onClick={() => decide(u, false)} disabled={busyId === u.id}>
+                {busyId === u.id ? <Loader2 size={13} className="spin" /> : <X size={13} />} Withdraw
+              </button>
+            </div>
+          ) : (
+            <button type="button" className="btn btn-xs btn-outline" onClick={() => setConfirmId(u.id)}>
+              Withdraw approval
+            </button>
+          )
+        ))}
       </div>
-      <NotesManageList
-        title="All uploaded notes"
-        notes={notes}
-        loading={loading}
-        error={error}
-        emptyText="No notes have been uploaded yet."
-        onDeleted={(id) => setNotes((prev) => prev.filter((n) => n.id !== id))}
-        showAuthor
-      />
-      {showUpload && (
-        <NoteUploadModal author={profile} onClose={() => setShowUpload(false)} onUploaded={refresh} />
-      )}
+
+      <div className="card" style={{ gridColumn: "1 / -1" }}>
+        <div className="admin-section-head">
+          <h3><X size={18} /> Rejected sign-ups ({rejected.length})</h3>
+        </div>
+        {list(rejected, "No rejected sign-ups.", (u) => (
+          <button type="button" className="btn btn-xs btn-primary" onClick={() => decide(u, true)} disabled={busyId === u.id}>
+            {busyId === u.id ? <Loader2 size={13} className="spin" /> : <CheckCircle2 size={13} />} Approve now
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
 
-function AdminPortal({ profile, users, onUpdateUser, onDeleteUser, onRefreshUsers }) {
+/* Quiz results for the administrator: who has taken the practice tests, the
+   highest level each student has cleared, and the per-subject detail. */
+const QUIZ_RANKS = [
+  { rank: 0, id: "none", label: "Not started" },
+  { rank: 1, id: "started", label: "Started, nothing cleared" },
+  { rank: 2, id: "beginner", label: "Beginner cleared" },
+  { rank: 3, id: "intermediate", label: "Intermediate cleared" },
+  { rank: 4, id: "advanced", label: "Advanced cleared" },
+  { rank: 5, id: "exam", label: "Final exam passed" },
+];
+const QUIZ_STAGES = [
+  { id: "beginner", name: "Beginner" },
+  { id: "intermediate", name: "Intermediate" },
+  { id: "advanced", name: "Advanced" },
+  { id: "exam", name: "Final exam" },
+];
+
+function summariseQuiz(rows) {
+  const subjects = new Map();
+  let last = 0;
+  rows.forEach((a) => {
+    const key = `${a.streamId}/${a.year}/${a.subjectId}`;
+    if (!subjects.has(key)) {
+      subjects.set(key, { streamId: a.streamId, year: a.year, subjectId: a.subjectId, stages: {} });
+    }
+    const subject = subjects.get(key);
+    const slot = subject.stages[a.stage] || (subject.stages[a.stage] = { tries: 0, passed: false, best: 0, total: a.total });
+    slot.tries += 1;
+    slot.passed = slot.passed || a.passed;
+    if (a.score >= slot.best) { slot.best = a.score; slot.total = a.total; }
+    if (a.at && a.at > last) last = a.at;
+  });
+
+  const rankOf = (subject) => {
+    const s = subject.stages;
+    if (s.exam?.passed) return 5;
+    if (s.advanced?.passed) return 4;
+    if (s.intermediate?.passed) return 3;
+    if (s.beginner?.passed) return 2;
+    return 1;
+  };
+  const list = [...subjects.values()].map((s) => ({ ...s, rank: rankOf(s) }));
+  return {
+    subjects: list,
+    rank: rows.length ? Math.max(...list.map((s) => s.rank)) : 0,
+    attempts: rows.length,
+    examsPassed: list.filter((s) => s.stages.exam?.passed).length,
+    last,
+  };
+}
+
+function AdminQuizPage({ users }) {
+  const [attempts, setAttempts] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
   const [search, setSearch] = useState("");
+  const [rankFilter, setRankFilter] = useState("all");
+  const [open, setOpen] = useState("");
 
-  /* Quiz participation. Loaded on demand: it is one read per account, so it
-     should not be paid for on every visit to the desk. */
-  const [activity, setActivity] = useState(null);
-  const [activityBusy, setActivityBusy] = useState(false);
-  const [activityError, setActivityError] = useState("");
-
-  const loadActivity = async () => {
-    setActivityBusy(true);
-    setActivityError("");
+  const load = async () => {
+    setBusy(true);
+    setError("");
     try {
-      const targets = users.filter((u) => u.role !== "admin");
-      const entries = await Promise.all(targets.map(async (u) => {
-        const rows = await fetchAttempts(u.id);
-        const exams = rows.filter((r) => r.stage === "exam");
-        return [u.id, {
-          attempts: rows.length,
-          practice: rows.length - exams.length,
-          exams: exams.length,
-          examsPassed: exams.filter((r) => r.passed).length,
-          subjects: new Set(rows.map((r) => r.subjectId)).size,
-          last: rows.reduce((acc, r) => (r.at && r.at > acc ? r.at : acc), 0),
-        }];
-      }));
-      setActivity(Object.fromEntries(entries));
+      setAttempts(await fetchAllAttempts());
     } catch (err) {
-      setActivityError(err?.message || "Could not read quiz activity.");
+      setError(err?.message || "Could not read quiz attempts.");
     } finally {
-      setActivityBusy(false);
+      setBusy(false);
     }
   };
+
+  useEffect(() => { load(); }, []);
+
+  const byUser = useMemo(() => {
+    const map = new Map();
+    (attempts || []).forEach((a) => {
+      if (!map.has(a.userId)) map.set(a.userId, []);
+      map.get(a.userId).push(a);
+    });
+    return map;
+  }, [attempts]);
+
+  const people = useMemo(() => users
+    .filter((u) => u.role !== "admin" && (u.role === "student" || byUser.has(u.id)))
+    .map((u) => ({ user: u, ...summariseQuiz(byUser.get(u.id) || []) }))
+    .sort((a, b) => b.rank - a.rank || b.last - a.last), [users, byUser]);
+
+  const term = search.trim().toLowerCase();
+  const rows = people.filter((p) =>
+    (rankFilter === "all" || QUIZ_RANKS[p.rank].id === rankFilter)
+    && (!term || `${p.user.name} ${p.user.email}`.toLowerCase().includes(term)));
+
+  const atLeast = (n) => people.filter((p) => p.rank >= n).length;
+  const subjectName = (s) => subjectOf(s.streamId, s.year, s.subjectId)?.name || s.subjectId;
+  const streamName = (s) => `${streamById(s.streamId)?.name || s.streamId} · Year ${s.year}`;
+  const when = (ms) => (ms ? new Date(ms).toLocaleDateString("en-IN") : "—");
+
+  const exportRows = () =>
+    downloadCsv(timestampedName("dnyansetu-quiz-results"), rows, [
+      { header: "Name", value: (p) => p.user.name || "" },
+      { header: "Email", value: (p) => p.user.email },
+      { header: "Role", value: (p) => (p.user.role || "").toUpperCase() },
+      { header: "Highest level", value: (p) => QUIZ_RANKS[p.rank].label },
+      { header: "Subjects tried", value: (p) => p.subjects.length },
+      { header: "Final exams passed", value: (p) => p.examsPassed },
+      { header: "Total attempts", value: (p) => p.attempts },
+      { header: "Last attempt", value: (p) => when(p.last) },
+    ]);
+
+  return (
+    <div className="dash-grid">
+      <div className="card" style={{ gridColumn: "1 / -1" }}>
+        <div className="admin-section-head">
+          <div>
+            <h3><BarChart3 size={20} /> Quiz results</h3>
+            <p className="dash-meta">Who has taken the practice tests and the highest level each student has cleared.</p>
+          </div>
+          <div className="admin-signin-tools">
+            <button type="button" className="btn btn-outline btn-sm" onClick={load} disabled={busy}>
+              {busy ? <><Loader2 size={15} className="spin" /> Loading…</> : <><RefreshCw size={15} /> Refresh</>}
+            </button>
+            <button type="button" className="btn btn-outline btn-sm" onClick={exportRows} disabled={rows.length === 0}>
+              <FileDown size={15} /> Export to Excel
+            </button>
+          </div>
+        </div>
+
+        <div className="admin-stat-row">
+          {[
+            { label: "Took a test", value: atLeast(1), tone: "total" },
+            { label: "Beginner cleared", value: atLeast(2) },
+            { label: "Intermediate cleared", value: atLeast(3) },
+            { label: "Advanced cleared", value: atLeast(4) },
+            { label: "Final exam passed", value: atLeast(5), tone: "ok" },
+            { label: "Not started", value: people.filter((p) => p.rank === 0).length, tone: "warn" },
+            { label: "Total attempts", value: attempts ? attempts.length : "—" },
+          ].map((stat) => (
+            <div key={stat.label} className={`admin-stat${stat.tone ? ` admin-stat--${stat.tone}` : ""}`}>
+              <span className="admin-stat-label">{stat.label}</span>
+              <strong className="admin-stat-value">{attempts ? stat.value : "—"}</strong>
+            </div>
+          ))}
+        </div>
+
+        <label style={{ display: "block", maxWidth: 420, marginTop: 16 }}>
+          <span style={{ display: "block", fontSize: 12, marginBottom: 6, color: "var(--muted)" }}>Search students</span>
+          <input
+            className="field-input"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by name or email"
+            aria-label="Search quiz results"
+          />
+        </label>
+
+        <div className="admin-signin-filter" role="group" aria-label="Filter by level" style={{ marginTop: 12 }}>
+          {[{ id: "all", label: "Everyone" }, ...QUIZ_RANKS].map((r) => (
+            <button
+              key={r.id}
+              type="button"
+              className={`btn btn-xs ${rankFilter === r.id ? "btn-primary" : "btn-outline"}`}
+              aria-pressed={rankFilter === r.id}
+              onClick={() => setRankFilter(r.id)}
+            >
+              {r.label}
+            </button>
+          ))}
+        </div>
+
+        {error && <p className="upload-error">{error}</p>}
+
+        {!attempts && busy ? (
+          <p className="notes-loading"><Loader2 size={18} className="spin" /> Reading quiz attempts…</p>
+        ) : rows.length === 0 ? (
+          <p className="resource-empty" style={{ margin: 0 }}>No students in this list.</p>
+        ) : (
+          <div className="admin-signin-list">
+            {rows.map((p) => (
+              <div className="admin-quiz-person" key={p.user.id}>
+                <div className="admin-signin-row">
+                  <div className="admin-person-id">
+                    <strong>{p.user.name || "—"}</strong>
+                    <span className="admin-person-email">{p.user.email}</span>
+                  </div>
+                  <div className="admin-signin-meta">
+                    <span className={`quiz-rank-tag quiz-rank-${QUIZ_RANKS[p.rank].id}`}>{QUIZ_RANKS[p.rank].label}</span>
+                    <span className="admin-signin-when">
+                      {p.subjects.length} subject{p.subjects.length === 1 ? "" : "s"} · {p.attempts} attempt{p.attempts === 1 ? "" : "s"} · last {when(p.last)}
+                    </span>
+                  </div>
+                  {p.subjects.length > 0 ? (
+                    <button type="button" className="btn btn-xs btn-outline" onClick={() => setOpen(open === p.user.id ? "" : p.user.id)}>
+                      {open === p.user.id ? "Hide details" : "Details"}
+                    </button>
+                  ) : <span />}
+                </div>
+
+                {open === p.user.id && (
+                  <div className="admin-quiz-subjects">
+                    {p.subjects.map((s) => (
+                      <div className="admin-quiz-subject" key={`${s.streamId}/${s.year}/${s.subjectId}`}>
+                        <div className="admin-quiz-subject-name">
+                          <strong>{subjectName(s)}</strong>
+                          <small>{streamName(s)}</small>
+                        </div>
+                        <div className="admin-quiz-stages">
+                          {QUIZ_STAGES.map((st) => {
+                            const slot = s.stages[st.id];
+                            const state = !slot ? "none" : slot.passed ? "passed" : "tried";
+                            return (
+                              <span key={st.id} className={`admin-quiz-stage admin-quiz-stage--${state}`}>
+                                <b>{st.name}</b>
+                                {!slot
+                                  ? "Not tried"
+                                  : `${slot.passed ? "Cleared" : "Not cleared"} · best ${slot.best}/${slot.total} · ${slot.tries} tr${slot.tries === 1 ? "y" : "ies"}`}
+                              </span>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function AdminPortal({ users, onUpdateUser, onDeleteUser }) {
+  const [search, setSearch] = useState("");
 
   const term = search.trim().toLowerCase();
   const matches = (u) =>
@@ -3229,11 +3476,10 @@ function AdminPortal({ profile, users, onUpdateUser, onDeleteUser, onRefreshUser
   /* One stacked card per account rather than a wide table. A six-column grid
      forced sideways scrolling and read as landscape even on a desktop; a
      column of cards reads top-to-bottom at every width, and gives each account
-     room for its notes and quiz activity. */
+     room for its details. */
   const renderPeople = (rows, label) => (
     <div className="admin-people">
       {rows.map((u) => {
-        const a = activity?.[u.id];
         return (
           <article className="admin-person" key={u.id}>
             <header className="admin-person-head">
@@ -3263,32 +3509,8 @@ function AdminPortal({ profile, users, onUpdateUser, onDeleteUser, onRefreshUser
                 </dd>
               </div>
               <div>
-                <dt>Quiz practice</dt>
-                <dd>{activity ? `${a ? a.practice : 0} attempt${(a?.practice ?? 0) === 1 ? "" : "s"}` : "Not loaded"}</dd>
-              </div>
-              <div>
-                <dt>Final exam</dt>
-                <dd>
-                  {!activity
-                    ? "Not loaded"
-                    : a && a.exams
-                      ? `${a.examsPassed} passed of ${a.exams}`
-                      : "Not attempted"}
-                </dd>
-              </div>
-              <div>
-                <dt>Subjects covered</dt>
-                <dd>{activity ? (a ? a.subjects : 0) : "Not loaded"}</dd>
-              </div>
-              <div>
-                <dt>Last quiz attempt</dt>
-                <dd>
-                  {!activity
-                    ? "Not loaded"
-                    : a && a.last
-                      ? new Date(a.last).toLocaleDateString("en-IN")
-                      : "—"}
-                </dd>
+                <dt>Joined</dt>
+                <dd>{u.joined ? new Date(u.joined).toLocaleDateString("en-IN") : "—"}</dd>
               </div>
             </dl>
 
@@ -3355,8 +3577,6 @@ function AdminPortal({ profile, users, onUpdateUser, onDeleteUser, onRefreshUser
         <ArrowRight size={18} />
       </a>
 
-      <PendingApprovalsPanel onChanged={onRefreshUsers} />
-
       <RestrictedAccountsPanel users={users} onUpdateUser={onUpdateUser} />
 
       <div style={{ gridColumn: "1 / -1" }} className="card">
@@ -3393,31 +3613,10 @@ function AdminPortal({ profile, users, onUpdateUser, onDeleteUser, onRefreshUser
             />
           </label>
 
-          <div className="admin-activity-bar">
-            <button
-              type="button"
-              className="btn btn-outline btn-sm"
-              onClick={loadActivity}
-              disabled={activityBusy || users.length === 0}
-            >
-              {activityBusy
-                ? <><Loader2 size={15} className="spin" /> Reading attempts…</>
-                : <><BarChart3 size={15} /> {activity ? "Refresh quiz activity" : "Load quiz activity"}</>}
-            </button>
-            <span className="admin-activity-hint">
-              {activityError
-                ? activityError
-                : activity
-                  ? "Quiz figures below are live."
-                  : "Attempts are stored per account — load them to fill in the quiz rows."}
-            </span>
-          </div>
         </div>
       </div>
 
       <SignInListPanel users={users} onUpdateUser={onUpdateUser} />
-
-      <AdminNotesPanel profile={profile} />
 
       {section("Students", students, "students", GraduationCap)}
       {section("Faculty", faculty, "faculty", NotebookPen)}
@@ -3430,7 +3629,7 @@ function AdminPortal({ profile, users, onUpdateUser, onDeleteUser, onRefreshUser
 
 /* =============================== Top Nav Bar ============================== */
 
-function TopNavApp({ view, go, onHome, onLogout, user }) {
+function TopNavApp({ view, go, onHome, onLogout, user, pendingCount = 0 }) {
   const hasFullName = Boolean(user.name && user.name.trim().includes(" "));
   const initials = hasFullName
     ? (user.name || "User")
@@ -3444,6 +3643,61 @@ function TopNavApp({ view, go, onHome, onLogout, user }) {
 
   const isStudent = user.role === "student";
   const isStaffOnly = user.role === "staff";
+
+  /* When the links do not all fit, a slide bar under them shows there is
+     more to the right and can be dragged. Drawn by hand because phones and
+     many laptops hide native scrollbars until you are already scrolling.
+     A mouse wheel scrolls the links sideways too. */
+  const navRef = useRef(null);
+  const railRef = useRef(null);
+  const [rail, setRail] = useState(null);
+  useEffect(() => {
+    const nav = navRef.current;
+    if (!nav) return undefined;
+    const measure = () => {
+      const { scrollWidth: sw, clientWidth: cw, scrollLeft: sl } = nav;
+      setRail(sw > cw + 1 ? { width: (cw / sw) * 100, left: (sl / sw) * 100 } : null);
+    };
+    const onWheel = (e) => {
+      if (nav.scrollWidth <= nav.clientWidth || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+      e.preventDefault();
+      nav.scrollLeft += e.deltaY;
+    };
+    measure();
+    nav.addEventListener("scroll", measure, { passive: true });
+    nav.addEventListener("wheel", onWheel, { passive: false });
+    const observer = new ResizeObserver(measure);
+    observer.observe(nav);
+    return () => {
+      nav.removeEventListener("scroll", measure);
+      nav.removeEventListener("wheel", onWheel);
+      observer.disconnect();
+    };
+  }, [user.role]);
+
+  /* Drag the thumb, or tap the bar to jump there. */
+  const onRailPointerDown = (e) => {
+    const nav = navRef.current;
+    const track = railRef.current;
+    if (!nav || !track) return;
+    e.preventDefault();
+    const ratio = nav.scrollWidth / track.clientWidth;
+    if (!e.target.closest(".app-nav-thumb")) {
+      const box = track.getBoundingClientRect();
+      nav.scrollLeft = (e.clientX - box.left) * ratio - nav.clientWidth / 2;
+    }
+    const startX = e.clientX;
+    const startScroll = nav.scrollLeft;
+    const move = (ev) => { nav.scrollLeft = startScroll + (ev.clientX - startX) * ratio; };
+    const up = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      window.removeEventListener("pointercancel", up);
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+    window.addEventListener("pointercancel", up);
+  };
 
   return (
     <header className="app-header">
@@ -3463,7 +3717,8 @@ function TopNavApp({ view, go, onHome, onLogout, user }) {
             notes library, the practice tests or the landing page short of the
             browser's back button. Every destination the account may open is
             listed here instead. */}
-        <nav className="app-navigation" aria-label="Application navigation">
+        <div className={`app-nav-wrap${rail ? " has-rail" : ""}`}>
+        <nav className="app-navigation" aria-label="Application navigation" ref={navRef}>
           {/* The public home page, still signed in (see browsingHome in App). */}
           <button type="button" className="app-nav-item" onClick={onHome}>
             Home
@@ -3482,9 +3737,18 @@ function TopNavApp({ view, go, onHome, onLogout, user }) {
           )}
 
           {user.role === "admin" && (
-            <button type="button" className={`app-nav-item ${view === "admin-portal" ? "active" : ""}`} onClick={() => go("admin-portal")}>
-              Admin Control Desk
-            </button>
+            <>
+              <button type="button" className={`app-nav-item ${view === "admin-portal" ? "active" : ""}`} onClick={() => go("admin-portal")}>
+                Admin Control Desk
+              </button>
+              <button type="button" className={`app-nav-item ${view === "admin-approvals" ? "active" : ""}`} onClick={() => go("admin-approvals")}>
+                Approvals
+                {pendingCount > 0 && <span className="app-nav-count" aria-label={`${pendingCount} waiting`}>{pendingCount}</span>}
+              </button>
+              <button type="button" className={`app-nav-item ${view === "admin-quiz" ? "active" : ""}`} onClick={() => go("admin-quiz")}>
+                Quiz Results
+              </button>
+            </>
           )}
 
           {!isStaffOnly && (
@@ -3517,6 +3781,12 @@ function TopNavApp({ view, go, onHome, onLogout, user }) {
             RaktSetu
           </a>
         </nav>
+        {rail && (
+          <div className="app-nav-rail" ref={railRef} onPointerDown={onRailPointerDown} aria-hidden="true">
+            <span className="app-nav-thumb" style={{ width: `${rail.width}%`, left: `${rail.left}%` }} />
+          </div>
+        )}
+        </div>
 
         <div className="app-header-right">
           {/* No menu for any role: the only destination it ever held was the
@@ -4175,7 +4445,7 @@ export default function App() {
      along on every page reached from it — not just the three portals. It needs
      a user to render, so a signed-out visitor on an open page still sees none. */
   const isAppView = Boolean(currentUser)
-    && ["profile", "faculty-portal", "admin-portal", "notes", "quiz", "pyq", "scholarships"].includes(view);
+    && (["profile", "faculty-portal", "notes", "quiz", "pyq", "scholarships"].includes(view) || ADMIN_VIEWS.has(view));
 
   return (
     <LangContext.Provider value={{ lang, setLang }}>
@@ -4215,6 +4485,9 @@ export default function App() {
           onHome={() => { setBrowsingHome(true); navigateTo("landing"); }}
           onLogout={logout}
           user={currentUser}
+          pendingCount={currentUser.role === "admin"
+            ? users.filter((u) => isStaffRole(u.role) && u.approvalStatus === "pending").length
+            : 0}
         />
       )}
 
@@ -4242,7 +4515,12 @@ export default function App() {
         )}
         {view === "notes" && currentUser && (
           <Suspense fallback={<div className="boot-screen"><Loader2 size={20} className="spin" /> Loading notes…</div>}>
-            <NotesPage onBack={goBack} onRegisterBack={registerPageBack} />
+            <NotesPage
+              onBack={goBack}
+              onRegisterBack={registerPageBack}
+              user={currentUser}
+              UploadModal={currentUser?.role === "admin" ? NoteUploadModal : null}
+            />
           </Suspense>
         )}
         {view === "quiz" && currentUser && (
@@ -4275,7 +4553,7 @@ export default function App() {
         {view === "faculty-portal" && currentUser && (
           <FacultyPortal profile={currentUser} onSaveProfile={handleProfileEdit} />
         )}
-        {view === "admin-portal" && adminLock === "denied" && (
+        {ADMIN_VIEWS.has(view) && adminLock === "denied" && (
           <main className="resource-page pyq-page">
             <div className="resource-head">
               <div className="resource-head-copy">
@@ -4298,11 +4576,17 @@ export default function App() {
             </div>
           </main>
         )}
-        {view === "admin-portal" && adminLock === "checking" && (
+        {ADMIN_VIEWS.has(view) && adminLock === "checking" && (
           <div className="boot-screen"><Loader2 size={20} className="spin" /> Checking administrator session…</div>
         )}
         {view === "admin-portal" && (adminLock === "held" || adminLock === "idle") && (
-          <AdminPortal profile={currentUser} users={users} onUpdateUser={handleUpdateUser} onDeleteUser={handleDeleteUser} onRefreshUsers={refreshUsers} />
+          <AdminPortal users={users} onUpdateUser={handleUpdateUser} onDeleteUser={handleDeleteUser} />
+        )}
+        {view === "admin-approvals" && (adminLock === "held" || adminLock === "idle") && (
+          <AdminApprovalsPage users={users} onRefreshUsers={refreshUsers} />
+        )}
+        {view === "admin-quiz" && (adminLock === "held" || adminLock === "idle") && (
+          <AdminQuizPage users={users} />
         )}
       {view === "notfound" && <NotFoundPage />}
       </ErrorBoundary>
@@ -4857,6 +5141,59 @@ function Styles() {
         padding-top: 12px;
         border-top: 1px solid var(--border-light);
       }
+
+      /* Waiting-approval count on the admin's Approvals link. */
+      .app-nav-count {
+        margin-left: 6px;
+        min-width: 18px;
+        height: 18px;
+        padding: 0 5px;
+        border-radius: 9px;
+        background: #B91C1C;
+        color: #FFFFFF;
+        font-size: 11px;
+        font-weight: 700;
+        line-height: 18px;
+        text-align: center;
+      }
+
+      /* Admin quiz results. */
+      .quiz-rank-tag {
+        display: inline-flex;
+        align-items: center;
+        padding: 3px 9px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 700;
+        background: #F1F5F9;
+        color: #475569;
+        border: 1px solid #E2E8F0;
+      }
+      .quiz-rank-started { background: #FFF7ED; color: #9A3412; border-color: #FED7AA; }
+      .quiz-rank-beginner { background: #EFF6FF; color: #1D4ED8; border-color: #BFDBFE; }
+      .quiz-rank-intermediate { background: #EEF2FF; color: #4338CA; border-color: #C7D2FE; }
+      .quiz-rank-advanced { background: #F5F3FF; color: #6D28D9; border-color: #DDD6FE; }
+      .quiz-rank-exam { background: #ECFDF5; color: #047857; border-color: #A7F3D0; }
+      .admin-quiz-person + .admin-quiz-person { border-top: 1px solid var(--border-light); }
+      .admin-quiz-subjects { display: flex; flex-direction: column; gap: 10px; padding: 4px 14px 14px; background: #FFFFFF; }
+      .admin-quiz-subject { border: 1px solid var(--border-light); border-radius: var(--radius-sm); padding: 10px 12px; background: #F8FAFC; }
+      .admin-quiz-subject-name { display: flex; flex-direction: column; gap: 2px; margin-bottom: 8px; }
+      .admin-quiz-subject-name small { color: var(--text-muted); font-size: 12px; }
+      .admin-quiz-stages { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 8px; }
+      .admin-quiz-stage {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        padding: 7px 10px;
+        border-radius: 6px;
+        font-size: 12.5px;
+        background: #FFFFFF;
+        border: 1px solid var(--border-light);
+        color: var(--text-muted);
+      }
+      .admin-quiz-stage b { color: var(--text-strong); font-size: 12.5px; }
+      .admin-quiz-stage--passed { border-color: #A7F3D0; background: #ECFDF5; color: #047857; }
+      .admin-quiz-stage--tried { border-color: #FED7AA; background: #FFF7ED; color: #9A3412; }
 
       /* Sign-in list and restricted accounts: one compact row per account. */
       .admin-signin-tools { display: flex; gap: 8px; flex-wrap: wrap; }
@@ -6380,8 +6717,35 @@ function Styles() {
         justify-content: flex-start;
         gap: 4px;
         overflow-x: auto;
+        overflow-y: hidden;
         scrollbar-width: none;
       }
+      /* The links plus, when they overflow, a slide bar under them (see
+         TopNavApp) -- otherwise RaktSetu hid off the right edge. */
+      .app-nav-wrap { position: relative; min-width: 0; align-self: stretch; display: flex; flex-direction: column; justify-content: center; }
+      .app-nav-wrap.has-rail { padding-bottom: 10px; }
+      .app-nav-rail {
+        position: absolute;
+        left: 12px;
+        right: 12px;
+        bottom: 3px;
+        height: 5px;
+        border-radius: 5px;
+        background: #E2E8F0;
+        cursor: pointer;
+        touch-action: none;
+      }
+      .app-nav-rail::before { content: ''; position: absolute; inset: -7px 0; }
+      .app-nav-thumb {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        min-width: 28px;
+        border-radius: 5px;
+        background: #64748B;
+        cursor: grab;
+      }
+      .app-nav-rail:hover .app-nav-thumb { background: var(--abc-navy); }
       .app-navigation > :first-child { margin-left: auto; }
       .app-navigation > :last-child { margin-right: auto; }
       /* Two short lines instead of one long one, so the links get the room. */
@@ -6392,7 +6756,8 @@ function Styles() {
       @media (max-width: 1360px) {
         .app-header { height: auto; }
         .app-header-inner { min-height: 68px; row-gap: 0; }
-        .app-navigation { grid-column: 1 / -1; grid-row: 2; height: 46px; border-top: 1px solid var(--border-light); }
+        .app-nav-wrap { grid-column: 1 / -1; grid-row: 2; border-top: 1px solid var(--border-light); }
+        .app-navigation { min-height: 46px; }
       }
       .app-navigation::-webkit-scrollbar { display: none; }
       .app-nav-item {
@@ -6735,7 +7100,8 @@ function Styles() {
         /* App shell: nav drops to its own scrollable row under the brand. */
         .app-header { height: auto; }
         .app-header-inner { min-height: 60px; grid-template-columns: auto 1fr auto; padding: 0 18px; gap: 12px; }
-        .app-navigation { grid-column: 1 / -1; grid-row: 2; height: 46px; justify-content: flex-start; overflow-x: auto; scrollbar-width: none; border-top: 1px solid var(--border-light); }
+        .app-nav-wrap { grid-column: 1 / -1; grid-row: 2; border-top: 1px solid var(--border-light); }
+        .app-navigation { min-height: 46px; justify-content: flex-start; overflow-x: auto; scrollbar-width: none; }
         .app-navigation::-webkit-scrollbar { display: none; }
         .app-nav-item { height: 46px; flex: 0 0 auto; }
         .header-user-info { display: none; }

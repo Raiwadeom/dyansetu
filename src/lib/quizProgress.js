@@ -142,3 +142,22 @@ export async function saveAttempt(userId, { streamId, year, subjectId, stage, re
   });
   if (error) throw error;
 }
+
+/* Every attempt by every account, newest first, for the admin's quiz results
+   page. Only the administrator can read other accounts' rows. */
+export async function fetchAllAttempts(max = 20000) {
+  if (!isBackendConfigured) return [];
+  const PAGE = 1000;
+  const out = [];
+  for (let from = 0; from < max; from += PAGE) {
+    const { data, error } = await supabase
+      .from("quiz_attempts")
+      .select("user_id, stream_id, year, subject_id, stage, score, total, passed, created_at")
+      .order("created_at", { ascending: false })
+      .range(from, from + PAGE - 1);
+    if (error) throw error;
+    (data || []).forEach((row) => out.push({ userId: row.user_id, ...toAttempt(row) }));
+    if (!data || data.length < PAGE) break;
+  }
+  return out;
+}
