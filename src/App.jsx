@@ -2391,7 +2391,13 @@ function ScholarshipsPage({ onBack, onRegisterBack }) {
 
 /* "Delete my account": the user removes their own account and data. Two steps
    (open, then type DELETE) so it cannot happen by a stray tap. */
-function DeleteAccountCard() {
+const DELETE_ACCOUNT_COPY = {
+  student: "Removes your DnyanSetu account for good: your profile, quiz results and RaktSetu details. This cannot be undone.",
+  faculty: "Removes your faculty account for good: your profile, academic details and RaktSetu details. Notes you uploaded stay available to students, but without your name. This cannot be undone.",
+  staff: "Removes your staff account for good: your profile and RaktSetu details. This cannot be undone.",
+};
+
+function DeleteAccountCard({ variant = "student" }) {
   const [open, setOpen] = useState(false);
   const [typed, setTyped] = useState("");
   const [busy, setBusy] = useState(false);
@@ -2413,10 +2419,7 @@ function DeleteAccountCard() {
         </div>
         <Trash2 size={18} />
       </div>
-      <p className="delete-account-copy">
-        Removes your DnyanSetu account for good: your profile, quiz results and RaktSetu details.
-        Notes you uploaded stay available to students without your name. This cannot be undone.
-      </p>
+      <p className="delete-account-copy">{DELETE_ACCOUNT_COPY[variant] || DELETE_ACCOUNT_COPY.student}</p>
       {!open ? (
         <button type="button" className="btn btn-outline btn-sm delete-account-open" onClick={() => setOpen(true)}>
           <Trash2 size={14} /> Delete my account
@@ -2822,7 +2825,7 @@ function FacultyPortal({ profile, onSaveProfile }) {
         <NoteUploadModal author={profile} onClose={() => setShowNotesModal(false)} onUploaded={refreshMyNotes} />
       )}
 
-      <div style={{ gridColumn: "1 / -1" }}><DeleteAccountCard /></div>
+      <div style={{ gridColumn: "1 / -1" }}><DeleteAccountCard variant={isStaff ? "staff" : "faculty"} /></div>
     </div>
   );
 }
