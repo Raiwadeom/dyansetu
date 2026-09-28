@@ -34,6 +34,7 @@ import { NOTE_STREAMS, SEMESTERS, ACCEPTED_NOTE_TYPES, formatBytes } from "./dat
 import { SCHOLARSHIP_CATEGORIES } from "./data/resources";
 import { builtInSchemes, fetchSchemes, schemeStatus, fetchLiveAnnouncements } from "./lib/siteContent";
 import ContentAdminPage from "./admin/ContentAdminPage.jsx";
+import ScholarshipResetPage from "./admin/ScholarshipResetPage.jsx";
 import { LANG_KEY, LangContext, useLang, makeTr } from "./lib/i18n";
 import { markIosStepsSeen, useInstallApp } from "./lib/installPrompt";
 import {
@@ -120,6 +121,7 @@ function pathForView(view, authMode, scope, next) {
   if (view === "privacy") return "/privacy";
   if (view === "scholarships") return "/scholarships";
   if (view === "notfound") return window.location.pathname;
+  if (view === "scholarship-reset") return "/scholarship-reset";
   return "/";
 }
 
@@ -131,6 +133,7 @@ function initialRoute() {
   if (path === "/terms") return { view: "terms", direct: true };
   if (path === "/privacy") return { view: "privacy", direct: true };
   if (path === "/scholarships") return { view: "scholarships", direct: true };
+  if (path === "/scholarship-reset") return { view: "scholarship-reset", direct: true };
   if (path === "/" || path === "/index.html") return { view: "landing", direct: false };
   /* Anything else is a wrong address: show the 404 page instead of quietly
      landing on the home page. */
@@ -1490,6 +1493,28 @@ function AuthScreen({ mode, setMode, onSubmit, goLanding, roleScope = "student",
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  /* The scholarship admin's email/password change link goes to the main
+     administrator's inbox, never to the scholarship account itself. */
+  const [scholarshipChangeBusy, setScholarshipChangeBusy] = useState(false);
+  const requestScholarshipChange = async () => {
+    setError("");
+    setSuccessMessage("");
+    setScholarshipChangeBusy(true);
+    try {
+      const response = await fetch("/api/scholarship-account", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "request" }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "Could not send the link.");
+      setSuccessMessage(`A link to change the scholarship admin email and password was sent to ${data.sentTo || ADMIN_EMAIL}. It works once, for 1 hour.`);
+    } catch (err) {
+      setError(err.message || "Could not send the link.");
+    } finally {
+      setScholarshipChangeBusy(false);
+    }
+  };
   const [forgotMode, setForgotMode] = useState(false);
   const [resetEmail, setResetEmail] = useState("");
   const [resetSubmitting, setResetSubmitting] = useState(false);
@@ -1779,14 +1804,6 @@ function AuthScreen({ mode, setMode, onSubmit, goLanding, roleScope = "student",
                       </button>
                     </div>
                   )}
-                  {selectedRole === "scholarship" && (
-                    <p className="auth-staff-note">
-                      For the scholarship in-charge: edit scholarships, documents, dates and home-page
-                      announcements. {mode === "login"
-                        ? <>New here? <button type="button" className="auth-inline-link" onClick={() => setMode("signup")}>Sign up</button> with your own email and password. The college administrator approves the account once; after that, log in any time.</>
-                        : "Sign up with your own email and a new password. The college administrator approves the account once; after that, log in any time."}
-                    </p>
-                  )}
                   {mode === "signup" && selectedRole !== "scholarship" && (
                     <p className="auth-staff-note">
                       Faculty and staff accounts are checked by the college administrator. After you
@@ -1818,9 +1835,10 @@ function AuthScreen({ mode, setMode, onSubmit, goLanding, roleScope = "student",
                 <button
                   type="button"
                   className="auth-forgot-link"
-                  onClick={() => { setForgotMode(true); setResetEmail(email); }}
+                  onClick={selectedRole === "scholarship" ? requestScholarshipChange : () => { setForgotMode(true); setResetEmail(email); }}
+                  disabled={scholarshipChangeBusy}
                 >
-                  Forgot password?
+                  {selectedRole === "scholarship" ? "Forgot or change email / password?" : "Forgot password?"}
                 </button>
               )}
 
@@ -3916,7 +3934,7 @@ function TopNavApp({ view, go, onHome, onLogout, user, pendingCount = 0 }) {
     <header className="app-header">
       <div className="app-header-inner">
         {/* The logo opens the public home page, like the Home link — still signed in. */}
-        <button className="app-brand" type="button" onClick={isScholarshipAdmin ? () => go("admin-content") : onHome} title="DnyanSetu home">
+        <button className="app-brand" type="button" onClick={onHome} title="DnyanSetu home">
           <span className="app-brand-mark">
             <BrandLogo variant="mark" />
           </span>
@@ -3933,11 +3951,9 @@ function TopNavApp({ view, go, onHome, onLogout, user, pendingCount = 0 }) {
         <div className={`app-nav-wrap${rail ? " has-rail" : ""}`}>
         <nav className="app-navigation" aria-label="Application navigation" ref={navRef}>
           {/* The public home page, still signed in (see browsingHome in App). */}
-          {!isScholarshipAdmin && (
-            <button type="button" className="app-nav-item" onClick={onHome}>
-              Home
-            </button>
-          )}
+          <button type="button" className="app-nav-item" onClick={onHome}>
+            Home
+          </button>
 
           {isStudent && (
             <button type="button" className={`app-nav-item ${view === "profile" ? "active" : ""}`} onClick={() => go("profile")}>
@@ -3993,7 +4009,7 @@ function TopNavApp({ view, go, onHome, onLogout, user, pendingCount = 0 }) {
             </button>
           )}
 
-          {!isStaffOnly && !isScholarshipAdmin && (
+          {!isStaffOnly && (
             <button type="button" className={`app-nav-item ${view === "scholarships" ? "active" : ""}`} onClick={() => go("scholarships")}>
               Scholarships
             </button>
@@ -4112,6 +4128,7 @@ export default function App() {
   const [pendingRole, setPendingRole] = useState("");
   /* "idle" | "checking" | "held" | "denied" — the administrator desk opens in
      one window at a time. */
+  const adminLockIdRef = useRef("current");
   const [adminLock, setAdminLock] = useState("idle");
   /* Bumped to re-run the admin claim: a periodic retry while refused, or an
      explicit "use it here" take-over. */
@@ -4424,10 +4441,16 @@ export default function App() {
      refused; if this one dies without releasing, the heartbeat stops and the
      lock goes stale so the next window can take over. */
   useEffect(() => {
-    if (demoMode || currentUser?.role !== "admin") {
+    /* The main admin and the (approved) scholarship admin each open in one
+       place at a time, on their own lock row. */
+    const lockRole = currentUser?.role === "admin"
+      || (currentUser?.role === "scholarship" && currentUser?.approvalStatus === "approved");
+    if (demoMode || !lockRole) {
       setAdminLock("idle");
       return undefined;
     }
+    const lockId = currentUser.role === "scholarship" ? "scholarship" : "current";
+    adminLockIdRef.current = lockId;
 
     let cancelled = false;
     const sessionId = browserSessionId();
@@ -4441,7 +4464,7 @@ export default function App() {
     let unwatch = () => {};
 
     (async () => {
-      const result = await claimAdminSession(currentUser.id, sessionId, { force });
+      const result = await claimAdminSession(currentUser.id, sessionId, { force, lockId });
       if (cancelled) return;
 
       if (!result.ok) {
@@ -4452,16 +4475,16 @@ export default function App() {
       }
 
       setAdminLock("held");
-      beat = setInterval(() => beatAdminSession(currentUser.id, sessionId), HEARTBEAT_MS);
+      beat = setInterval(() => beatAdminSession(currentUser.id, sessionId, lockId), HEARTBEAT_MS);
       /* Covers the race where two windows both saw an empty lock and both wrote:
          whichever write landed second owns it, and the other steps down. */
       unwatch = watchAdminSession(sessionId, () => {
         if (!cancelled) setAdminLock("denied");
-      });
+      }, lockId);
     })();
 
     /* A closed tab releases immediately rather than waiting out the TTL. */
-    const onLeave = () => releaseAdminSession(sessionId);
+    const onLeave = () => releaseAdminSession(sessionId, lockId);
     window.addEventListener("pagehide", onLeave);
 
     return () => {
@@ -4470,10 +4493,10 @@ export default function App() {
       clearTimeout(retry);
       unwatch();
       window.removeEventListener("pagehide", onLeave);
-      releaseAdminSession(sessionId);
+      releaseAdminSession(sessionId, lockId);
       adminSessionRef.current = null;
     };
-  }, [currentUser?.role, currentUser?.id, demoMode, adminClaimTry]);
+  }, [currentUser?.role, currentUser?.id, currentUser?.approvalStatus, demoMode, adminClaimTry]);
 
   const takeOverAdminDesk = () => {
     adminForceRef.current = true;
@@ -4495,7 +4518,7 @@ export default function App() {
       || (awaiting && !["pending-approval", "terms", "privacy", "about", "notfound"].includes(view))
       || (!awaiting && view === "pending-approval")
       || (currentUser.role === "staff" && STUDY_PAGES.has(view))
-      || (!awaiting && currentUser.role === "scholarship" && !["admin-content", "auth", "accept-terms", "terms", "privacy", "notfound"].includes(view))) {
+      || (!awaiting && currentUser.role === "scholarship" && !["admin-content", "landing", "about", "scholarships", "scholarship-reset", "auth", "accept-terms", "terms", "privacy", "notfound"].includes(view))) {
       replaceView(homeViewFor(currentUser));
     }
   }, [view, currentUser, booting, browsingHome]);
@@ -4668,7 +4691,7 @@ export default function App() {
   const logout = async () => {
     /* Free the admin desk while still signed in — afterwards the database
        refuses the release and another device waits out the timeout. */
-    if (adminSessionRef.current) await releaseAdminSession(adminSessionRef.current).catch(() => {});
+    if (adminSessionRef.current) await releaseAdminSession(adminSessionRef.current, adminLockIdRef.current).catch(() => {});
     if (!demoMode) await auth.signOut().catch(() => {});
     setCurrentUser(null);
     setUsers([]);
@@ -4851,6 +4874,9 @@ export default function App() {
         )}
         {view === "admin-content" && (adminLock === "held" || adminLock === "idle") && (
           <ContentAdminPage />
+        )}
+        {view === "scholarship-reset" && (
+          <ScholarshipResetPage onDone={() => { setAuthMode("login"); setAuthRoleScope("staff"); replaceView("auth"); }} />
         )}
       {view === "notfound" && <NotFoundPage />}
       </ErrorBoundary>

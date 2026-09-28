@@ -18,6 +18,8 @@
 
 import { isBackendConfigured, supabase } from "./supabase.js";
 
+/* One lock row per admin kind: "current" = main admin, "scholarship" = the
+   scholarship admin. Each follows the same one-place-at-a-time rule. */
 const LOCK_ID = "current";
 
 /* Rewrite this often; treat a lock older than STALE_MS as abandoned. The gap
@@ -48,11 +50,11 @@ export function newSessionId() {
   return `s-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
-async function readLock() {
+async function readLock(lockId = LOCK_ID) {
   const { data, error } = await supabase
     .from("admin_sessions")
     .select("session_id, uid, claimed_at, heartbeat_at")
-    .eq("id", LOCK_ID)
+    .eq("id", lockId)
     .maybeSingle();
   if (error) throw error;
   return data
@@ -60,9 +62,9 @@ async function readLock() {
     : null;
 }
 
-async function writeLock({ sessionId, uid, claimedAt, heartbeatAt }) {
+async function writeLock({ sessionId, uid, claimedAt, heartbeatAt }, lockId = LOCK_ID) {
   const { error } = await supabase.from("admin_sessions").upsert({
-    id: LOCK_ID, session_id: sessionId, uid, claimed_at: claimedAt, heartbeat_at: heartbeatAt,
+    id: lockId, session_id: sessionId, uid, claimed_at: claimedAt, heartbeat_at: heartbeatAt,
   });
   if (error) throw error;
 }
@@ -74,10 +76,10 @@ function isStale(data) {
 
 /* Returns { ok: true } when this window now holds the lock, or
    { ok: false, since } when another live window already has it. */
-export async function claimAdminSession(uid, sessionId, { force = false } = {}) {
+export async function claimAdminSession(uid, sessionId, { force = false, lockId = LOCK_ID } = {}) {
   if (!isBackendConfigured) return { ok: true };
   try {
-    const held = await readLock();
+    const held = await readLock(lockId);
 
     if (!force && held && held.sessionId !== sessionId && !isStale(held)) {
       return { ok: false, since: Number(held.claimedAt) || null };
@@ -88,7 +90,7 @@ export async function claimAdminSession(uid, sessionId, { force = false } = {}) 
       uid,
       claimedAt: held?.sessionId === sessionId ? (held.claimedAt ?? Date.now()) : Date.now(),
       heartbeatAt: Date.now(),
-    });
+    }, lockId);
     return { ok: true };
   } catch (error) {
     /* A lock that cannot be read must not bar the administrator from their own
@@ -98,10 +100,10 @@ export async function claimAdminSession(uid, sessionId, { force = false } = {}) 
   }
 }
 
-export async function beatAdminSession(uid, sessionId) {
+export async function beatAdminSession(uid, sessionId, lockId = LOCK_ID) {
   if (!isBackendConfigured) return;
   try {
-    const held = await readLock();
+    const held = await readLock(lockId);
     /* Lost the lock to another live window: leave it alone; the watcher below
        tells this window to step down. */
     if (held && held.sessionId !== sessionId && !isStale(held)) return;
@@ -110,7 +112,7 @@ export async function beatAdminSession(uid, sessionId) {
       uid,
       claimedAt: held?.sessionId === sessionId ? (held.claimedAt ?? Date.now()) : Date.now(),
       heartbeatAt: Date.now(),
-    });
+    }, lockId);
   } catch (error) {
     console.error(error);
   }
@@ -118,10 +120,10 @@ export async function beatAdminSession(uid, sessionId) {
 
 /* Only the holder clears the lock, so a window that was refused access cannot
    release the session that refused it. */
-export async function releaseAdminSession(sessionId) {
+export async function releaseAdminSession(sessionId, lockId = LOCK_ID) {
   if (!isBackendConfigured) return;
   try {
-    await supabase.from("admin_sessions").delete().eq("id", LOCK_ID).eq("session_id", sessionId);
+    await supabase.from("admin_sessions").delete().eq("id", lockId).eq("session_id", sessionId);
   } catch (error) {
     console.error(error);
   }
@@ -129,11 +131,11 @@ export async function releaseAdminSession(sessionId) {
 
 /* Checks the lock between heartbeats so a window that loses a claim race —
    both read an empty lock and both wrote — finds out within a few seconds. */
-export function watchAdminSession(sessionId, onLost) {
+export function watchAdminSession(sessionId, onLost, lockId = LOCK_ID) {
   if (!isBackendConfigured) return () => {};
   const timer = setInterval(async () => {
     try {
-      const held = await readLock();
+      const held = await readLock(lockId);
       if (held && held.sessionId !== sessionId && !isStale(held)) onLost();
     } catch (error) {
       console.error(error);
