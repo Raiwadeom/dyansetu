@@ -4740,7 +4740,9 @@ export default function App() {
       <Styles />
 
       {askLang && <LanguagePicker onChoose={setLang} />}
-      {!askLang && <InstallAppButton variant="banner" />}
+      {/* The install strip belongs to the landing page only; the header's
+          download icon covers every other page. */}
+      {!askLang && view === "landing" && <InstallAppButton variant="banner" />}
 
       {/* Without backend keys the app runs on seed data, which is easy to miss
           until a signup silently fails to persist. Say so plainly. */}
