@@ -141,6 +141,23 @@ export function CrashPage({ error, inline = false }) {
   );
 }
 
+/* Keeps the last few crashes in this browser so one that flashes past (the
+   page recovers on the next render) can still be read afterwards. */
+const CRASH_LOG_KEY = "dnyansetu:crash-log";
+export function rememberCrash(error, componentStack = "") {
+  try {
+    const log = JSON.parse(localStorage.getItem(CRASH_LOG_KEY) || "[]");
+    log.unshift({
+      at: new Date().toISOString(),
+      url: window.location.href,
+      message: `${error?.name || "Error"}: ${error?.message || String(error)}`,
+      stack: String(error?.stack || "").slice(0, 2000),
+      componentStack: String(componentStack || "").slice(0, 1500),
+    });
+    localStorage.setItem(CRASH_LOG_KEY, JSON.stringify(log.slice(0, 5)));
+  } catch { /* storage blocked */ }
+}
+
 /* Catches a crash anywhere below it and shows CrashPage instead of a blank or
    technical screen. `resetKey` clears the error when the page changes. */
 export class ErrorBoundary extends React.Component {
@@ -155,6 +172,7 @@ export class ErrorBoundary extends React.Component {
 
   componentDidCatch(error, info) {
     console.error("[DnyanSetu] page failed:", error, info?.componentStack);
+    rememberCrash(error, info?.componentStack);
   }
 
   componentDidUpdate(prev) {

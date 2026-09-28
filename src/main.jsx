@@ -2,7 +2,7 @@ import React, { Suspense, lazy } from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App.jsx";
 import { AuthProvider } from "./lib/auth.jsx";
-import { CrashPage, ErrorBoundary } from "./lib/errorPages.jsx";
+import { CrashPage, ErrorBoundary, rememberCrash } from "./lib/errorPages.jsx";
 import "./index.css";
 /* Imported early so the browser's one-time install offer is not missed. */
 import "./lib/installPrompt.js";
@@ -63,6 +63,7 @@ ReactDOM.createRoot(root).render(
 /* Errors thrown outside React — a failed dynamic import, a rejected promise in
    an effect — never reach the boundary above and would still blank the page. */
 function showFatal(label, detail) {
+  rememberCrash({ name: label, message: String(detail) });
   if (root && root.childElementCount > 0) return; /* something rendered; leave it */
   console.error(`[DnyanSetu] ${label}:`, detail);
   if (document.getElementById("fatal-root")) return; /* already showing */

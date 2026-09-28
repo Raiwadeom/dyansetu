@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { rememberCrash } from "../lib/errorPages.jsx";
 import {
   ArrowLeft, ArrowRight, ChevronRight, GraduationCap, Search, Download,
   NotebookPen, FileText, ImageIcon, Loader2, AlertTriangle, Calendar, User, Trash2, Upload,
@@ -72,6 +73,7 @@ export default function NotesPage({ onBack, onRegisterBack, user, UploadModal = 
         const all = await fetchNotes();
         if (active) setNotes(all);
       } catch (err) {
+        rememberCrash(err);
         if (active) setError("Could not load the notes library. Please try again.");
       } finally {
         if (active) setLoading(false);
