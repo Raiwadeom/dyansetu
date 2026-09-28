@@ -13,7 +13,7 @@ export const SCHOLARSHIP_CATEGORIES = [
   { id: "ews", name: "EWS", nameMr: "ईडब्ल्यूएस", note: "Economically Weaker Section, general category.", noteMr: "आर्थिकदृष्ट्या दुर्बल घटक, सर्वसाधारण प्रवर्ग." },
   { id: "obc", name: "OBC", nameMr: "ओबीसी", note: "Other Backward Classes.", noteMr: "इतर मागासवर्गीय." },
   { id: "sbc", name: "SBC", nameMr: "एसबीसी", note: "Special Backward Class.", noteMr: "विशेष मागास प्रवर्ग." },
-  { id: "vjnt", name: "VJ / DT (NT-A)", nameMr: "विजा / भज (एनटी-अ)", note: "Vimukta Jati / Denotified Tribes.", noteMr: "विमुक्त जाती / भटक्या जमाती." },
+  { id: "vjnt", name: "VJ / NT (NT-A)", nameMr: "विजा / भज (एनटी-अ)", note: "Vimukta Jati / Nomadic Tribes (NT-A).", noteMr: "विमुक्त जाती / भटक्या जमाती." },
   { id: "nt", name: "NT (B / C / D)", nameMr: "भज (ब / क / ड)", note: "Nomadic Tribes.", noteMr: "भटक्या जमाती." },
   { id: "sc", name: "SC", nameMr: "अनुसूचित जाती", note: "Scheduled Caste.", noteMr: "अनुसूचित जाती." },
   { id: "st", name: "ST", nameMr: "अनुसूचित जमाती", note: "Scheduled Tribe.", noteMr: "अनुसूचित जमाती." },
@@ -265,4 +265,23 @@ export function documentsFor(categoryId, lang = "en") {
 export function expandDocuments(keys, lang = "en") {
   const dict = lang === "mr" ? DOC_MR : DOC;
   return keys.map((key) => dict[key]).filter(Boolean);
+}
+
+/* The built-in schemes in the database's shape (documents written out in both
+   languages). Used to seed the scholarships table and as the fallback when the
+   database cannot be reached. */
+export function builtInScholarshipRows() {
+  return SCHOLARSHIPS.map((s, i) => ({
+    id: s.id,
+    name: s.name, name_mr: s.nameMr || "",
+    provider: s.provider || "", provider_mr: s.providerMr || "",
+    categories: s.categories,
+    amount: s.amount || "", amount_mr: s.amountMr || "",
+    time_window: s.window || "", time_window_mr: s.windowMr || "",
+    eligibility: s.eligibility || "", eligibility_mr: s.eligibilityMr || "",
+    documents: s.documents.map((k) => ({ en: DOC[k] || k, mr: DOC_MR[k] || "" })),
+    note: s.note || "", note_mr: s.noteMr || "",
+    portal: s.portal || "",
+    opens_on: null, closes_on: null, active: true, sort: (i + 1) * 10,
+  }));
 }

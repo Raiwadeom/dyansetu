@@ -31,9 +31,9 @@ import {
   watchAdminSession, HEARTBEAT_MS,
 } from "./lib/adminSession";
 import { NOTE_STREAMS, SEMESTERS, ACCEPTED_NOTE_TYPES, formatBytes } from "./data/notes";
-import {
-  SCHOLARSHIP_CATEGORIES, scholarshipsFor, documentsFor, expandDocuments,
-} from "./data/resources";
+import { SCHOLARSHIP_CATEGORIES } from "./data/resources";
+import { builtInSchemes, fetchSchemes, schemeStatus, fetchLiveAnnouncements } from "./lib/siteContent";
+import ContentAdminPage from "./admin/ContentAdminPage.jsx";
 import { LANG_KEY, LangContext, useLang, makeTr } from "./lib/i18n";
 import { markIosStepsSeen, useInstallApp } from "./lib/installPrompt";
 import {
@@ -64,6 +64,9 @@ const SOCIAL_LINKS = {
 /* The single administrator. The database enforces this too — see admin_email()
    in supabase/migrations/0001_core.sql — so changing it here alone grants nothing. */
 const ADMIN_EMAIL = "smuiqac@gmail.com";
+/* The scholarship in-charge's account: edits only Scholarships & Notices. Must
+   match scholarship_admin_email() in supabase/migrations/0011. */
+const SCHOLARSHIP_ADMIN_EMAIL = "smuscholarship2007p@gmail.com";
 
 /* Used only while the app runs on offline seed data, so that the admin screens
    can be opened before Firebase is connected. It guards nothing real — once
@@ -117,6 +120,7 @@ function pathForView(view, authMode, scope, next) {
   if (view === "accept-terms") return `/login${query}`;
   if (view === "terms") return `/terms${window.location.hash === "#raktsetu" ? "#raktsetu" : ""}`;
   if (view === "privacy") return "/privacy";
+  if (view === "scholarships") return "/scholarships";
   if (view === "notfound") return window.location.pathname;
   return "/";
 }
@@ -128,6 +132,7 @@ function initialRoute() {
   if (path === "/staff") return { view: "auth", authMode: "login", scope: "staff", direct: true };
   if (path === "/terms") return { view: "terms", direct: true };
   if (path === "/privacy") return { view: "privacy", direct: true };
+  if (path === "/scholarships") return { view: "scholarships", direct: true };
   if (path === "/" || path === "/index.html") return { view: "landing", direct: false };
   /* Anything else is a wrong address: show the 404 page instead of quietly
      landing on the home page. */
@@ -146,6 +151,7 @@ const isAwaitingApproval = (u) =>
 function homeViewFor(u) {
   if (!u) return "landing";
   if (u.role === "admin") return "admin-portal";
+  if (u.role === "scholarship") return "admin-content";
   if (isAwaitingApproval(u)) return "pending-approval";
   if (isStaffRole(u.role)) return u.qualification ? "faculty-portal" : "faculty-setup";
   return "profile";
@@ -163,7 +169,7 @@ const FACULTY_DESIGNATIONS = ["Professor", "Associate Professor", "Assistant Pro
 /* A restored view still has to be one this account may actually open — a stale
    entry must never hand out a portal the user has no right to. */
 /* The administrator's pages, each its own entry in the header. */
-const ADMIN_VIEWS = new Set(["admin-portal", "admin-approvals", "admin-quiz"]);
+const ADMIN_VIEWS = new Set(["admin-portal", "admin-approvals", "admin-quiz", "admin-content"]);
 
 function mayOpenView(view, profile) {
   if (!view || view === "auth" || view === "accept-terms") return false;
@@ -173,6 +179,7 @@ function mayOpenView(view, profile) {
   if (MEMBERS_ONLY_PAGES.has(view)) return Boolean(profile);
   if (view === "profile") return profile?.role === "student";
   if (view === "faculty-portal" || view === "faculty-setup") return isStaffRole(profile?.role);
+  if (view === "admin-content") return profile?.role === "admin" || profile?.role === "scholarship";
   if (ADMIN_VIEWS.has(view)) return profile?.role === "admin";
   return true;
 }
@@ -497,9 +504,22 @@ function generateStudentRecommendations(student) {
   return recommendations.slice(0, 4);
 }
 
+/* Full-screen start-up screen, identical to the one in index.html so the
+   hand-over from the static page to the app does not flicker. */
+function SplashScreen({ label = "Loading…" }) {
+  return (
+    <div className="ds-splash" role="status" aria-live="polite">
+      <div className="ds-splash-logo"><img src="/dnyansetu-logo.png" alt="" width="96" height="96" /></div>
+      <div className="ds-splash-name">Dnyan<span>Setu</span></div>
+      <div className="ds-splash-bar" aria-hidden="true"><span /></div>
+      <div className="ds-splash-label">{label}</div>
+    </div>
+  );
+}
+
 function RoleBadge({ role }) {
   const r = (role || "student").toLowerCase();
-  const label = r === "admin" ? "ADMIN" : r === "faculty" ? "FACULTY" : r === "staff" ? "STAFF" : "STUDENT";
+  const label = r === "admin" ? "ADMIN" : r === "scholarship" ? "SCHOLARSHIP ADMIN" : r === "faculty" ? "FACULTY" : r === "staff" ? "STAFF" : "STUDENT";
   return <span className={`role-chip role-${r}`}>{label}</span>;
 }
 
@@ -590,6 +610,25 @@ function InstitutionLockup({ size = 34, tone = "light", showMeta = true, classNa
 /* =============================== VIEW: Landing Page ============================== */
 
 function Landing({ goAuth, onOpenAbout, onOpenPage, user, onOpenDashboard }) {
+  /* Announcements come from the administrator's Scholarships & Notices page;
+     the built-in notices show until they load or if the database is unreachable. */
+  const [notices, setNotices] = useState(NOTICE_BOARD);
+  useEffect(() => {
+    let alive = true;
+    fetchLiveAnnouncements().then((rows) => {
+      if (!alive || rows === null) return;
+      const recent = Date.now() - 14 * 86400000;
+      setNotices(rows.map((r) => ({
+        id: r.id,
+        title: r.title,
+        titleMr: r.title_mr,
+        date: new Date(`${r.notice_date}T00:00:00`).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }),
+        status: new Date(`${r.notice_date}T00:00:00`).getTime() >= recent ? "live" : "",
+        href: r.href || undefined,
+      })));
+    });
+    return () => { alive = false; };
+  }, []);
   const { lang, setLang } = useLang();
   const tr = makeTr(lang);
   const [activeHeroSlide, setActiveHeroSlide] = useState(0);
@@ -904,21 +943,26 @@ function Landing({ goAuth, onOpenAbout, onOpenPage, user, onOpenDashboard }) {
             <h2>{tr("Announcements", "घोषणा")}</h2>
           </div>
           <ul className="notice-board-list">
-            {NOTICE_BOARD.map((item) => {
+            {notices.length === 0 && (
+              <li className="notice-empty">{tr("No announcements right now.", "सध्या कोणत्याही घोषणा नाहीत.")}</li>
+            )}
+            {notices.map((item) => {
               const Row = item.href ? "a" : "div";
               const [day, month, year] = item.date.split(" ");
+              const inApp = item.href === "/scholarships";
               return (
                 <li key={item.id}>
                   <Row
                     className="notice-item"
                     {...(item.href ? { href: item.href, ...linkTarget(item.href) } : {})}
+                    {...(inApp ? { onClick: (e) => { e.preventDefault(); onOpenPage("scholarships"); } } : {})}
                   >
                     <span className="notice-date" aria-label={item.date}>
                       <strong>{day}</strong>
                       <span>{month}</span>
                     </span>
                     <span className="notice-item-body">
-                      <span className="notice-item-title">{tr(item.title, item.titleMr)}</span>
+                      <span className="notice-item-title">{tr(item.title, item.titleMr || item.title)}</span>
                       <span className="notice-item-meta">
                         {item.status === "live" && <span className="notice-new">{tr("New", "नवीन")}</span>}
                         {year}
@@ -1372,6 +1416,7 @@ function AuthScreen({ mode, setMode, onSubmit, goLanding, roleScope = "student",
   const [newPassword, setNewPassword] = useState("");
   const [newPasswordDone, setNewPasswordDone] = useState(false);
   const [selectedRole, setSelectedRole] = useState(isStaffScope ? "faculty" : "student");
+  const roleLabel = selectedRole === "scholarship" ? "SCHOLARSHIP ADMIN" : selectedRole.toUpperCase();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -1402,7 +1447,7 @@ function AuthScreen({ mode, setMode, onSubmit, goLanding, roleScope = "student",
         setError("Please tick the box to agree to the Terms and Conditions and Privacy Policy.");
         return;
       }
-      const needsName = selectedRole !== "admin";
+      const needsName = !["admin", "scholarship"].includes(selectedRole);
       if ((needsName && !name.trim()) || !email.trim() || !password || !confirmPassword) {
         setError(needsName
           ? "Please fill in your name, email address, password, and confirm password."
@@ -1423,12 +1468,16 @@ function AuthScreen({ mode, setMode, onSubmit, goLanding, roleScope = "student",
         setError("Please enter a valid email address.");
         return;
       }
+      if (selectedRole === "scholarship" && normalizedEmail !== SCHOLARSHIP_ADMIN_EMAIL) {
+        setError("Only the scholarship admin email can create this account.");
+        return;
+      }
       setSubmitting(true);
       try {
         const result = await onSubmit({
           mode: "signup",
           role: selectedRole,
-          name: name.trim(),
+          name: selectedRole === "scholarship" ? "Scholarship Admin" : name.trim(),
           email: normalizedEmail,
           password,
         });
@@ -1457,6 +1506,10 @@ function AuthScreen({ mode, setMode, onSubmit, goLanding, roleScope = "student",
     }
     if (selectedRole === "admin" && normalizedEmail !== ADMIN_EMAIL) {
       setError("This email is not authorised for administrator access.");
+      return;
+    }
+    if (selectedRole === "scholarship" && normalizedEmail !== SCHOLARSHIP_ADMIN_EMAIL) {
+      setError("This email is not the scholarship admin account.");
       return;
     }
     setSubmitting(true);
@@ -1489,7 +1542,7 @@ function AuthScreen({ mode, setMode, onSubmit, goLanding, roleScope = "student",
     setGoogleBusy(true);
     const result = await signInWithGoogle({
       intent: mode === "signup" ? "signup" : "login",
-      role: ["faculty", "staff", "admin"].includes(selectedRole) ? selectedRole : "student",
+      role: ["faculty", "staff", "admin", "scholarship"].includes(selectedRole) ? selectedRole : "student",
       termsAccepted: mode === "signup" && termsAccepted,
       next,
     });
@@ -1625,7 +1678,7 @@ function AuthScreen({ mode, setMode, onSubmit, goLanding, roleScope = "student",
           <>
             <div className="auth-tabs">
               <button className={`auth-tab ${mode === "login" ? "auth-tab-active" : ""}`} onClick={() => setMode("login")}>Log in</button>
-              <button className={`auth-tab ${mode === "signup" ? "auth-tab-active" : ""}`} onClick={() => { setMode("signup"); if (selectedRole === "admin") setSelectedRole("student"); }}>Sign up</button>
+              <button className={`auth-tab ${mode === "signup" ? "auth-tab-active" : ""}`} onClick={() => { setMode("signup"); if (selectedRole === "admin") setSelectedRole(isStaffScope ? "faculty" : "student"); }}>Sign up</button>
             </div>
 
             <div className="auth-heading">
@@ -1651,13 +1704,34 @@ function AuthScreen({ mode, setMode, onSubmit, goLanding, roleScope = "student",
                     <button type="button" className={`role-tab ${selectedRole === "staff" ? "role-tab-active" : ""}`} onClick={() => setSelectedRole("staff")}>
                       <Briefcase size={16} /> Staff
                     </button>
-                    {/* Administration is a single fixed account, so it is never a signup option. */}
-                    {mode === "login" && (
-                      <button type="button" className={`role-tab ${selectedRole === "admin" ? "role-tab-active" : ""}`} onClick={() => setSelectedRole("admin")}>
+                    {/* Two fixed admin accounts: the main administrator (log in only)
+                        and the scholarship in-charge (can create the account once). */}
+                    {(mode === "login" || selectedRole === "scholarship") && (
+                      <button type="button" className={`role-tab ${["admin", "scholarship"].includes(selectedRole) ? "role-tab-active" : ""}`} onClick={() => setSelectedRole(mode === "login" ? "admin" : "scholarship")}>
                         <Shield size={16} /> Admin
                       </button>
                     )}
                   </div>
+                  {["admin", "scholarship"].includes(selectedRole) && (
+                    <div className="admin-kind" role="group" aria-label="Which admin">
+                      {mode === "login" && (
+                        <button type="button" className={selectedRole === "admin" ? "is-on" : ""} onClick={() => setSelectedRole("admin")}>
+                          <Shield size={14} /> Main admin
+                        </button>
+                      )}
+                      <button type="button" className={selectedRole === "scholarship" ? "is-on" : ""} onClick={() => { setSelectedRole("scholarship"); setEmail(SCHOLARSHIP_ADMIN_EMAIL); }}>
+                        <Coins size={14} /> Scholarship admin
+                      </button>
+                    </div>
+                  )}
+                  {selectedRole === "scholarship" && (
+                    <p className="auth-staff-note">
+                      For the scholarship in-charge: edit scholarships, documents, dates and home-page
+                      announcements. {mode === "login"
+                        ? <>First time? <button type="button" className="auth-inline-link" onClick={() => setMode("signup")}>Create the scholarship admin account</button>.</>
+                        : "Choose a password for this account — only this email address can be the scholarship admin."}
+                    </p>
+                  )}
                   {mode === "signup" && (
                     <p className="auth-staff-note">
                       Faculty and staff accounts are checked by the college administrator. After you
@@ -1676,7 +1750,7 @@ function AuthScreen({ mode, setMode, onSubmit, goLanding, roleScope = "student",
             {successMessage && <div className="form-success"><CheckCircle2 size={15} /> <span>{successMessage}</span></div>}
 
             <form onSubmit={handleSubmit}>
-              {mode === "signup" && selectedRole !== "admin" && (
+              {mode === "signup" && !["admin", "scholarship"].includes(selectedRole) && (
                 <Field label="Full Name" icon={User} type="text" placeholder="Enter your full name" value={name} onChange={(e) => setName(e.target.value)} />
               )}
               <Field label={mode === "signup" ? "Email" : "Registered Email"} icon={Mail} type="email" autoComplete="email" placeholder="name@arcsas.edu" value={email} onChange={(e) => setEmail(e.target.value)} />
@@ -1721,7 +1795,7 @@ function AuthScreen({ mode, setMode, onSubmit, goLanding, roleScope = "student",
                 {submitting ? (
                   <><Loader2 size={16} className="spin" /> {mode === "login" ? "Signing in…" : "Creating account…"}</>
                 ) : (
-                  <>{mode === "login" ? `Log in as ${selectedRole.toUpperCase()}` : `Register as ${selectedRole.toUpperCase()}`} <ArrowRight size={16} /></>
+                  <>{mode === "login" ? `Log in as ${roleLabel}` : `Register as ${roleLabel}`} <ArrowRight size={16} /></>
                 )}
               </button>
 
@@ -2055,9 +2129,20 @@ function ScholarshipsPage({ onBack, onRegisterBack }) {
   const [openDocs, setOpenDocs] = useState(null);
   const [showAllDocs, setShowAllDocs] = useState(false);
 
+  /* The administrator's current list; the built-in copy shows until it loads
+     (and stays if the database cannot be reached). */
+  const [schemes, setSchemes] = useState(builtInSchemes);
+  useEffect(() => {
+    let alive = true;
+    fetchSchemes().then((list) => { if (alive) setSchemes(list); });
+    return () => { alive = false; };
+  }, []);
+  const tx = (en, mr) => tr(en, mr || en);
+  const docText = (d) => (typeof d === "string" ? d : tx(d.en, d.mr));
+
   const category = SCHOLARSHIP_CATEGORIES.find((c) => c.id === categoryId) || null;
-  const matches = category ? scholarshipsFor(category.id) : [];
-  const allDocs = category ? documentsFor(category.id, lang) : [];
+  const matches = category ? schemes.filter((sc) => sc.categories.includes(category.id)) : [];
+  const allDocs = category ? [...new Set(matches.flatMap((sc) => sc.documents.map(docText)))] : [];
 
   /* Closes the documents panel first, then the category, and only then
      reports it had nothing left to unwind — true/false rather than calling
@@ -2149,17 +2234,19 @@ function ScholarshipsPage({ onBack, onRegisterBack }) {
           <div className="scheme-list">
             {matches.map((scheme) => {
               const isOpen = openDocs === scheme.id;
+              const status = schemeStatus(scheme);
               return (
                 <article className="scheme-card" key={scheme.id}>
                   <div className="scheme-head">
-                    <h3>{tr(scheme.name, scheme.nameMr)}</h3>
-                    <span className="scheme-amount">{tr(scheme.amount, scheme.amountMr)}</span>
+                    <h3>{tx(scheme.name, scheme.nameMr)}</h3>
+                    {scheme.amount && <span className="scheme-amount">{tx(scheme.amount, scheme.amountMr)}</span>}
                   </div>
-                  <p className="scheme-provider">{tr(scheme.provider, scheme.providerMr)}</p>
-                  <p className="scheme-eligibility">{tr(scheme.eligibility, scheme.eligibilityMr)}</p>
+                  {status && <p className={`scheme-status scheme-status--${status.tone}`}><CalendarDays size={14} /> {tr(status.en, status.mr)}</p>}
+                  {scheme.provider && <p className="scheme-provider">{tx(scheme.provider, scheme.providerMr)}</p>}
+                  <p className="scheme-eligibility">{tx(scheme.eligibility, scheme.eligibilityMr)}</p>
 
                   <div className="scheme-meta">
-                    <span><CalendarDays size={14} /> {tr(scheme.window, scheme.windowMr)}</span>
+                    {scheme.window && <span><CalendarDays size={14} /> {tx(scheme.window, scheme.windowMr)}</span>}
                     <span><ListChecks size={14} /> {tr(`${scheme.documents.length} documents`, `${scheme.documents.length} कागदपत्रे`)}</span>
                   </div>
 
@@ -2174,15 +2261,17 @@ function ScholarshipsPage({ onBack, onRegisterBack }) {
                         ? tr("Click here to hide documents", "कागदपत्रे लपवण्यासाठी येथे क्लिक करा")
                         : tr("Click here for documents required", "आवश्यक कागदपत्रांसाठी येथे क्लिक करा")}
                     </button>
-                    <a className="btn btn-primary btn-sm" href={scheme.portal} target="_blank" rel="noreferrer">
-                      {tr("Apply on portal", "पोर्टलवर अर्ज करा")} <ExternalLink size={14} />
-                    </a>
+                    {scheme.portal && (
+                      <a className="btn btn-primary btn-sm" href={scheme.portal} target="_blank" rel="noreferrer">
+                        {tr("Apply on portal", "पोर्टलवर अर्ज करा")} <ExternalLink size={14} />
+                      </a>
+                    )}
                   </div>
 
                   {isOpen && (
                     <ul className="doc-list">
-                      {expandDocuments(scheme.documents, lang).map((doc) => (
-                        <li key={doc}><CheckCircle2 size={15} /> {doc}</li>
+                      {scheme.documents.map(docText).map((doc, i) => (
+                        <li key={`${i}-${doc}`}><CheckCircle2 size={15} /> {doc}</li>
                       ))}
                     </ul>
                   )}
@@ -3648,6 +3737,7 @@ function TopNavApp({ view, go, onHome, onLogout, user, pendingCount = 0 }) {
 
   const isStudent = user.role === "student";
   const isStaffOnly = user.role === "staff";
+  const isScholarshipAdmin = user.role === "scholarship";
 
   /* When the links do not all fit, a slide bar under them shows there is
      more to the right and can be dragged. Drawn by hand because phones and
@@ -3749,6 +3839,12 @@ function TopNavApp({ view, go, onHome, onLogout, user, pendingCount = 0 }) {
             </button>
           )}
 
+          {isScholarshipAdmin && (
+            <button type="button" className={`app-nav-item ${view === "admin-content" ? "active" : ""}`} onClick={() => go("admin-content")}>
+              Scholarships &amp; Notices
+            </button>
+          )}
+
           {user.role === "admin" && (
             <>
               <button type="button" className={`app-nav-item ${view === "admin-portal" ? "active" : ""}`} onClick={() => go("admin-portal")}>
@@ -3761,10 +3857,13 @@ function TopNavApp({ view, go, onHome, onLogout, user, pendingCount = 0 }) {
               <button type="button" className={`app-nav-item ${view === "admin-quiz" ? "active" : ""}`} onClick={() => go("admin-quiz")}>
                 Quiz Results
               </button>
+              <button type="button" className={`app-nav-item ${view === "admin-content" ? "active" : ""}`} onClick={() => go("admin-content")}>
+                Scholarships &amp; Notices
+              </button>
             </>
           )}
 
-          {!isStaffOnly && (
+          {!isStaffOnly && !isScholarshipAdmin && (
             <button type="button" className={`app-nav-item ${view === "notes" ? "active" : ""}`} onClick={() => go("notes")}>
               Subject Notes
             </button>
@@ -3776,7 +3875,7 @@ function TopNavApp({ view, go, onHome, onLogout, user, pendingCount = 0 }) {
             </button>
           )}
 
-          {!isStaffOnly && (
+          {!isStaffOnly && !isScholarshipAdmin && (
             <button type="button" className={`app-nav-item ${view === "pyq" ? "active" : ""}`} onClick={() => go("pyq")}>
               Question Papers
             </button>
@@ -4050,6 +4149,13 @@ export default function App() {
 
     /* The Admin tab's Google button is only for the one administrator
        address; any other Google account used there is signed straight out. */
+    if (intent?.role === "scholarship" && (current.email || "").toLowerCase() !== SCHOLARSHIP_ADMIN_EMAIL) {
+      await auth.signOut();
+      setCurrentUser(null);
+      setNotice("This Google account is not the scholarship admin account.");
+      replaceView("landing");
+      return;
+    }
     if (intent?.role === "admin" && (current.email || "").toLowerCase() !== ADMIN_EMAIL) {
       await auth.signOut();
       setCurrentUser(null);
@@ -4481,7 +4587,7 @@ export default function App() {
     return (
       <div className="arcsas">
         <Styles />
-        <div className="boot-screen"><Loader2 size={20} className="spin" /> Loading DnyanSetu Platform…</div>
+        <SplashScreen />
       </div>
     );
   }
@@ -4632,6 +4738,9 @@ export default function App() {
         )}
         {view === "admin-quiz" && (adminLock === "held" || adminLock === "idle") && (
           <AdminQuizPage users={users} />
+        )}
+        {view === "admin-content" && (adminLock === "held" || adminLock === "idle") && (
+          <ContentAdminPage />
         )}
       {view === "notfound" && <NotFoundPage />}
       </ErrorBoundary>
@@ -5654,6 +5763,11 @@ function Styles() {
         font-size: clamp(24px, 3vw, 34px); line-height: 1.15; color: var(--abc-navy);
       }
       .notice-board-list { list-style: none; margin: 0; padding: 0; }
+      .notice-empty { padding: 18px 4px; color: var(--text-muted); font-size: 14px; }
+      .scheme-status { display: inline-flex; align-items: center; gap: 6px; margin: 8px 0 2px; padding: 4px 10px; border-radius: 4px; font-size: 13px; font-weight: 700; }
+      .scheme-status--open { background: #E7F5EF; color: #0F7B5A; }
+      .scheme-status--soon { background: #FFF4E0; color: #9A5B00; }
+      .scheme-status--closed { background: #F1F3F6; color: #5A6675; }
       .notice-board-list li { border-bottom: 1px solid var(--border-light); }
       .notice-item {
         display: flex; align-items: center; gap: 20px;
@@ -6424,6 +6538,11 @@ function Styles() {
       .auth-title { font-size: 28px; line-height: 1.25; color: var(--abc-navy); letter-spacing: -0.02em; }
       .auth-sub { color: var(--text-muted); font-size: 14px; line-height: 1.65; max-width: 42ch; }
       .auth-host-note { font-size: 12.5px; line-height: 1.5; color: var(--abc-blue); word-break: break-all; }
+      .boot-screen { min-height: 50vh; display: flex; align-items: center; justify-content: center; gap: 10px; color: var(--text-muted); font-size: 15px; font-weight: 500; padding: 40px 16px; text-align: center; }
+      .admin-kind { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 6px; margin: 8px 0 10px; }
+      .admin-kind button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 10px; border: 1px solid var(--border-light, #D9E0E8); border-radius: 8px; background: #fff; font: inherit; font-size: 13px; font-weight: 600; color: #334155; cursor: pointer; }
+      .admin-kind button.is-on { border-color: var(--abc-navy, #1E3A5F); background: #EAF0F7; color: var(--abc-navy, #1E3A5F); }
+      .auth-inline-link { background: none; border: 0; padding: 0; font: inherit; color: var(--abc-saffron, #E65100); font-weight: 700; text-decoration: underline; cursor: pointer; }
       .auth-staff-note { font-size: 12.5px; line-height: 1.55; color: var(--text-subtle); background: #F8FAFC; border: 1px solid var(--border-light); border-radius: 10px; padding: 9px 12px; margin: 0; }
       .btn-google {
         display: inline-flex; align-items: center; justify-content: center; gap: 10px;
