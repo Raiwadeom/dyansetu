@@ -13,7 +13,7 @@
    Sign-in and sign-out live in auth.jsx (useAuth), not here.
    ========================================================================== */
 
-import { friendlyError, isBackendConfigured, supabase } from "./supabase.js";
+import { friendlyError, getAccessToken, isBackendConfigured, supabase } from "./supabase.js";
 
 export const ADMIN_EMAIL = "smuiqac@gmail.com";
 
@@ -144,6 +144,24 @@ export async function adminDeleteProfile(userId) {
     supabase.from("profiles").update({ status: "deleted", restricted: true }).eq("id", userId),
     "Could not remove that account.",
   );
+}
+
+/* When each account last signed in. That lives in Supabase Auth, which only
+   the server can read (api/admin-sign-ins.js); it answers the admin alone.
+   Returns { [userId]: { lastSignInAt, provider } }. */
+export async function fetchSignIns() {
+  if (!isBackendConfigured) return {};
+  const accessToken = await getAccessToken();
+  if (!accessToken) throw new Error("Sign in again to load the sign-in list.");
+  const response = await fetch("/api/admin-sign-ins", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+    body: "{}",
+  });
+  let body = {};
+  try { body = await response.json(); } catch { /* handled below */ }
+  if (!response.ok) throw new Error(body.error || "Could not load the sign-in list.");
+  return Object.fromEntries((body.accounts || []).map((a) => [a.id, a]));
 }
 
 /* --------------------------- faculty/staff approval --------------------------- */

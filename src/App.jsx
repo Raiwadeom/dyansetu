@@ -19,10 +19,10 @@ import {
   useAuth, acceptTerms, readOAuthIntent, clearOAuthIntent, safeNext,
 } from "./lib/auth";
 import {
-  fetchProfile, updateProfile, listProfiles, adminUpdateProfile, adminDeleteProfile,
+  fetchProfile, updateProfile, listProfiles, adminUpdateProfile, adminDeleteProfile, fetchSignIns,
   markNotesOpened, submitIdProof, listPendingApprovals, adminReviewPending,
 } from "./lib/profiles";
-import { fetchMyNotes, uploadNote, deleteNote } from "./lib/notes";
+import { fetchNotes, fetchMyNotes, uploadNote, deleteNote } from "./lib/notes";
 import { uploadFile, shrinkPhoto } from "./lib/cloudinary";
 import { fetchAttempts } from "./lib/quizProgress";
 import {
@@ -41,7 +41,7 @@ import {
   FileText, Edit3, Trash2, Ban, Sparkles, BookOpen, ImagePlus, BarChart3,
   Info, Facebook, Instagram, CalendarDays, Search, Droplet, ClipboardList, ListChecks, Coins, HandHeart,
   ScrollText, NotebookPen, FileDown, AlertTriangle, Newspaper,
-  Languages, Menu, Briefcase, Clock, BadgeCheck, IdCard, RefreshCw, Download, Share, SquarePlus,
+  Languages, Menu, Briefcase, Clock, BadgeCheck, IdCard, LogIn, UserCheck, RefreshCw, Download, Share, SquarePlus,
 } from "lucide-react";
 
 /* ============================================================================
@@ -2410,7 +2410,6 @@ function StudentProfile({ profile, onSaveProfile }) {
 function FacultyPortal({ profile, onSaveProfile }) {
   const isStaff = profile.role === "staff";
   const [showNotesModal, setShowNotesModal] = useState(false);
-  const [uploadError, setUploadError] = useState("");
 
   const facultyInitials = (profile.name || "Faculty")
     .split(" ")
@@ -2424,18 +2423,6 @@ function FacultyPortal({ profile, onSaveProfile }) {
   const [myNotes, setMyNotes] = useState([]);
   const [notesLoading, setNotesLoading] = useState(true);
   const [notesError, setNotesError] = useState("");
-  const [deletingId, setDeletingId] = useState("");
-  const [confirmDelete, setConfirmDelete] = useState(null);
-
-  /* Note composer */
-  const [nStream, setNStream] = useState("bsc-cs");
-  const [nSemester, setNSemester] = useState(SEMESTERS[0]);
-  const [nSubject, setNSubject] = useState("");
-  const [nTitle, setNTitle] = useState("");
-  const [nDesc, setNDesc] = useState("");
-  const [nFiles, setNFiles] = useState([]);
-  const [publishing, setPublishing] = useState(false);
-  const [progress, setProgress] = useState(null);
 
   const refreshMyNotes = async () => {
     setNotesLoading(true);
@@ -2487,51 +2474,6 @@ function FacultyPortal({ profile, onSaveProfile }) {
     });
   }, [profile]);
 
-
-  const handleNoteSubmit = async (e) => {
-    e.preventDefault();
-    if (!nTitle.trim() || !nSubject.trim() || !nFiles.length || publishing) return;
-
-    setPublishing(true);
-    setUploadError("");
-    setProgress({ pct: 0, index: 1, total: nFiles.length });
-    try {
-      await uploadNote({
-        streamId: nStream,
-        subject: nSubject,
-        semester: nSemester,
-        title: nTitle,
-        description: nDesc,
-        files: nFiles,
-        author: profile,
-        onProgress: (pct, index, total) => setProgress({ pct, index, total }),
-      });
-      setShowNotesModal(false);
-      setNSubject(""); setNTitle(""); setNDesc(""); setNFiles([]);
-      await refreshMyNotes();
-    } catch (err) {
-      setUploadError(err.message || "Could not upload these notes.");
-    } finally {
-      setPublishing(false);
-      setProgress(null);
-    }
-  };
-
-  /* Removes the row and every stored file, so the note disappears from the
-     student library as well. */
-  const handleNoteDelete = async (note) => {
-    setDeletingId(note.id);
-    setNotesError("");
-    try {
-      await deleteNote(note);
-      setMyNotes((prev) => prev.filter((n) => n.id !== note.id));
-      setConfirmDelete(null);
-    } catch (err) {
-      setNotesError(err.message || "Could not delete that note.");
-    } finally {
-      setDeletingId("");
-    }
-  };
 
   return (
     <div className="dash-grid">
@@ -2642,180 +2584,254 @@ function FacultyPortal({ profile, onSaveProfile }) {
       )}
 
       {!isStaff && (
-      <div className="dash-modules">
-        <h3 className="dash-section-title">
-          <NotebookPen size={20} /> My Uploaded Notes ({myNotes.length})
-        </h3>
-
-        {notesError && <p className="upload-error">{notesError}</p>}
-
-        {notesLoading ? (
-          <p className="notes-loading"><Loader2 size={18} className="spin" /> Loading your uploads…</p>
-        ) : myNotes.length === 0 ? (
-          <p className="resource-empty">
-            You have not uploaded any notes yet. Use <strong>Upload Notes</strong> above and they
-            will appear for students straight away.
-          </p>
-        ) : (
-          <div className="notes-list">
-            {myNotes.map((note) => (
-              <article className="note-card" key={note.id}>
-                <div className="note-card-head">
-                  <h3>{note.title}</h3>
-                  <span className="note-sem">{note.semester}</span>
-                </div>
-                {note.description && <p className="note-desc">{note.description}</p>}
-                <div className="note-meta">
-                  <span><BookOpen size={13} /> {note.subject}</span>
-                  <span className="note-stream-tag">
-                    {NOTE_STREAMS.find((st) => st.id === note.streamId)?.name || note.streamId}
-                  </span>
-                  <span>{note.files.length} file{note.files.length === 1 ? "" : "s"}</span>
-                </div>
-
-                <div className="note-files">
-                  {note.files.map((file) => (
-                    <a key={file.publicId || file.url} className="note-file" href={file.url} target="_blank" rel="noreferrer">
-                      <FileText size={15} />
-                      <span className="note-file-name">{file.name}</span>
-                      <span className="note-file-size">{formatBytes(file.size)}</span>
-                    </a>
-                  ))}
-                </div>
-
-                <div className="note-actions">
-                  {confirmDelete === note.id ? (
-                    <>
-                      <span className="note-confirm">Delete this note for everyone?</span>
-                      <button
-                        type="button"
-                        className="btn btn-xs btn-outline"
-                        onClick={() => setConfirmDelete(null)}
-                        disabled={deletingId === note.id}
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="button"
-                        className="btn btn-xs btn-danger"
-                        onClick={() => handleNoteDelete(note)}
-                        disabled={deletingId === note.id}
-                      >
-                        {deletingId === note.id
-                          ? <><Loader2 size={13} className="spin" /> Deleting…</>
-                          : <><Trash2 size={13} /> Delete</>}
-                      </button>
-                    </>
-                  ) : (
-                    <button type="button" className="btn btn-xs btn-outline" onClick={() => setConfirmDelete(note.id)}>
-                      <Trash2 size={13} /> Delete
-                    </button>
-                  )}
-                </div>
-              </article>
-            ))}
-          </div>
-        )}
-      </div>
+        <NotesManageList
+          title="My Uploaded Notes"
+          notes={myNotes}
+          loading={notesLoading}
+          error={notesError}
+          emptyText={<>You have not uploaded any notes yet. Use <strong>Upload Notes</strong> above and they will appear for students straight away.</>}
+          onDeleted={(id) => setMyNotes((prev) => prev.filter((n) => n.id !== id))}
+        />
       )}
 
       {showNotesModal && !isStaff && (
-        <div className="modal-overlay">
-          <div className="modal-card">
-            <div className="modal-head">
-              <h3>Upload Notes</h3>
-              <button className="btn btn-ghost" onClick={() => setShowNotesModal(false)}><X size={18} /></button>
-            </div>
-            <form onSubmit={handleNoteSubmit}>
-              <Field
-                label="Title or Unit Name"
-                value={nTitle}
-                onChange={(e) => setNTitle(e.target.value)}
-                placeholder="e.g. Unit 3 — Normalisation and Keys"
-                required
-              />
-              <SelectField
-                label="Branch / Class"
-                value={nStream}
-                onChange={(e) => setNStream(e.target.value)}
-                options={NOTE_STREAMS.map((st) => ({ value: st.id, label: st.name }))}
-              />
-              <SelectField
-                label="Semester"
-                value={nSemester}
-                onChange={(e) => setNSemester(e.target.value)}
-                options={SEMESTERS}
-              />
-              <Field
-                label="Subject"
-                icon={BookOpen}
-                value={nSubject}
-                onChange={(e) => setNSubject(e.target.value)}
-                placeholder="e.g. Database Management Systems"
-                required
-              />
-              <Field
-                label="Short Description (optional)"
-                value={nDesc}
-                onChange={(e) => setNDesc(e.target.value)}
-                placeholder="What these notes cover..."
-              />
+        <NoteUploadModal author={profile} onClose={() => setShowNotesModal(false)} onUploaded={refreshMyNotes} />
+      )}
+    </div>
+  );
+}
 
-              <label className="field-label" style={{ marginTop: 12, display: "block" }}>
-                PDF or Images
-              </label>
-              <label className="note-dropzone">
-                <ImagePlus size={20} />
-                <span>
-                  {nFiles.length
-                    ? `${nFiles.length} file${nFiles.length === 1 ? "" : "s"} selected`
-                    : "Choose PDFs or photos of handwritten notes"}
-                </span>
-                <input
-                  type="file"
-                  accept={ACCEPTED_NOTE_TYPES}
-                  multiple
-                  hidden
-                  onChange={(e) => setNFiles(Array.from(e.target.files || []))}
-                />
-              </label>
+/* The upload form, shared by the Faculty Studio and the admin desk. */
+function NoteUploadModal({ author, onClose, onUploaded }) {
+  const [uploadError, setUploadError] = useState("");
+  const [nStream, setNStream] = useState("bsc-cs");
+  const [nSemester, setNSemester] = useState(SEMESTERS[0]);
+  const [nSubject, setNSubject] = useState("");
+  const [nTitle, setNTitle] = useState("");
+  const [nDesc, setNDesc] = useState("");
+  const [nFiles, setNFiles] = useState([]);
+  const [publishing, setPublishing] = useState(false);
+  const [progress, setProgress] = useState(null);
 
-              {nFiles.length > 0 && (
-                <ul className="note-file-preview">
-                  {nFiles.map((f, i) => (
-                    <li key={`${f.name}-${i}`}>
-                      <FileText size={13} /> {f.name} <em>{formatBytes(f.size)}</em>
-                    </li>
-                  ))}
-                </ul>
-              )}
+  const handleNoteSubmit = async (e) => {
+    e.preventDefault();
+    if (!nTitle.trim() || !nSubject.trim() || !nFiles.length || publishing) return;
 
-              {progress && (
-                <div className="upload-progress">
-                  <div className="upload-progress-bar">
-                    <span style={{ width: progress.pct + "%" }} />
-                  </div>
-                  <small>
-                    Uploading file {progress.index} of {progress.total} — {progress.pct}%
-                  </small>
-                </div>
-              )}
+    setPublishing(true);
+    setUploadError("");
+    setProgress({ pct: 0, index: 1, total: nFiles.length });
+    try {
+      await uploadNote({
+        streamId: nStream,
+        subject: nSubject,
+        semester: nSemester,
+        title: nTitle,
+        description: nDesc,
+        files: nFiles,
+        author,
+        onProgress: (pct, index, total) => setProgress({ pct, index, total }),
+      });
+      onClose();
+      await onUploaded?.();
+    } catch (err) {
+      setUploadError(err.message || "Could not upload these notes.");
+      setPublishing(false);
+      setProgress(null);
+    }
+  };
 
-              {uploadError && <p className="upload-error" style={{ marginTop: 12 }}>{uploadError}</p>}
+  return (
+    <div className="modal-overlay">
+      <div className="modal-card">
+        <div className="modal-head">
+          <h3>Upload Notes</h3>
+          <button className="btn btn-ghost" onClick={() => onClose()}><X size={18} /></button>
+        </div>
+        <form onSubmit={handleNoteSubmit}>
+          <Field
+            label="Title or Unit Name"
+            value={nTitle}
+            onChange={(e) => setNTitle(e.target.value)}
+            placeholder="e.g. Unit 3 — Normalisation and Keys"
+            required
+          />
+          <SelectField
+            label="Branch / Class"
+            value={nStream}
+            onChange={(e) => setNStream(e.target.value)}
+            options={NOTE_STREAMS.map((st) => ({ value: st.id, label: st.name }))}
+          />
+          <SelectField
+            label="Semester"
+            value={nSemester}
+            onChange={(e) => setNSemester(e.target.value)}
+            options={SEMESTERS}
+          />
+          <Field
+            label="Subject"
+            icon={BookOpen}
+            value={nSubject}
+            onChange={(e) => setNSubject(e.target.value)}
+            placeholder="e.g. Database Management Systems"
+            required
+          />
+          <Field
+            label="Short Description (optional)"
+            value={nDesc}
+            onChange={(e) => setNDesc(e.target.value)}
+            placeholder="What these notes cover..."
+          />
 
-              <p className="modal-note-info">
-                <Info size={12} /> Uploaded notes appear immediately under Subject-wise Notes for
-                students in this branch.
-              </p>
+          <label className="field-label" style={{ marginTop: 12, display: "block" }}>
+            PDF or Images
+          </label>
+          <label className="note-dropzone">
+            <ImagePlus size={20} />
+            <span>
+              {nFiles.length
+                ? `${nFiles.length} file${nFiles.length === 1 ? "" : "s"} selected`
+                : "Choose PDFs or photos of handwritten notes"}
+            </span>
+            <input
+              type="file"
+              accept={ACCEPTED_NOTE_TYPES}
+              multiple
+              hidden
+              onChange={(e) => setNFiles(Array.from(e.target.files || []))}
+            />
+          </label>
 
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 16 }}>
-                <button type="button" className="btn btn-outline" onClick={() => setShowNotesModal(false)}>Cancel</button>
-                <button type="submit" className="btn btn-primary" disabled={publishing || !nFiles.length}>
-                  {publishing ? <><Loader2 size={15} className="spin" /> Uploading…</> : "Publish Notes"}
-                </button>
+          {nFiles.length > 0 && (
+            <ul className="note-file-preview">
+              {nFiles.map((f, i) => (
+                <li key={`${f.name}-${i}`}>
+                  <FileText size={13} /> {f.name} <em>{formatBytes(f.size)}</em>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {progress && (
+            <div className="upload-progress">
+              <div className="upload-progress-bar">
+                <span style={{ width: progress.pct + "%" }} />
               </div>
-            </form>
+              <small>
+                Uploading file {progress.index} of {progress.total} — {progress.pct}%
+              </small>
+            </div>
+          )}
+
+          {uploadError && <p className="upload-error" style={{ marginTop: 12 }}>{uploadError}</p>}
+
+          <p className="modal-note-info">
+            <Info size={12} /> Uploaded notes appear immediately under Subject-wise Notes for
+            students in this branch.
+          </p>
+
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 16 }}>
+            <button type="button" className="btn btn-outline" onClick={() => onClose()}>Cancel</button>
+            <button type="submit" className="btn btn-primary" disabled={publishing || !nFiles.length}>
+              {publishing ? <><Loader2 size={15} className="spin" /> Uploading…</> : "Publish Notes"}
+            </button>
           </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+/* Uploaded notes with a delete button on each. Deleting removes the row, so
+   the note disappears from the student library as well. */
+function NotesManageList({ title, notes, loading, error, emptyText, onDeleted, showAuthor = false }) {
+  const [deletingId, setDeletingId] = useState("");
+  const [confirmDelete, setConfirmDelete] = useState(null);
+  const [deleteError, setDeleteError] = useState("");
+
+  const handleNoteDelete = async (note) => {
+    setDeletingId(note.id);
+    setDeleteError("");
+    try {
+      await deleteNote(note);
+      onDeleted(note.id);
+      setConfirmDelete(null);
+    } catch (err) {
+      setDeleteError(err.message || "Could not delete that note.");
+    } finally {
+      setDeletingId("");
+    }
+  };
+
+  return (
+    <div className="dash-modules">
+      <h3 className="dash-section-title">
+        <NotebookPen size={20} /> {title} ({notes.length})
+      </h3>
+
+      {(error || deleteError) && <p className="upload-error">{error || deleteError}</p>}
+
+      {loading ? (
+        <p className="notes-loading"><Loader2 size={18} className="spin" /> Loading notes…</p>
+      ) : notes.length === 0 ? (
+        <p className="resource-empty">{emptyText}</p>
+      ) : (
+        <div className="notes-list">
+          {notes.map((note) => (
+            <article className="note-card" key={note.id}>
+              <div className="note-card-head">
+                <h3>{note.title}</h3>
+                <span className="note-sem">{note.semester}</span>
+              </div>
+              {note.description && <p className="note-desc">{note.description}</p>}
+              <div className="note-meta">
+                <span><BookOpen size={13} /> {note.subject}</span>
+                <span className="note-stream-tag">
+                  {NOTE_STREAMS.find((st) => st.id === note.streamId)?.name || note.streamId}
+                </span>
+                <span>{note.files.length} file{note.files.length === 1 ? "" : "s"}</span>
+              </div>
+
+              <div className="note-files">
+                {note.files.map((file) => (
+                  <a key={file.publicId || file.url} className="note-file" href={file.url} target="_blank" rel="noreferrer">
+                    <FileText size={15} />
+                    <span className="note-file-name">{file.name}</span>
+                    <span className="note-file-size">{formatBytes(file.size)}</span>
+                  </a>
+                ))}
+              </div>
+
+              <div className="note-actions">
+                {confirmDelete === note.id ? (
+                  <>
+                    <span className="note-confirm">Delete this note for everyone?</span>
+                    <button
+                      type="button"
+                      className="btn btn-xs btn-outline"
+                      onClick={() => setConfirmDelete(null)}
+                      disabled={deletingId === note.id}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-xs btn-danger"
+                      onClick={() => handleNoteDelete(note)}
+                      disabled={deletingId === note.id}
+                    >
+                      {deletingId === note.id
+                        ? <><Loader2 size={13} className="spin" /> Deleting…</>
+                        : <><Trash2 size={13} /> Delete</>}
+                    </button>
+                  </>
+                ) : (
+                  <button type="button" className="btn btn-xs btn-outline" onClick={() => setConfirmDelete(note.id)}>
+                    <Trash2 size={13} /> Delete
+                  </button>
+                )}
+              </div>
+            </article>
+          ))}
         </div>
       )}
     </div>
@@ -2949,7 +2965,203 @@ function PendingApprovalsPanel({ onChanged }) {
   );
 }
 
-function AdminPortal({ users, onUpdateUser, onDeleteUser, onRefreshUsers }) {
+/* Blocked accounts in one place, each with an Unblock button. A restricted
+   account cannot sign in or use anything until it is unblocked here. */
+function RestrictedAccountsPanel({ users, onUpdateUser }) {
+  const blocked = users.filter((u) => u.restricted && u.role !== "admin");
+  return (
+    <div className="card" style={{ gridColumn: "1 / -1" }}>
+      <div className="admin-section-head">
+        <h3><Ban size={18} /> Restricted &amp; blocked accounts ({blocked.length})</h3>
+      </div>
+      {blocked.length === 0 ? (
+        <p className="resource-empty" style={{ margin: 0 }}>No account is restricted right now.</p>
+      ) : (
+        <div className="admin-signin-list">
+          {blocked.map((u) => (
+            <div className="admin-signin-row" key={u.id}>
+              <div className="admin-person-id">
+                <strong>{u.name || "—"}</strong>
+                <span className="admin-person-email">{u.email}</span>
+              </div>
+              <div className="admin-signin-meta">
+                <RoleBadge role={u.role} />
+                <span className="status-tag status-blocked">RESTRICTED</span>
+              </div>
+              <button
+                type="button"
+                className="btn btn-xs btn-primary"
+                aria-label={`Unblock ${u.name}`}
+                onClick={() => onUpdateUser({ ...u, restricted: false })}
+              >
+                <UserCheck size={13} /> Unblock
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* Every account's name and email with when it last signed in. The sign-in
+   time is read from the server (see fetchSignIns). */
+function SignInListPanel({ users, onUpdateUser }) {
+  const [signIns, setSignIns] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [filter, setFilter] = useState("all");
+
+  const load = async () => {
+    setBusy(true);
+    setError("");
+    try {
+      setSignIns(await fetchSignIns());
+    } catch (err) {
+      setError(err?.message || "Could not load the sign-in list.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const lastOf = (u) => {
+    const at = signIns?.[u.id]?.lastSignInAt;
+    return at ? Date.parse(at) : 0;
+  };
+  const formatWhen = (ms) =>
+    ms ? new Date(ms).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" }) : "Never signed in";
+
+  const rows = users
+    .filter((u) => filter === "all" || (filter === "blocked" ? u.restricted : !u.restricted))
+    .slice()
+    .sort((a, b) => lastOf(b) - lastOf(a));
+
+  const exportRows = () =>
+    downloadCsv(timestampedName("dnyansetu-sign-ins"), rows, [
+      { header: "Name", value: (u) => u.name || "" },
+      { header: "Email", value: (u) => u.email },
+      { header: "Role", value: (u) => (u.role || "").toUpperCase() },
+      { header: "Status", value: (u) => (u.restricted ? "RESTRICTED" : "ACTIVE") },
+      { header: "Last signed in", value: (u) => (signIns ? formatWhen(lastOf(u)) : "") },
+      { header: "Joined", value: (u) => (u.joined ? new Date(u.joined).toLocaleDateString("en-IN") : "") },
+    ]);
+
+  return (
+    <div className="card" style={{ gridColumn: "1 / -1" }}>
+      <div className="admin-section-head">
+        <h3><LogIn size={18} /> Sign-in list ({rows.length})</h3>
+        <div className="admin-signin-tools">
+          <button type="button" className="btn btn-outline btn-sm" onClick={load} disabled={busy}>
+            {busy ? <><Loader2 size={15} className="spin" /> Loading…</> : <><RefreshCw size={15} /> Refresh</>}
+          </button>
+          <button type="button" className="btn btn-outline btn-sm" onClick={exportRows} disabled={rows.length === 0}>
+            <FileDown size={15} /> Export to Excel
+          </button>
+        </div>
+      </div>
+
+      <div className="admin-signin-filter" role="group" aria-label="Filter accounts">
+        {[["all", "All accounts"], ["active", "Active"], ["blocked", "Restricted"]].map(([id, label]) => (
+          <button
+            key={id}
+            type="button"
+            className={`btn btn-xs ${filter === id ? "btn-primary" : "btn-outline"}`}
+            aria-pressed={filter === id}
+            onClick={() => setFilter(id)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {error && <p className="upload-error">{error}</p>}
+
+      {rows.length === 0 ? (
+        <p className="resource-empty" style={{ margin: 0 }}>No accounts in this list.</p>
+      ) : (
+        <div className="admin-signin-list">
+          {rows.map((u) => (
+            <div className="admin-signin-row" key={u.id}>
+              <div className="admin-person-id">
+                <strong>{u.name || "—"}</strong>
+                <span className="admin-person-email">{u.email}</span>
+              </div>
+              <div className="admin-signin-meta">
+                <RoleBadge role={u.role} />
+                <span className={`status-tag ${u.restricted ? "status-blocked" : "status-active"}`}>
+                  {u.restricted ? "RESTRICTED" : "ACTIVE"}
+                </span>
+                <span className="admin-signin-when">
+                  <Clock size={13} /> {signIns ? formatWhen(lastOf(u)) : busy ? "Loading…" : "—"}
+                </span>
+              </div>
+              {u.role !== "admin" ? (
+                <button
+                  type="button"
+                  className={`btn btn-xs ${u.restricted ? "btn-primary" : "btn-outline"}`}
+                  aria-label={u.restricted ? `Unblock ${u.name}` : `Block ${u.name}`}
+                  onClick={() => onUpdateUser({ ...u, restricted: !u.restricted })}
+                >
+                  {u.restricted ? <><UserCheck size={13} /> Unblock</> : <><Ban size={13} /> Block</>}
+                </button>
+              ) : <span />}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* The whole notes library for the administrator: upload like a teacher, and
+   delete any note, whoever uploaded it. */
+function AdminNotesPanel({ profile }) {
+  const [notes, setNotes] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [showUpload, setShowUpload] = useState(false);
+
+  const refresh = async () => {
+    setLoading(true);
+    try {
+      setNotes(await fetchNotes());
+      setError("");
+    } catch (err) {
+      setError(err?.message || "Could not load the notes library.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { refresh(); }, []);
+
+  return (
+    <div className="card" style={{ gridColumn: "1 / -1" }}>
+      <div className="admin-section-head">
+        <h3><NotebookPen size={18} /> Notes library</h3>
+        <button type="button" className="btn btn-primary btn-sm" onClick={() => setShowUpload(true)}>
+          <NotebookPen size={15} /> Upload Notes
+        </button>
+      </div>
+      <NotesManageList
+        title="All uploaded notes"
+        notes={notes}
+        loading={loading}
+        error={error}
+        emptyText="No notes have been uploaded yet."
+        onDeleted={(id) => setNotes((prev) => prev.filter((n) => n.id !== id))}
+        showAuthor
+      />
+      {showUpload && (
+        <NoteUploadModal author={profile} onClose={() => setShowUpload(false)} onUploaded={refresh} />
+      )}
+    </div>
+  );
+}
+
+function AdminPortal({ profile, users, onUpdateUser, onDeleteUser, onRefreshUsers }) {
   const [search, setSearch] = useState("");
 
   /* Quiz participation. Loaded on demand: it is one read per account, so it
@@ -3081,14 +3293,16 @@ function AdminPortal({ users, onUpdateUser, onDeleteUser, onRefreshUsers }) {
             </dl>
 
             <footer className="admin-person-actions">
-              <button
-                type="button"
-                className="btn btn-xs btn-outline"
-                aria-label={u.restricted ? `Unblock ${u.name}` : `Block ${u.name}`}
-                onClick={() => onUpdateUser({ ...u, restricted: !u.restricted })}
-              >
-                <Ban size={12} /> {u.restricted ? "Unblock" : "Block"}
-              </button>
+              {u.role !== "admin" && (
+                <button
+                  type="button"
+                  className="btn btn-xs btn-outline"
+                  aria-label={u.restricted ? `Unblock ${u.name}` : `Block ${u.name}`}
+                  onClick={() => onUpdateUser({ ...u, restricted: !u.restricted })}
+                >
+                  <Ban size={12} /> {u.restricted ? "Unblock" : "Block"}
+                </button>
+              )}
               {u.role !== "admin" && (
                 <button
                   type="button"
@@ -3142,6 +3356,8 @@ function AdminPortal({ users, onUpdateUser, onDeleteUser, onRefreshUsers }) {
       </a>
 
       <PendingApprovalsPanel onChanged={onRefreshUsers} />
+
+      <RestrictedAccountsPanel users={users} onUpdateUser={onUpdateUser} />
 
       <div style={{ gridColumn: "1 / -1" }} className="card">
         <div>
@@ -3198,6 +3414,10 @@ function AdminPortal({ users, onUpdateUser, onDeleteUser, onRefreshUsers }) {
           </div>
         </div>
       </div>
+
+      <SignInListPanel users={users} onUpdateUser={onUpdateUser} />
+
+      <AdminNotesPanel profile={profile} />
 
       {section("Students", students, "students", GraduationCap)}
       {section("Faculty", faculty, "faculty", NotebookPen)}
@@ -3273,7 +3493,7 @@ function TopNavApp({ view, go, onHome, onLogout, user }) {
             </button>
           )}
 
-          {isStudent && (
+          {(isStudent || user.role === "admin") && (
             <button type="button" className={`app-nav-item ${view === "quiz" ? "active" : ""}`} onClick={() => go("quiz")}>
               Quiz &amp; Practice
             </button>
@@ -3596,6 +3816,33 @@ export default function App() {
       else sessionStorage.setItem(VIEW_KEY, view);
     } catch { /* private mode or storage disabled — refresh just loses the spot */ }
   }, [view, booting]);
+
+  /* A block takes effect on open tabs too, not only at the next sign-in:
+     re-check this account every minute and whenever the tab comes back. */
+  const signedInId = currentUser?.id;
+  useEffect(() => {
+    if (demoMode || !signedInId) return undefined;
+    let stopped = false;
+    const check = async () => {
+      if (stopped || document.visibilityState === "hidden") return;
+      try {
+        const latest = await fetchProfile(signedInId);
+        if (stopped || !latest || !(latest.restricted || latest.status === "deleted")) return;
+        await auth.signOut();
+        setCurrentUser(null);
+        setUsers([]);
+        replaceView("landing");
+        setNotice("This account has been restricted. Please contact the administrator.");
+      } catch { /* offline — try again on the next tick */ }
+    };
+    const timer = setInterval(check, 60000);
+    document.addEventListener("visibilitychange", check);
+    return () => {
+      stopped = true;
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", check);
+    };
+  }, [demoMode, signedInId]);
 
   /* Establishes the very first history entry once, then answers every
      hardware/gesture/browser back press from here on. A page's own
@@ -4055,7 +4302,7 @@ export default function App() {
           <div className="boot-screen"><Loader2 size={20} className="spin" /> Checking administrator session…</div>
         )}
         {view === "admin-portal" && (adminLock === "held" || adminLock === "idle") && (
-          <AdminPortal users={users} onUpdateUser={handleUpdateUser} onDeleteUser={handleDeleteUser} onRefreshUsers={refreshUsers} />
+          <AdminPortal profile={currentUser} users={users} onUpdateUser={handleUpdateUser} onDeleteUser={handleDeleteUser} onRefreshUsers={refreshUsers} />
         )}
       {view === "notfound" && <NotFoundPage />}
       </ErrorBoundary>
@@ -4611,7 +4858,26 @@ function Styles() {
         border-top: 1px solid var(--border-light);
       }
 
+      /* Sign-in list and restricted accounts: one compact row per account. */
+      .admin-signin-tools { display: flex; gap: 8px; flex-wrap: wrap; }
+      .admin-signin-filter { display: flex; gap: 8px; flex-wrap: wrap; margin: 0 0 12px; }
+      .admin-signin-list { display: flex; flex-direction: column; border: 1px solid var(--border-light); border-radius: var(--radius-sm); overflow: hidden; }
+      .admin-signin-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1.4fr) minmax(0, 1.6fr) auto;
+        align-items: center;
+        gap: 10px 16px;
+        padding: 12px 14px;
+        background: #FFFFFF;
+      }
+      .admin-signin-row + .admin-signin-row { border-top: 1px solid var(--border-light); }
+      .admin-signin-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+      .admin-signin-when { display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; color: var(--text-muted); }
+
       @media (max-width: 640px) {
+        .admin-signin-row { grid-template-columns: 1fr; gap: 8px; }
+        .admin-signin-row .btn { justify-self: start; min-height: 36px; }
+        .admin-signin-tools { width: 100%; display: grid; grid-template-columns: 1fr 1fr; }
         .admin-person { padding: 14px; }
         .admin-person-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 14px; }
       }
