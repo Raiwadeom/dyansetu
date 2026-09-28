@@ -4179,18 +4179,19 @@ export default function App() {
   const [lang, setLangState] = useState(() => {
     try { return localStorage.getItem(LANG_KEY) === "mr" ? "mr" : "en"; } catch { return "en"; }
   });
+  /* Asked once per visit: a refresh or moving between pages does not ask
+     again, but closing the tab and opening the site afresh does. */
   const [askLang, setAskLang] = useState(() => {
-    try {
-      const saved = localStorage.getItem(LANG_KEY);
-      return saved !== "en" && saved !== "mr";
-    } catch {
-      return true;
-    }
+    try { return sessionStorage.getItem(LANG_ASKED_KEY) !== "1"; } catch { return true; }
   });
+  const savedLang = (() => {
+    try { const v = localStorage.getItem(LANG_KEY); return v === "en" || v === "mr" ? v : ""; } catch { return ""; }
+  })();
   const setLang = (value) => {
     setLangState(value);
     setAskLang(false);
     try { localStorage.setItem(LANG_KEY, value); } catch { /* storage blocked */ }
+    try { sessionStorage.setItem(LANG_ASKED_KEY, "1"); } catch { /* storage blocked */ }
   };
 
   /* With no backend keys the app still runs, on the original seed data, so
@@ -4797,7 +4798,7 @@ export default function App() {
     <div className="arcsas">
       <Styles />
 
-      {askLang && <LanguagePicker onChoose={setLang} />}
+      {askLang && <LanguagePicker onChoose={setLang} current={savedLang} />}
       {/* The install strip belongs to the landing page only; the header's
           download icon covers every other page. */}
       {!askLang && view === "landing" && <InstallAppButton variant="banner" />}
@@ -5026,26 +5027,58 @@ function InstallAppButton({ compact = false, variant = compact ? "compact" : "bu
   );
 }
 
-function LanguagePicker({ onChoose }) {
+const LANG_ASKED_KEY = "dnyansetu:lang-asked";
+
+/* Shown once per visit, right after the loading screen. The last choice is
+   marked so a returning visitor can confirm it with one tap. */
+function LanguagePicker({ onChoose, current = "" }) {
+  const options = [
+    { id: "en", glyph: "A", name: "English", hint: "Continue in English", lang: "en" },
+    { id: "mr", glyph: "अ", name: "मराठी", hint: "मराठीत पुढे चला", lang: "mr" },
+  ];
   return (
-    <div className="lang-picker-overlay" role="dialog" aria-modal="true" aria-label="Choose your language">
-      <div className="lang-picker-card">
-        <div className="lang-picker-icon"><Languages size={22} /></div>
-        <h2 className="lang-picker-title">
-          <span>Choose your language</span>
-          <span>आपली भाषा निवडा</span>
-        </h2>
-        <p className="lang-picker-sub">
-          <span>You can change this anytime from the navigation bar.</span>
-          <span>तुम्ही ही भाषा नेव्हिगेशन बारमधून केव्हाही बदलू शकता.</span>
-        </p>
-        <div className="lang-picker-actions">
-          <button type="button" className="btn btn-primary lang-picker-btn" onClick={() => onChoose("en")}>
-            English
-          </button>
-          <button type="button" className="btn btn-outline lang-picker-btn" onClick={() => onChoose("mr")}>
-            मराठी
-          </button>
+    <div className="lp-overlay" role="dialog" aria-modal="true" aria-labelledby="lp-title">
+      <div className="lp-card">
+        <div className="lp-tricolour" aria-hidden="true" />
+        <div className="lp-head">
+          <CollegeCrest size={44} />
+          <span className="lp-head-divider" aria-hidden="true" />
+          <BrandLogo variant="nav" />
+          <div className="lp-head-copy">
+            <strong>DnyanSetu</strong>
+            <small lang="mr">ज्ञानसेतु</small>
+          </div>
+        </div>
+        <div className="lp-body">
+          <p className="lp-eyebrow"><Languages size={14} /> Language · भाषा</p>
+          <h2 id="lp-title" className="lp-title">
+            Choose your language
+            <span lang="mr">आपली भाषा निवडा</span>
+          </h2>
+          <div className="lp-options" role="group" aria-label="Languages">
+            {options.map((o) => (
+              <button
+                key={o.id}
+                type="button"
+                lang={o.lang}
+                className={`lp-option ${current === o.id ? "is-last" : ""}`}
+                onClick={() => onChoose(o.id)}
+              >
+                <span className="lp-glyph" aria-hidden="true">{o.glyph}</span>
+                <span className="lp-option-copy">
+                  <strong>{o.name}</strong>
+                  <small>{o.hint}</small>
+                </span>
+                {current === o.id
+                  ? <span className="lp-last"><CheckCircle2 size={14} /> {o.id === "mr" ? "मागील निवड" : "Last used"}</span>
+                  : <ChevronRight size={18} className="lp-arrow" />}
+              </button>
+            ))}
+          </div>
+          <p className="lp-note">
+            You can change this anytime with the EN / मराठी switch in the top bar.
+            <span lang="mr">वरच्या पट्टीतील EN / मराठी बटणाने ही भाषा केव्हाही बदलता येते.</span>
+          </p>
         </div>
       </div>
     </div>
@@ -7022,6 +7055,76 @@ function Styles() {
       .lang-picker-sub { display: flex; flex-direction: column; gap: 8px; font-size: 13.5px; color: var(--text-subtle); line-height: 1.6; margin: 0 0 36px; }
       .lang-picker-actions { display: flex; gap: 14px; justify-content: center; }
       .lang-picker-btn { flex: 1; max-width: 160px; }
+
+      /* Language picker (once per visit) — government-portal style. */
+      .lp-overlay {
+        position: fixed; inset: 0; z-index: 300;
+        background: rgba(11, 30, 46, 0.66);
+        backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+        display: flex; align-items: center; justify-content: center;
+        padding: 16px; animation: lpFade .2s ease-out;
+      }
+      .lp-card {
+        width: 100%; max-width: 460px; background: #FFFFFF; border-radius: 10px;
+        overflow: hidden; box-shadow: 0 24px 60px rgba(11, 30, 46, 0.35);
+        animation: lpRise .24s ease-out;
+      }
+      .lp-tricolour { height: 5px; background: linear-gradient(90deg, #FF9933 0 33.33%, #FFFFFF 33.33% 66.66%, #138808 66.66% 100%); }
+      .lp-head {
+        display: flex; align-items: center; gap: 12px; padding: 16px 22px;
+        background: var(--abc-navy, #1E3A5F); color: #FFFFFF;
+      }
+      .lp-head .brand-logo-frame--nav { width: 40px; height: 40px; }
+      .lp-head-divider { width: 1px; align-self: stretch; background: rgba(255, 255, 255, 0.3); }
+      .lp-head-copy { display: flex; flex-direction: column; line-height: 1.15; }
+      .lp-head-copy strong { font-size: 19px; font-weight: 800; letter-spacing: 0.01em; }
+      .lp-head-copy small { font-size: 12.5px; color: #FFD8A8; font-family: 'Noto Serif Devanagari', serif; }
+      .lp-body { padding: 22px 22px 20px; }
+      .lp-eyebrow {
+        display: inline-flex; align-items: center; gap: 6px; margin: 0 0 8px;
+        font-size: 11.5px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+        color: var(--abc-saffron, #E65100);
+      }
+      .lp-card .lp-title { margin: 0 0 18px; font-size: 21px; font-weight: 800; color: var(--abc-navy, #1E3A5F); line-height: 1.3; }
+      .lp-title span { display: block; font-size: 17px; font-weight: 700; color: #3B4A5C; margin-top: 2px; font-family: 'Noto Serif Devanagari', serif; }
+      .lp-options { display: flex; flex-direction: column; gap: 10px; }
+      .lp-option {
+        display: flex; align-items: center; gap: 14px; width: 100%; text-align: left;
+        padding: 14px 16px; border: 1.5px solid #D5DDE7; border-left: 4px solid var(--abc-navy, #1E3A5F);
+        border-radius: 8px; background: #FFFFFF; cursor: pointer; font: inherit; color: #1B1F24;
+        transition: border-color .15s, background .15s, transform .15s;
+      }
+      .lp-option:hover, .lp-option:focus-visible {
+        border-color: var(--abc-saffron, #E65100); border-left-color: var(--abc-saffron, #E65100);
+        background: #FFF8F1; outline: none;
+      }
+      .lp-option:active { transform: scale(0.99); }
+      .lp-option.is-last { background: #F3F7FC; border-color: #9FB4CE; border-left-color: #138808; }
+      .lp-glyph {
+        flex: 0 0 46px; height: 46px; border-radius: 8px; display: grid; place-items: center;
+        background: var(--abc-navy, #1E3A5F); color: #FFFFFF; font-size: 22px; font-weight: 800;
+      }
+      .lp-option[lang="mr"] .lp-glyph { background: var(--abc-saffron, #E65100); font-family: 'Noto Serif Devanagari', serif; }
+      .lp-option-copy { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+      .lp-option-copy strong { font-size: 17px; font-weight: 800; }
+      .lp-option-copy small { font-size: 13px; color: #5A6778; }
+      .lp-arrow { flex: 0 0 auto; color: #8A97A8; }
+      .lp-last {
+        flex: 0 0 auto; display: inline-flex; align-items: center; gap: 4px;
+        font-size: 11.5px; font-weight: 700; color: #138808; white-space: nowrap;
+      }
+      .lp-card .lp-note { margin: 16px 0 0; font-size: 12.5px; line-height: 1.55; color: #5A6778; }
+      .lp-note span { display: block; }
+      @keyframes lpFade { from { opacity: 0; } to { opacity: 1; } }
+      @keyframes lpRise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+      @media (prefers-reduced-motion: reduce) { .lp-overlay, .lp-card { animation: none; } }
+      @media (max-width: 380px) {
+        .lp-head { padding: 14px 16px; gap: 10px; }
+        .lp-body { padding: 18px 16px 16px; }
+        .lp-title { font-size: 19px; }
+        .lp-option { padding: 12px 12px; gap: 12px; }
+        .lp-glyph { flex-basis: 40px; height: 40px; font-size: 19px; }
+      }
       .install-app-btn { display: inline-flex; align-items: center; gap: 6px; }
       /* Phones only: desktop visitors have the nav button. */
       .install-banner { display: none; }
