@@ -6449,10 +6449,13 @@ function Styles() {
         .install-app-btn { padding-left: 10px; padding-right: 10px; }
         .nav-search { flex-basis: 140px; }
       }
-      /* The smallest phones: the square logo steps aside so the name never
-         runs into the language switch. */
-      @media (max-width: 340px) {
-        .nav-marketing .brand-logo-frame--nav { display: none; }
+      /* The smallest phones: both logos stay, just a size down, so the name
+         never runs into the language switch or the Dashboard button. */
+      @media (max-width: 360px) {
+        .nav-marketing .brand-logo-frame--nav { width: 28px; height: 28px; }
+        .nav-marketing .nav-gov-brand > .college-crest.college-crest { width: 28px !important; height: 28px !important; flex-basis: 28px !important; }
+        .nav-marketing .landing-brand-name { font-size: 16px; }
+        .nav-marketing .nav-gov-brand, .nav-marketing .landing-brand-wrap { gap: 6px; }
       }
       .site-drawer-wrap { position: fixed; inset: 0; z-index: 1200; background: rgba(15, 23, 42, 0.45); animation: siteFade .18s ease-out; }
       .site-drawer { position: absolute; top: 0; left: 0; bottom: 0; width: min(340px, 86vw); background: #fff; display: flex; flex-direction: column; box-shadow: 8px 0 30px rgba(15,23,42,.18); animation: siteSlide .22s ease-out; overflow-y: auto; }
@@ -6473,11 +6476,6 @@ function Styles() {
       @media (prefers-reduced-motion: reduce) { .site-drawer, .site-drawer-wrap { animation: none; } }
       .nav-dash-bar, .nav-lang-in-menu, .nav-dash-short { display: none; }
       .nav-dash-bar { align-items: center; gap: 6px; flex: 0 0 auto; margin-left: auto; white-space: nowrap; min-height: 38px; padding: 8px 14px; font-size: 13px; }
-      /* The smallest phones (320–360 px): signed in, the bar also carries the
-         Dashboard button, so the square logo steps aside for the wordmark. */
-      @media (max-width: 360px) {
-        .nav-marketing.has-user .brand-logo-frame--nav { display: none; }
-      }
       .nav-staff-link {
         display: inline-flex; align-items: center; gap: 6px;
         border: 1px solid var(--border-strong); background: #FFFFFF; cursor: pointer;
@@ -7617,13 +7615,12 @@ function Styles() {
         .nav-dash-long { display: none; }
         .nav-dash-short { display: inline; }
         .nav-dash-bar { padding: 8px 11px; font-size: 12.5px; min-height: 36px; }
-        .nav-marketing.has-user .nav-gov-brand > .college-crest { display: none; }
-        /* Small phones: the floating bar drops the college crest (the college
-           name stays in the strip above) so the full wordmark always fits. */
-        .nav-marketing.is-floating .nav-gov-brand > .college-crest { display: none; }
+        /* Phones keep both the college crest and the DnyanSetu logo — signed
+           in or not, scrolled or not — just a size down. */
+        .nav-marketing .nav-gov-brand > .college-crest { width: 32px !important; height: 32px !important; flex-basis: 32px !important; }
         .nav-actions .btn { padding: 8px 12px; font-size: 12.5px; min-height: 36px; }
         .nav-staff-link { padding: 6px 8px; font-size: 11.5px; }
-        .brand-logo-frame--nav { width: 36px; height: 36px; }
+        .brand-logo-frame--nav { width: 32px; height: 32px; }
         .story-shell { padding: 20px 14px; }
         .auth-brand-panel { padding: 22px 16px 18px; }
         .auth-form-panel { padding: 22px 14px calc(30px + env(safe-area-inset-bottom)); }
