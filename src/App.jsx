@@ -670,17 +670,18 @@ function Landing({ goAuth, onOpenAbout, onOpenPage, user, onOpenDashboard }) {
   const siteLinks = [
     { key: "home", icon: Home, label: tr("Home", "मुख्यपृष्ठ"), run: () => window.scrollTo({ top: 0, behavior: "smooth" }) },
     { key: "about", icon: Info, label: tr("About DnyanSetu", "डायनसेतू विषयी"), run: onOpenAbout },
-    { key: "raktsetu", icon: Droplet, label: tr("About RaktSetu", "रक्तसेतू विषयी"), href: "/raktsetu" },
+    { key: "raktsetu", icon: Droplet, label: tr("RaktSetu", "रक्तसेतू"), href: "/raktsetu" },
+    { key: "csmnews", icon: Newspaper, label: tr("CSM News Desk", "सीएसएम न्यूज डेस्क"), href: CSM_NEWS_DESK_URL, external: true },
     { key: "terms", icon: ScrollText, label: tr("Terms & Conditions", "अटी व शर्ती"), run: () => onOpenPage("terms") },
     { key: "privacy", icon: Shield, label: tr("Privacy Policy", "गोपनीयता धोरण"), run: () => onOpenPage("privacy") },
     { key: "contact", icon: Phone, label: tr("Contact", "संपर्क"), run: () => document.getElementById("contact")?.scrollIntoView({ behavior: "smooth", block: "center" }) },
   ];
   const siteLinkList = (className) => (
     <ul className={className}>
-      {siteLinks.map(({ key, icon: Icon, label, run, href }) => (
+      {siteLinks.map(({ key, icon: Icon, label, run, href, external }) => (
         <li key={key}>
           {href ? (
-            <a href={href} className="site-link" onClick={closeMenus}><Icon size={17} /> <span>{label}</span></a>
+            <a href={href} className="site-link" onClick={closeMenus} {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}><Icon size={17} /> <span>{label}</span></a>
           ) : (
             <button type="button" className="site-link" onClick={() => { closeMenus(); run(); }}><Icon size={17} /> <span>{label}</span></button>
           )}
@@ -4931,8 +4932,8 @@ function InstallAppButton({ compact = false, variant = compact ? "compact" : "bu
           <Download size={17} />
         </button>
       ) : (
-        <button type="button" className="btn btn-outline install-app-btn" onClick={onClick}>
-          <Download size={15} /> {label}
+        <button type="button" className="btn btn-outline install-app-btn" onClick={onClick} aria-label={label} title={label}>
+          <Download size={15} /> <span className="install-app-label">{label}</span>
         </button>
       )}
 
@@ -6423,7 +6424,25 @@ function Styles() {
       /* Site menu: button + side drawer on wider screens; on phones the links sit in the menu panel. */
       .site-menu-btn { display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; flex: 0 0 auto; margin-right: 4px; border: 1px solid var(--border-strong, rgba(15,23,42,0.14)); border-radius: 10px; background: #F1ECFB; color: var(--abc-navy); cursor: pointer; transition: background .15s, border-color .15s; }
       .site-menu-btn:hover { background: #E6DEFA; border-color: var(--abc-navy); }
-      .site-links--panel { display: none; }
+      .site-links.site-links--panel { display: none; }
+      /* Wide screens: the brand keeps its full width (the ☰ button took some
+         of it); the search box is the part that gives way. */
+      @media (min-width: 901px) {
+        .nav-gov-brand { flex-shrink: 0; }
+        .nav-lang-switch { flex-shrink: 0; }
+        .nav-search { min-width: 0; flex: 1 1 200px; }
+      }
+      /* Small laptops / landscape tablets: Install shrinks to its icon. */
+      @media (min-width: 901px) and (max-width: 1200px) {
+        .install-app-btn .install-app-label { display: none; }
+        .install-app-btn { padding-left: 10px; padding-right: 10px; }
+        .nav-search { flex-basis: 140px; }
+      }
+      /* The smallest phones: the square logo steps aside so the name never
+         runs into the language switch. */
+      @media (max-width: 340px) {
+        .nav-marketing .brand-logo-frame--nav { display: none; }
+      }
       .site-drawer-wrap { position: fixed; inset: 0; z-index: 1200; background: rgba(15, 23, 42, 0.45); animation: siteFade .18s ease-out; }
       .site-drawer { position: absolute; top: 0; left: 0; bottom: 0; width: min(340px, 86vw); background: #fff; display: flex; flex-direction: column; box-shadow: 8px 0 30px rgba(15,23,42,.18); animation: siteSlide .22s ease-out; overflow-y: auto; }
       .site-drawer-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 18px 18px 16px; border-bottom: 3px solid var(--abc-navy); }
