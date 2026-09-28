@@ -5168,6 +5168,8 @@ function Styles() {
          position:sticky back to relative — the actual reason the nav never
          stuck to the top while scrolling. Restore both here. */
       .alison-landing > .nav-marketing { position: sticky; z-index: 60; }
+      /* The site drawer is a child of the landing too; keep it a full-screen overlay. */
+      .alison-landing > .site-drawer-wrap { position: fixed; z-index: 1200; }
       
       .nav-marketing {
         display: flex;
