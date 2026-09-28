@@ -42,7 +42,7 @@ import {
   FileText, Edit3, Trash2, Ban, Sparkles, BookOpen, ImagePlus, BarChart3,
   Info, Facebook, Instagram, CalendarDays, Search, Droplet, ClipboardList, ListChecks, Coins, HandHeart,
   ScrollText, NotebookPen, FileDown, AlertTriangle, Newspaper,
-  Languages, Menu, Briefcase, Clock, BadgeCheck, IdCard, LogIn, UserCheck, RefreshCw, Download, Share, SquarePlus,
+  Languages, Menu, Briefcase, ChevronLeft, ChevronRight, Clock, BadgeCheck, IdCard, LogIn, UserCheck, RefreshCw, Download, Share, SquarePlus,
 } from "lucide-react";
 
 /* ============================================================================
@@ -3656,7 +3656,9 @@ function TopNavApp({ view, go, onHome, onLogout, user, pendingCount = 0 }) {
     if (!nav) return undefined;
     const measure = () => {
       const { scrollWidth: sw, clientWidth: cw, scrollLeft: sl } = nav;
-      setRail(sw > cw + 1 ? { width: (cw / sw) * 100, left: (sl / sw) * 100 } : null);
+      setRail(sw > cw + 1
+        ? { width: (cw / sw) * 100, left: (sl / sw) * 100, atStart: sl <= 1, atEnd: sl + cw >= sw - 1 }
+        : null);
     };
     const onWheel = (e) => {
       if (nav.scrollWidth <= nav.clientWidth || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
@@ -3674,6 +3676,12 @@ function TopNavApp({ view, go, onHome, onLogout, user, pendingCount = 0 }) {
       observer.disconnect();
     };
   }, [user.role]);
+
+  /* The arrows move the links most of a screen at a time. */
+  const slideNav = (direction) => {
+    const nav = navRef.current;
+    if (nav) nav.scrollBy({ left: direction * Math.max(120, nav.clientWidth * 0.6), behavior: "smooth" });
+  };
 
   /* Drag the thumb, or tap the bar to jump there. */
   const onRailPointerDown = (e) => {
@@ -3781,6 +3789,28 @@ function TopNavApp({ view, go, onHome, onLogout, user, pendingCount = 0 }) {
             RaktSetu
           </a>
         </nav>
+        {rail && (
+          <>
+            <button
+              type="button"
+              className="app-nav-arrow app-nav-arrow--left"
+              onClick={() => slideNav(-1)}
+              disabled={rail.atStart}
+              aria-label="Show earlier links"
+            >
+              <ChevronLeft size={18} />
+            </button>
+            <button
+              type="button"
+              className="app-nav-arrow app-nav-arrow--right"
+              onClick={() => slideNav(1)}
+              disabled={rail.atEnd}
+              aria-label="Show more links"
+            >
+              <ChevronRight size={18} />
+            </button>
+          </>
+        )}
         {rail && (
           <div className="app-nav-rail" ref={railRef} onPointerDown={onRailPointerDown} aria-hidden="true">
             <span className="app-nav-thumb" style={{ width: `${rail.width}%`, left: `${rail.left}%` }} />
@@ -6723,11 +6753,34 @@ function Styles() {
       /* The links plus, when they overflow, a slide bar under them (see
          TopNavApp) -- otherwise RaktSetu hid off the right edge. */
       .app-nav-wrap { position: relative; min-width: 0; align-self: stretch; display: flex; flex-direction: column; justify-content: center; }
-      .app-nav-wrap.has-rail { padding-bottom: 10px; }
+      .app-nav-wrap.has-rail { padding: 0 34px 10px; }
+      /* ‹ › at the two ends, beside the slide bar. Faded out at either end. */
+      .app-nav-arrow {
+        position: absolute;
+        top: 50%;
+        transform: translateY(calc(-50% - 5px));
+        z-index: 1;
+        width: 30px;
+        height: 30px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid var(--border-light);
+        border-radius: 50%;
+        background: #FFFFFF;
+        color: var(--abc-navy);
+        box-shadow: 0 1px 4px rgba(15,23,42,.12);
+        cursor: pointer;
+        padding: 0;
+      }
+      .app-nav-arrow--left { left: 2px; }
+      .app-nav-arrow--right { right: 2px; }
+      .app-nav-arrow:hover:not(:disabled) { background: #F1F5F9; }
+      .app-nav-arrow:disabled { opacity: .35; cursor: default; box-shadow: none; }
       .app-nav-rail {
         position: absolute;
-        left: 12px;
-        right: 12px;
+        left: 40px;
+        right: 40px;
         bottom: 3px;
         height: 5px;
         border-radius: 5px;
@@ -7279,6 +7332,9 @@ function Styles() {
          ================================================================ */
       .resource-page { width: min(1080px, calc(100% - 48px)); margin: 0 auto; padding: 30px 0 90px; }
       .resource-head { display: flex; flex-direction: column; align-items: flex-start; gap: 16px; }
+      /* The admin's Upload Notes button on Subject Notes: clear of the text
+         above and the search box below. */
+      .notes-admin-upload { align-self: flex-start; margin: 16px 0 12px; }
       .resource-head-copy { max-width: 720px; }
       .resource-head .section-eyebrow { justify-content: flex-start; }
       .resource-title { font-size: clamp(24px, 3vw, 32px); font-weight: 700; color: var(--abc-navy); font-family: 'Space Grotesk', sans-serif; letter-spacing: -0.02em; line-height: 1.2; }

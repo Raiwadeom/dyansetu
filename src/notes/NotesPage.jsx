@@ -141,7 +141,7 @@ export default function NotesPage({ onBack, onRegisterBack, user, UploadModal = 
             stream if you already know the subject or topic.
           </p>
           {canManage && (
-            <button type="button" className="btn btn-primary btn-sm" style={{ marginTop: 12 }} onClick={() => setShowUpload(true)}>
+            <button type="button" className="btn btn-primary btn-sm notes-admin-upload" onClick={() => setShowUpload(true)}>
               <Upload size={15} /> Upload Notes
             </button>
           )}
