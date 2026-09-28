@@ -1502,6 +1502,18 @@ function AuthScreen({ mode, setMode, onSubmit, goLanding, roleScope = "student",
   const [newPassword, setNewPassword] = useState("");
   const [newPasswordDone, setNewPasswordDone] = useState(false);
   const [selectedRole, setSelectedRole] = useState(isStaffScope ? "faculty" : "student");
+  /* Switching between Student login and Staff Login keeps this screen
+     mounted, so the picked role has to follow the scope — otherwise the
+     Staff page could still sign in as "student". */
+  useEffect(() => {
+    setSelectedRole((role) => {
+      if (!isStaffScope) return "student";
+      return role === "student" ? "faculty" : role;
+    });
+  }, [isStaffScope]);
+  /* The role actually sent with a sign-in: the student page only ever signs in
+     students, the Staff page never does. */
+  const loginRole = !isStaffScope ? "student" : (selectedRole === "student" ? "faculty" : selectedRole);
   const roleLabel = selectedRole === "scholarship" ? "SCHOLARSHIP ADMIN" : selectedRole.toUpperCase();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -1616,7 +1628,7 @@ function AuthScreen({ mode, setMode, onSubmit, goLanding, roleScope = "student",
     try {
       const result = await onSubmit({
         mode: "login",
-        role: selectedRole,
+        role: loginRole,
         name: name.trim() || normalizedEmail.split("@")[0] || `${selectedRole} user`,
         email: normalizedEmail,
         password,
@@ -1642,7 +1654,9 @@ function AuthScreen({ mode, setMode, onSubmit, goLanding, roleScope = "student",
     setGoogleBusy(true);
     const result = await signInWithGoogle({
       intent: mode === "signup" ? "signup" : "login",
-      role: ["faculty", "staff", "admin", "scholarship"].includes(selectedRole) ? selectedRole : "student",
+      role: mode === "signup"
+        ? (["faculty", "staff", "admin", "scholarship"].includes(selectedRole) ? selectedRole : "student")
+        : loginRole,
       termsAccepted: mode === "signup" && termsAccepted,
       next,
     });
