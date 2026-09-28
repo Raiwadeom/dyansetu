@@ -64,10 +64,6 @@ const SOCIAL_LINKS = {
 /* The single administrator. The database enforces this too — see admin_email()
    in supabase/migrations/0001_core.sql — so changing it here alone grants nothing. */
 const ADMIN_EMAIL = "smuiqac@gmail.com";
-/* The scholarship in-charge's account: edits only Scholarships & Notices. Must
-   match scholarship_admin_email() in supabase/migrations/0011. */
-const SCHOLARSHIP_ADMIN_EMAIL = "smuscholarship2007p@gmail.com";
-
 /* Used only while the app runs on offline seed data, so that the admin screens
    can be opened before Firebase is connected. It guards nothing real — once
    the keys are in .env.local the password is the one held by Firebase Auth. */
@@ -144,17 +140,22 @@ function initialRoute() {
 /* Faculty and non-teaching staff share one portal; only faculty publish notes. */
 const isStaffRole = (role) => role === "faculty" || role === "staff";
 
-/* A new faculty/staff account waits for the administrator before its portal opens. */
+/* Roles the administrator approves once before the account opens: faculty,
+   staff, and the scholarship admin (any email; one approved at a time). The
+   approval is stored on the profile, so later log-ins need nothing more. */
+const needsApproval = (role) => isStaffRole(role) || role === "scholarship";
+
+/* A new faculty/staff/scholarship-admin account waits for the administrator. */
 const isAwaitingApproval = (u) =>
-  Boolean(u) && isStaffRole(u.role) && Boolean(u.approvalStatus) && u.approvalStatus !== "approved";
+  Boolean(u) && needsApproval(u.role) && Boolean(u.approvalStatus) && u.approvalStatus !== "approved";
 
 /* The page a signed-in account treats as "Home" -- never the public landing
    page, which shows Log in / Sign up and looks exactly like being signed out. */
 function homeViewFor(u) {
   if (!u) return "landing";
   if (u.role === "admin") return "admin-portal";
-  if (u.role === "scholarship") return "admin-content";
   if (isAwaitingApproval(u)) return "pending-approval";
+  if (u.role === "scholarship") return "admin-content";
   if (isStaffRole(u.role)) return u.qualification ? "faculty-portal" : "faculty-setup";
   return "profile";
 }
@@ -1488,18 +1489,6 @@ function AuthScreen({ mode, setMode, onSubmit, goLanding, roleScope = "student",
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
-  /* The scholarship admin account is created once; after that the login page
-     offers only Log in and Forgot password for it. null = not known yet. */
-  const [scholarshipAdminExists, setScholarshipAdminExists] = useState(null);
-  useEffect(() => {
-    if (!isStaffScope || !supabase) return;
-    supabase.rpc("scholarship_admin_exists").then(({ data, error }) => {
-      setScholarshipAdminExists(error ? true : Boolean(data));
-    });
-  }, [isStaffScope, successMessage]);
-  useEffect(() => {
-    if (scholarshipAdminExists && mode === "signup" && selectedRole === "scholarship") setSelectedRole("faculty");
-  }, [scholarshipAdminExists, mode, selectedRole]);
   const [submitting, setSubmitting] = useState(false);
   const [forgotMode, setForgotMode] = useState(false);
   const [resetEmail, setResetEmail] = useState("");
@@ -1523,7 +1512,7 @@ function AuthScreen({ mode, setMode, onSubmit, goLanding, roleScope = "student",
         setError("Please tick the box to agree to the Terms and Conditions and Privacy Policy.");
         return;
       }
-      const needsName = !["admin", "scholarship"].includes(selectedRole);
+      const needsName = selectedRole !== "admin";
       if ((needsName && !name.trim()) || !email.trim() || !password || !confirmPassword) {
         setError(needsName
           ? "Please fill in your name, email address, password, and confirm password."
@@ -1544,16 +1533,12 @@ function AuthScreen({ mode, setMode, onSubmit, goLanding, roleScope = "student",
         setError("Please enter a valid email address.");
         return;
       }
-      if (selectedRole === "scholarship" && normalizedEmail !== SCHOLARSHIP_ADMIN_EMAIL) {
-        setError("Only the scholarship admin email can create this account.");
-        return;
-      }
       setSubmitting(true);
       try {
         const result = await onSubmit({
           mode: "signup",
           role: selectedRole,
-          name: selectedRole === "scholarship" ? "Scholarship Admin" : name.trim(),
+          name: name.trim(),
           email: normalizedEmail,
           password,
         });
@@ -1582,10 +1567,6 @@ function AuthScreen({ mode, setMode, onSubmit, goLanding, roleScope = "student",
     }
     if (selectedRole === "admin" && normalizedEmail !== ADMIN_EMAIL) {
       setError("This email is not authorised for administrator access.");
-      return;
-    }
-    if (selectedRole === "scholarship" && normalizedEmail !== SCHOLARSHIP_ADMIN_EMAIL) {
-      setError("This email is not the scholarship admin account.");
       return;
     }
     setSubmitting(true);
@@ -1735,7 +1716,7 @@ function AuthScreen({ mode, setMode, onSubmit, goLanding, roleScope = "student",
               </div>
             ) : (
               <form onSubmit={handleResetSubmit}>
-                <Field label="Registered Email" icon={Mail} type="email" autoComplete="email" placeholder="name@arcsas.edu" value={resetEmail} onChange={(e) => setResetEmail(e.target.value)} />
+                <Field label="Registered Email" icon={Mail} type="email" autoComplete="off" placeholder="name@arcsas.edu" value={resetEmail} onChange={(e) => setResetEmail(e.target.value)} />
                 <button type="submit" className="btn btn-primary btn-block btn-lg" style={{ marginTop: 16 }} disabled={resetSubmitting}>
                   {resetSubmitting ? (
                     <><Loader2 size={16} className="spin" /> Sending reset link…</>
@@ -1780,13 +1761,11 @@ function AuthScreen({ mode, setMode, onSubmit, goLanding, roleScope = "student",
                     <button type="button" className={`role-tab ${selectedRole === "staff" ? "role-tab-active" : ""}`} onClick={() => setSelectedRole("staff")}>
                       <Briefcase size={16} /> Staff
                     </button>
-                    {/* Two fixed admin accounts: the main administrator (log in only)
-                        and the scholarship in-charge (can create the account once). */}
-                    {(mode === "login" || (selectedRole === "scholarship" && scholarshipAdminExists === false)) && (
-                      <button type="button" className={`role-tab ${["admin", "scholarship"].includes(selectedRole) ? "role-tab-active" : ""}`} onClick={() => setSelectedRole(mode === "login" ? "admin" : "scholarship")}>
-                        <Shield size={16} /> Admin
-                      </button>
-                    )}
+                    {/* Admin: the main administrator (one fixed account, log in only)
+                        and the scholarship admin (any email; signs up, approved once). */}
+                    <button type="button" className={`role-tab ${["admin", "scholarship"].includes(selectedRole) ? "role-tab-active" : ""}`} onClick={() => setSelectedRole(mode === "login" ? "admin" : "scholarship")}>
+                      <Shield size={16} /> Admin
+                    </button>
                   </div>
                   {["admin", "scholarship"].includes(selectedRole) && (
                     <div className="admin-kind" role="group" aria-label="Which admin">
@@ -1795,7 +1774,7 @@ function AuthScreen({ mode, setMode, onSubmit, goLanding, roleScope = "student",
                           <Shield size={14} /> Main admin
                         </button>
                       )}
-                      <button type="button" className={selectedRole === "scholarship" ? "is-on" : ""} onClick={() => { setSelectedRole("scholarship"); setEmail(SCHOLARSHIP_ADMIN_EMAIL); }}>
+                      <button type="button" className={selectedRole === "scholarship" ? "is-on" : ""} onClick={() => setSelectedRole("scholarship")}>
                         <Coins size={14} /> Scholarship admin
                       </button>
                     </div>
@@ -1804,13 +1783,11 @@ function AuthScreen({ mode, setMode, onSubmit, goLanding, roleScope = "student",
                     <p className="auth-staff-note">
                       For the scholarship in-charge: edit scholarships, documents, dates and home-page
                       announcements. {mode === "login"
-                        ? (scholarshipAdminExists === false
-                          ? <>First time? <button type="button" className="auth-inline-link" onClick={() => setMode("signup")}>Create the scholarship admin account</button>.</>
-                          : <>To change the password, use <strong>Forgot password?</strong> below.</>)
-                        : "Choose a password for this account — only this email address can be the scholarship admin. This can be done only once."}
+                        ? <>New here? <button type="button" className="auth-inline-link" onClick={() => setMode("signup")}>Sign up</button> with your own email and password. The college administrator approves the account once; after that, log in any time.</>
+                        : "Sign up with your own email and a new password. The college administrator approves the account once; after that, log in any time."}
                     </p>
                   )}
-                  {mode === "signup" && (
+                  {mode === "signup" && selectedRole !== "scholarship" && (
                     <p className="auth-staff-note">
                       Faculty and staff accounts are checked by the college administrator. After you
                       sign up and log in, upload a photo of your college ID card to get approved.
@@ -1828,10 +1805,10 @@ function AuthScreen({ mode, setMode, onSubmit, goLanding, roleScope = "student",
             {successMessage && <div className="form-success"><CheckCircle2 size={15} /> <span>{successMessage}</span></div>}
 
             <form onSubmit={handleSubmit}>
-              {mode === "signup" && !["admin", "scholarship"].includes(selectedRole) && (
+              {mode === "signup" && selectedRole !== "admin" && (
                 <Field label="Full Name" icon={User} type="text" placeholder="Enter your full name" value={name} onChange={(e) => setName(e.target.value)} />
               )}
-              <Field label={mode === "signup" ? "Email" : "Registered Email"} icon={Mail} type="email" autoComplete="email" placeholder="name@arcsas.edu" value={email} onChange={(e) => setEmail(e.target.value)} />
+              <Field label={mode === "signup" ? "Email" : "Registered Email"} icon={Mail} type="email" autoComplete="off" placeholder="name@arcsas.edu" value={email} onChange={(e) => setEmail(e.target.value)} />
               <Field label="Password" icon={Lock} type={showPassword ? "text" : "password"} autoComplete={mode === "signup" ? "new-password" : "current-password"} placeholder={mode === "signup" ? "8+ characters, a letter and a number" : "••••••••"} value={password} onChange={(e) => setPassword(e.target.value)} />
               {mode === "signup" && (
                 <Field label="Confirm Password" icon={Lock} type={showPassword ? "text" : "password"} placeholder="Re-enter password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
@@ -1972,7 +1949,7 @@ function PendingApprovalScreen({ user, onRefresh, onSignOut }) {
   const [sent, setSent] = useState(false);
   const inputRef = useRef(null);
 
-  const roleLabel = user.role === "staff" ? "Staff" : "Faculty";
+  const roleLabel = user.role === "staff" ? "Staff" : user.role === "scholarship" ? "Scholarship admin" : "Faculty";
   const rejected = user.approvalStatus === "rejected";
   const hasProof = Boolean(user.idProofUrl);
 
@@ -2034,7 +2011,7 @@ function PendingApprovalScreen({ user, onRefresh, onSignOut }) {
           <h2 className="auth-title">{roleLabel} account under review</h2>
           <p className="auth-sub">
             Signed in as <strong>{user.email}</strong>. The college administrator checks every
-            {user.role === "staff" ? " staff" : " faculty"} account before it opens. Upload a clear photo
+            {user.role === "staff" ? " staff" : user.role === "scholarship" ? " scholarship admin" : " faculty"} account before it opens. Upload a clear photo
             of your college ID card (or appointment letter) to help them approve you quickly.
           </p>
         </div>
@@ -3353,7 +3330,7 @@ function AdminApprovalsPage({ users, onRefreshUsers }) {
   const [confirmId, setConfirmId] = useState("");
   const [error, setError] = useState("");
 
-  const staffAccounts = users.filter((u) => isStaffRole(u.role));
+  const staffAccounts = users.filter((u) => needsApproval(u.role));
   const approved = staffAccounts.filter((u) => u.approvalStatus === "approved");
   const rejected = staffAccounts.filter((u) => u.approvalStatus === "rejected");
 
@@ -3402,7 +3379,7 @@ function AdminApprovalsPage({ users, onRefreshUsers }) {
 
       <div className="card" style={{ gridColumn: "1 / -1" }}>
         <div className="admin-section-head">
-          <h3><CheckCircle2 size={18} /> Approved faculty &amp; staff ({approved.length})</h3>
+          <h3><CheckCircle2 size={18} /> Approved faculty, staff &amp; scholarship admin ({approved.length})</h3>
         </div>
         {list(approved, "No approved faculty or staff yet.", (u) => (
           confirmId === u.id ? (
@@ -4288,13 +4265,6 @@ export default function App() {
 
     /* The Admin tab's Google button is only for the one administrator
        address; any other Google account used there is signed straight out. */
-    if (intent?.role === "scholarship" && (current.email || "").toLowerCase() !== SCHOLARSHIP_ADMIN_EMAIL) {
-      await auth.signOut();
-      setCurrentUser(null);
-      setNotice("This Google account is not the scholarship admin account.");
-      replaceView("landing");
-      return;
-    }
     if (intent?.role === "admin" && (current.email || "").toLowerCase() !== ADMIN_EMAIL) {
       await auth.signOut();
       setCurrentUser(null);
@@ -4313,7 +4283,7 @@ export default function App() {
 
     if (!current.termsAcceptedAt) {
       if (next) setPendingNext(next);
-      setPendingRole(isStaffRole(intent?.role) ? intent.role : "");
+      setPendingRole(needsApproval(intent?.role) ? intent.role : "");
       replaceView("accept-terms");
       return;
     }
@@ -4525,7 +4495,7 @@ export default function App() {
       || (awaiting && !["pending-approval", "terms", "privacy", "about", "notfound"].includes(view))
       || (!awaiting && view === "pending-approval")
       || (currentUser.role === "staff" && STUDY_PAGES.has(view))
-      || (currentUser.role === "scholarship" && !["admin-content", "auth", "accept-terms", "terms", "privacy", "notfound"].includes(view))) {
+      || (!awaiting && currentUser.role === "scholarship" && !["admin-content", "auth", "accept-terms", "terms", "privacy", "notfound"].includes(view))) {
       replaceView(homeViewFor(currentUser));
     }
   }, [view, currentUser, booting, browsingHome]);
@@ -4777,7 +4747,7 @@ export default function App() {
           onLogout={logout}
           user={currentUser}
           pendingCount={currentUser.role === "admin"
-            ? users.filter((u) => isStaffRole(u.role) && u.approvalStatus === "pending").length
+            ? users.filter((u) => needsApproval(u.role) && u.approvalStatus === "pending").length
             : 0}
         />
       )}
@@ -7122,6 +7092,12 @@ function Styles() {
         cursor: grab;
       }
       .app-nav-rail:hover .app-nav-thumb { background: var(--abc-navy); }
+      /* Phones: the ‹ › arrows only (and a finger swipe), no slide bar. */
+      @media (max-width: 768px) {
+        .app-nav-rail { display: none; }
+        .app-nav-wrap.has-rail { padding-bottom: 0; }
+        .app-nav-arrow { transform: translateY(-50%); }
+      }
       .app-navigation > :first-child { margin-left: auto; }
       .app-navigation > :last-child { margin-right: auto; }
       /* Two short lines instead of one long one, so the links get the room. */

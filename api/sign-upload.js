@@ -33,7 +33,7 @@ const FOLDER_ROLES = {
   "dnyansetu/notes": ["faculty", "admin"],
   "dnyansetu/papers": ["faculty", "admin"],
   "dnyansetu/avatars": ["faculty", "admin"],
-  "dnyansetu/id-proofs": ["faculty", "staff"],
+  "dnyansetu/id-proofs": ["faculty", "staff", "scholarship"],
 };
 
 /* The only file types anyone may upload: PDFs and photos. */

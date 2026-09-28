@@ -197,7 +197,7 @@ export function AuthProvider({ children }) {
 export async function acceptTerms(role = "student") {
   if (!supabase) return { success: false, message: "Accounts are not configured yet." };
   const { error } = await supabase.rpc("complete_onboarding", {
-    p_role: role === "faculty" || role === "staff" ? role : "student",
+    p_role: ["faculty", "staff", "scholarship"].includes(role) ? role : "student",
     p_terms_version: TERMS_VERSION,
   });
   if (error) return { success: false, message: friendlyError(error) };
