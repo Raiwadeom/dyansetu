@@ -1476,6 +1476,24 @@ function TermsLinks() {
   );
 }
 
+/* Which login tab each kind of account belongs to. An email is one account
+   with one role, so signing in from another role's tab is refused with a
+   pointer to the right place. Returns "" when the tab and account match. */
+const ROLE_LOGIN_NAMES = {
+  student: { what: "a student account", where: "the Student login" },
+  faculty: { what: "a faculty account", where: "Staff Login → Faculty" },
+  staff: { what: "a staff account", where: "Staff Login → Staff" },
+  admin: { what: "the administrator account", where: "Staff Login → Admin" },
+  scholarship: { what: "the scholarship admin account", where: "Staff Login → Admin → Scholarship" },
+};
+function roleMismatchMessage(tabRole, accountRole) {
+  if (!tabRole || !accountRole || tabRole === accountRole) return "";
+  const account = ROLE_LOGIN_NAMES[accountRole];
+  if (!account) return "";
+  const tabWhat = ROLE_LOGIN_NAMES[tabRole]?.what.replace(/^(a|the) /, "") || tabRole;
+  return `This email is registered as ${account.what}, so it cannot sign in as ${tabWhat}. Please sign in from ${account.where}.`;
+}
+
 function AuthScreen({ mode, setMode, onSubmit, goLanding, roleScope = "student", next = "", demoMode = false }) {
   const { signInWithGoogle, resetPassword, updatePassword, recovery } = useAuth();
   const isStaffScope = roleScope === "staff";
@@ -4293,6 +4311,22 @@ export default function App() {
       return;
     }
 
+    /* Same rule for Google: the tab the button was pressed on must match the
+       account's role. A brand-new account has no role yet (it is picked when
+       the terms are accepted), so it is left alone. */
+    const googleMismatch = intent?.role && intent.role !== "admin" && current.termsAcceptedAt
+      ? roleMismatchMessage(intent.role, current.role) : "";
+    if (googleMismatch) {
+      await auth.signOut();
+      setCurrentUser(null);
+      setUsers([]);
+      setAuthMode("login");
+      setAuthRoleScope(["faculty", "staff"].includes(intent.role) ? "staff" : "student");
+      setNotice(googleMismatch);
+      replaceView("auth");
+      return;
+    }
+
     if (!current.termsAcceptedAt && intent?.intent === "signup" && intent.termsAccepted) {
       const accepted = await acceptTerms(intent.role);
       if (accepted.success) {
@@ -4626,6 +4660,16 @@ export default function App() {
 
     const result = await auth.signInWithEmail({ email, password: creds.password });
     if (!result.success) return result;
+    /* Each login tab opens only its own kind of account: a student email used
+       on the Faculty tab is turned away instead of quietly opening as a student. */
+    const peek = await fetchProfile(result.session.user.id).catch(() => null);
+    const mismatch = peek?.termsAcceptedAt ? roleMismatchMessage(creds.role, peek.role) : "";
+    if (mismatch) {
+      await auth.signOut();
+      setCurrentUser(null);
+      setUsers([]);
+      return { success: false, message: mismatch };
+    }
     const profile = await loadForSession(result.session);
     if (!profile) return { success: false, message: "Signed in, but your profile could not be loaded. Please try again." };
     await completeSignIn(profile);
