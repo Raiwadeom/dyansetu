@@ -15,7 +15,7 @@ import {
   BLOOD_GROUPS, DONATION_GAP_DAYS, GENDERS, HEALTH_CONDITIONS, MAX_DONOR_AGE, MIN_AGE, MIN_WEIGHT_KG,
   adminDismiss, adminRemove, createRequest, deleteMyRaktData, displayGroup, donorBlockers, fetchContact,
   fetchMyRaktProfile, CONSENT_VERSION, PAYMENT_WORDS, GRIEVANCE_EMAIL, listAdminLog,
-  fetchRequest, fetchAdminStats, listRequestsForAdmin, listMyRequests, listMyResponses, listOpenRequests, listReports,
+  fetchRequest, fetchAdminStats, listMembersForAdmin, listRequestsForAdmin, listMyRequests, listMyResponses, listOpenRequests, listReports,
   listResponders, markDonated, nextEligibleDate, reportRequest, respondToRequest, saveMyRaktProfile,
   setRequestStatus, updateMyRaktSettings,
 } from "./api.js";
@@ -62,6 +62,9 @@ export function ProfileForm({ userId, defaultName = "", existing = null, onboard
     city: existing?.city || "",
     phone: existing?.phone || "",
     last_donation_date: existing?.last_donation_date || "",
+    /* "yes" / "no" / "" (not answered yet — profiles made before this question). */
+    has_current_disease: existing?.has_current_disease == null ? "" : existing.has_current_disease ? "yes" : "no",
+    current_disease: existing?.current_disease || "",
     /* Re-confirmed on every save — health changes. */
     health_declared: false,
     notify: existing ? existing.notify_push || existing.notify_email : true,
@@ -89,6 +92,8 @@ export function ProfileForm({ userId, defaultName = "", existing = null, onboard
     if (!form.blood_group) return setError("Choose your blood group, or “Don't know”.");
     if (form.city.trim().length < 2) return setError("Enter your city — it is needed to show and match requests.");
     if (form.phone && form.phone.replace(/\D/g, "").length < 10) return setError("Enter a 10-digit phone number, or leave it blank.");
+    if (!form.has_current_disease) return setError("Tell us whether you currently have any disease or health condition.");
+    if (form.has_current_disease === "yes" && form.current_disease.trim().length < 2) return setError("Write the disease or health condition you have.");
     if (form.last_donation_date && form.last_donation_date > todayIso()) return setError("The last donation date cannot be in the future.");
     if (!form.consent) return setError("Please give your consent to continue.");
 
@@ -167,6 +172,23 @@ export function ProfileForm({ userId, defaultName = "", existing = null, onboard
             <input type="tel" inputMode="tel" value={form.phone} maxLength={20} autoComplete="tel" onChange={(e) => set("phone")(e.target.value)} />
           </Field>
         </div>
+
+        <fieldset className="rs-fieldset rs-disease">
+          <legend>Do you currently have any disease or health condition? <span className="rs-req" aria-hidden="true">*</span></legend>
+          <div className="rs-choice-row" role="radiogroup">
+            {[["no", "No"], ["yes", "Yes"]].map(([value, label]) => (
+              <label key={value} className={`rs-choice ${form.has_current_disease === value ? "is-on" : ""}`}>
+                <input type="radio" name="has_current_disease" value={value} checked={form.has_current_disease === value} onChange={() => set("has_current_disease")(value)} />
+                {label}
+              </label>
+            ))}
+          </div>
+          {form.has_current_disease === "yes" && (
+            <Field label="Which disease or condition?" required hint="For example: diabetes, high blood pressure, jaundice, typhoid. You will not be asked to donate while this is on your profile — you can still post requests.">
+              <textarea rows={3} maxLength={300} value={form.current_disease} onChange={(e) => set("current_disease")(e.target.value)} autoFocus required />
+            </Field>
+          )}
+        </fieldset>
 
         <Field label="Last blood donation (optional)" hint={`After a donation you cannot donate again for 4 months (${DONATION_GAP_DAYS} days). Leave blank if you have never donated.`}>
           <input type="date" value={form.last_donation_date || ""} max={todayIso()} onChange={(e) => set("last_donation_date")(e.target.value)} />
@@ -1050,16 +1072,17 @@ function AdminBlock({ title, count, note, action, children }) {
    status filter, and the moderation log. Admin only (checked by the page
    router and again by the database). */
 export function AdminPage({ navigate }) {
-  const [state, setState] = useState({ loading: true, stats: null, reports: [], requests: [], log: [], error: "" });
+  const [state, setState] = useState({ loading: true, stats: null, reports: [], requests: [], log: [], members: [], error: "" });
   const [filter, setFilter] = useState("open");
+  const [memberFilter, setMemberFilter] = useState("all");
   const [reasons, setReasons] = useState({});
 
   const load = useCallback(async () => {
     try {
-      const [stats, reports, requests, log] = await Promise.all([
-        fetchAdminStats(), listReports(), listRequestsForAdmin(filter), listAdminLog(),
+      const [stats, reports, requests, log, members] = await Promise.all([
+        fetchAdminStats(), listReports(), listRequestsForAdmin(filter), listAdminLog(), listMembersForAdmin(),
       ]);
-      setState({ loading: false, stats, reports, requests, log, error: "" });
+      setState({ loading: false, stats, reports, requests, log, members, error: "" });
     } catch (error) {
       const denied = /administrators only/i.test(error.message || "");
       setState((s) => ({
@@ -1100,6 +1123,8 @@ export function AdminPage({ navigate }) {
 
   const st = state.stats || {};
   const groups = BLOOD_GROUPS.concat("unknown");
+  const sickCount = state.members.filter((m) => m.has_current_disease).length;
+  const shownMembers = memberFilter === "disease" ? state.members.filter((m) => m.has_current_disease) : state.members;
 
   return (
     <section className="rs-section">
@@ -1155,6 +1180,45 @@ export function AdminPage({ navigate }) {
                 </div>
               ))}
             </div>
+          </AdminBlock>
+
+          <AdminBlock
+            title="Members"
+            count={state.members.length}
+            note="Current disease is what each member wrote on their profile. Anyone who answered Yes is not asked to donate until they change it back to No."
+            action={(
+              <div className="rs-chips">
+                <button type="button" className={`rs-chip ${memberFilter === "all" ? "is-active" : ""}`} onClick={() => setMemberFilter("all")}>Everyone ({state.members.length})</button>
+                <button type="button" className={`rs-chip ${memberFilter === "disease" ? "is-active" : ""}`} onClick={() => setMemberFilter("disease")}>Has a disease ({sickCount})</button>
+              </div>
+            )}
+          >
+            {shownMembers.length === 0 ? <p className="rs-empty">No members here.</p> : (
+              <div className="rs-table-wrap">
+                <table className="rs-member-table">
+                  <thead>
+                    <tr><th>Member</th><th>Blood group</th><th>City</th><th>Current disease</th><th>Can donate</th></tr>
+                  </thead>
+                  <tbody>
+                    {shownMembers.map((m) => (
+                      <tr key={m.user_id} className={m.has_current_disease ? "is-sick" : ""}>
+                        <td data-label="Member"><strong>{m.name || "—"}</strong>{m.email && <span className="rs-muted">{m.email}</span>}</td>
+                        <td data-label="Blood group"><GroupBadge group={m.blood_group} /></td>
+                        <td data-label="City">{m.city}</td>
+                        <td data-label="Current disease">
+                          {m.has_current_disease
+                            ? <span className="rs-disease-tag">Yes — {m.current_disease}</span>
+                            : m.has_current_disease === false ? "None" : <span className="rs-muted">Not answered yet</span>}
+                        </td>
+                        <td data-label="Can donate">
+                          {m.eligible ? <span className="rs-yes">Yes</span> : <span className="rs-no">No</span>}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </AdminBlock>
 
           <AdminBlock title="Reported requests" count={state.reports.length}>
@@ -1366,6 +1430,13 @@ export function ProfilePage({ userId, base, profile, setProfile, navigate }) {
             {profile.health_declared
               ? <><CheckCircle2 size={16} /> Confirmed — none of the listed conditions apply</>
               : <><AlertTriangle size={16} /> Not confirmed — you will not be asked to donate</>}
+          </p>
+          <p className={`rs-health-state ${profile.has_current_disease ? "is-missing" : "is-ok"}`}>
+            {profile.has_current_disease
+              ? <><AlertTriangle size={16} /> Current disease: {profile.current_disease}</>
+              : profile.has_current_disease === false
+                ? <><CheckCircle2 size={16} /> No current disease</>
+                : <><AlertTriangle size={16} /> Current disease question not answered yet — edit your profile</>}
           </p>
           <details className="rs-health-details">
             <summary>What you confirmed</summary>

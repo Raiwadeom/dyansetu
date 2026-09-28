@@ -164,11 +164,19 @@ export function AuthProvider({ children }) {
 
   const signOut = useCallback(async () => {
     if (!supabase) return;
-    await forgetPushOnThisDevice();
+    /* Sign-out must always finish: a slow network or a stuck push call used to
+       leave the page waiting forever. Each step gets a few seconds at most. */
+    const upTo = (ms, promise) => Promise.race([promise, new Promise((done) => setTimeout(done, ms))]);
+    await upTo(3000, forgetPushOnThisDevice().catch(() => {}));
     /* "local" ends only this browser's session. The default ("global") revokes
        every device's refresh token, so logging out on a phone silently logged
        the laptop out too. */
-    await supabase.auth.signOut({ scope: "local" });
+    try {
+      await upTo(5000, supabase.auth.signOut({ scope: "local" }));
+    } catch { /* offline — the local copy is cleared below anyway */ }
+    try {
+      Object.keys(localStorage).filter((k) => /^sb-.*-auth-token/.test(k)).forEach((k) => localStorage.removeItem(k));
+    } catch { /* storage blocked */ }
     setSession(null);
   }, []);
 

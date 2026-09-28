@@ -81,6 +81,7 @@ export function donorBlockers(profile) {
   if (profile.age < MIN_AGE || profile.age > MAX_DONOR_AGE) out.push(`Donors must be ${MIN_AGE}–${MAX_DONOR_AGE} years old.`);
   if (Number(profile.weight_kg) < MIN_WEIGHT_KG) out.push(`Donors must weigh at least ${MIN_WEIGHT_KG} kg.`);
   if (!profile.health_declared) out.push("The health declaration on your profile is not confirmed.");
+  if (profile.has_current_disease) out.push("You told us you currently have a disease or health condition.");
   const next = nextEligibleDate(profile);
   if (next && next > new Date()) {
     out.push(`You donated recently. You can donate again from ${next.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}.`);
@@ -109,6 +110,8 @@ export async function saveMyRaktProfile(userId, form) {
     city: form.city.trim(),
     phone: form.phone.trim(),
     health_declared: Boolean(form.health_declared),
+    has_current_disease: form.has_current_disease === "yes",
+    current_disease: form.has_current_disease === "yes" ? form.current_disease.trim() : "",
     last_donation_date: form.last_donation_date || null,
     notify_push: Boolean(form.notify_push),
     notify_email: Boolean(form.notify_email),
@@ -256,6 +259,11 @@ export async function listRequestsForAdmin(status = "") {
 /* Counts for the moderation dashboard (admin only; no personal data). */
 export async function fetchAdminStats() {
   return check(await supabase.rpc("raktsetu_admin_stats"), "Could not load the overview.");
+}
+
+/* Every member with their current-disease answer and donor eligibility (admin only). */
+export async function listMembersForAdmin() {
+  return check(await supabase.rpc("raktsetu_admin_members"), "Could not load members.") || [];
 }
 
 export async function adminRemove(id, reason) {

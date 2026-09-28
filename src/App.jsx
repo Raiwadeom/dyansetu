@@ -38,7 +38,7 @@ import { LANG_KEY, LangContext, useLang, makeTr } from "./lib/i18n";
 import { markIosStepsSeen, useInstallApp } from "./lib/installPrompt";
 import {
   Mail, Phone, Lock, User, ArrowRight, ArrowLeft, CheckCircle2, Users, Award, Linkedin, GraduationCap,
-  Code2, Compass, MessageSquare, LogOut, MapPin, X, Loader2, Target, Shield, ExternalLink,
+  Code2, Compass, MessageSquare, LogOut, Home, MapPin, X, Loader2, Target, Shield, ExternalLink,
   FileText, Edit3, Trash2, Ban, Sparkles, BookOpen, ImagePlus, BarChart3,
   Info, Facebook, Instagram, CalendarDays, Search, Droplet, ClipboardList, ListChecks, Coins, HandHeart,
   ScrollText, NotebookPen, FileDown, AlertTriangle, Newspaper,
@@ -1937,14 +1937,14 @@ function PendingApprovalScreen({ user, onRefresh, onSignOut }) {
 
 /* =============================== VIEW: Faculty Setup ============================== */
 
-function FacultyProfileSetup({ profile, onComplete }) {
+function FacultyProfileSetup({ profile, onComplete, onHome, onSignOut }) {
   const isStaff = profile.role === "staff";
   const [form, setForm] = useState({
     name: profile.name || "",
-    designation: profile.designation || (isStaff ? "Clerk" : "Associate Professor"),
-    department: profile.department || (isStaff ? "Administration" : "School of Physical Sciences"),
-    qualification: profile.qualification || (isStaff ? "" : "Ph.D. in Physics (IIT Bombay)"),
-    specialization: profile.specialization || (isStaff ? "" : "Electromagnetism, Quantum Mechanics"),
+    designation: profile.designation || (isStaff ? "Clerk" : "Assistant Professor"),
+    department: profile.department || "",
+    qualification: profile.qualification || "",
+    specialization: profile.specialization || "",
     orcid: profile.orcid || "",
     googleScholar: profile.googleScholar || "",
     linkedin: profile.linkedin || "",
@@ -1964,16 +1964,16 @@ function FacultyProfileSetup({ profile, onComplete }) {
         <h2 className="wizard-title">
           {isStaff ? <><Briefcase size={24} /> Complete Staff Profile</> : <><NotebookPen size={24} /> Complete Faculty Profile</>}
         </h2>
-        <p className="wizard-sub">{isStaff ? "Add your post, section and qualification" : "Setup research links, profile avatar, and credentials"}</p>
+        <p className="wizard-sub">{isStaff ? "Add your post, section and qualification" : "Add your department, qualification and research links"}</p>
 
         <form onSubmit={handleSubmit}>
           <Field label="Full Name" icon={User} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
           <div className="two-col">
             <SelectField label="Designation" value={form.designation} onChange={(e) => setForm({ ...form, designation: e.target.value })} options={isStaff ? STAFF_DESIGNATIONS : FACULTY_DESIGNATIONS} />
-            <Field label={isStaff ? "Section / Office" : "Department"} icon={GraduationCap} value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })} required />
+            <Field label={isStaff ? "Section / Office" : "Department"} icon={GraduationCap} value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })} placeholder={isStaff ? "e.g. Administration" : "e.g. Department of Physics"} required />
           </div>
-          <Field label={isStaff ? "Highest Qualification" : "Qualifications"} icon={Award} value={form.qualification} onChange={(e) => setForm({ ...form, qualification: e.target.value })} placeholder={isStaff ? "e.g. B.Com" : ""} required />
-          <Field label={isStaff ? "Responsibilities (optional)" : "Specializations"} icon={Sparkles} value={form.specialization} onChange={(e) => setForm({ ...form, specialization: e.target.value })} required={!isStaff} />
+          <Field label={isStaff ? "Highest Qualification" : "Qualifications"} icon={Award} value={form.qualification} onChange={(e) => setForm({ ...form, qualification: e.target.value })} placeholder={isStaff ? "e.g. B.Com" : "e.g. M.Sc., Ph.D. (Physics)"} required />
+          <Field label={isStaff ? "Responsibilities (optional)" : "Specializations"} icon={Sparkles} value={form.specialization} onChange={(e) => setForm({ ...form, specialization: e.target.value })} placeholder={isStaff ? "e.g. Admissions, fee records" : "e.g. Electromagnetism, Quantum Mechanics"} required={!isStaff} />
 
           {isStaff ? (
             <Field label="LinkedIn Profile URL (optional)" icon={Linkedin} value={form.linkedin} onChange={(e) => setForm({ ...form, linkedin: e.target.value })} />
@@ -1992,6 +1992,11 @@ function FacultyProfileSetup({ profile, onComplete }) {
             {isStaff ? "Open My Profile" : "Enter Faculty Studio"} <ArrowRight size={16} />
           </button>
         </form>
+        {/* Never a dead end: this page has no header, so it carries its own way out. */}
+        <div className="wizard-exit">
+          <button type="button" className="btn btn-ghost btn-sm" onClick={onHome}><Home size={15} /> DnyanSetu home</button>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={onSignOut}><LogOut size={15} /> Sign out</button>
+        </div>
       </div>
     </div>
   );
@@ -4183,6 +4188,12 @@ export default function App() {
     if (demoMode || booting) return;
     if (auth.session) {
       hadSessionRef.current = true;
+      /* Another tab signed in as someone else: follow that account instead of
+         showing this one's pages with the wrong session underneath. */
+      const sid = auth.session.user?.id;
+      if (sid && currentUser && currentUser.id !== sid) {
+        loadForSession(auth.session).then((p) => replaceView(p ? homeViewFor(p) : "landing"));
+      }
       return;
     }
     /* Only an actual sign-out, not a visitor who was never signed in. */
@@ -4191,7 +4202,7 @@ export default function App() {
     setCurrentUser(null);
     setUsers([]);
     if (!["auth", "terms", "privacy"].includes(viewRef.current)) replaceView("landing");
-  }, [demoMode, booting, auth.session]);
+  }, [demoMode, booting, auth.session]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* Claims the single administrator session for this window, and keeps it while
      the account stays signed in. A second window finds the lock held and is
@@ -4439,11 +4450,15 @@ export default function App() {
   };
 
   const logout = async () => {
-    if (!demoMode) await auth.signOut();
+    /* Free the admin desk while still signed in — afterwards the database
+       refuses the release and another device waits out the timeout. */
+    if (adminSessionRef.current) await releaseAdminSession(adminSessionRef.current).catch(() => {});
+    if (!demoMode) await auth.signOut().catch(() => {});
     setCurrentUser(null);
     setUsers([]);
     setPendingPage(null);
     try { sessionStorage.removeItem(VIEW_KEY); } catch { /* ignore */ }
+    try { sessionStorage.removeItem(HOME_KEY); } catch { /* ignore */ }
     setBrowsingHome(false);
     replaceView("landing");
   };
@@ -4576,7 +4591,7 @@ export default function App() {
         {view === "pending-approval" && currentUser && (
           <PendingApprovalScreen user={currentUser} onRefresh={refreshApproval} onSignOut={logout} />
         )}
-        {view === "faculty-setup" && currentUser && <FacultyProfileSetup profile={currentUser} onComplete={handleFacultySetupComplete} />}
+        {view === "faculty-setup" && currentUser && <FacultyProfileSetup profile={currentUser} onComplete={handleFacultySetupComplete} onHome={() => { setBrowsingHome(true); navigateTo("landing"); }} onSignOut={logout} />}
         {view === "profile" && currentUser?.role === "student" && (
           <StudentProfile profile={currentUser} onSaveProfile={handleProfileEdit} />
         )}
@@ -6536,6 +6551,7 @@ function Styles() {
         align-items: center;
         gap: 10px;
       }
+      .wizard-exit { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border, #E2E8F0); }
       .wizard-card .wizard-sub {
         margin: 8px 0 0;
         color: var(--text-muted);

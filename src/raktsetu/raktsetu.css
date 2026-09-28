@@ -93,6 +93,13 @@
   font-size: 14px; font-weight: 600; border-radius: 6px; padding: 8px 14px; line-height: 1.2;
 }
 .rs-back:hover { background: #16202e; }
+.rs-signout {
+  display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; cursor: pointer;
+  color: #1e3a5f; background: #fff; border: 1px solid #b8c2d0; font: inherit;
+  font-size: 14px; font-weight: 600; border-radius: 6px; padding: 7px 12px; line-height: 1.2;
+}
+.rs-signout:hover { border-color: #1e3a5f; }
+.rs-signout:disabled { opacity: .6; cursor: default; }
 
 /* Navy tab bar: white labels, gold underline on the current page, and the
    one action (Request blood) as a red pill. On phones it is one swipeable row. */
@@ -306,6 +313,14 @@
 .rs-check input { width: 20px; height: 20px; margin: 2px 0 0; flex-shrink: 0; accent-color: var(--rs-primary); }
 .rs-fieldset { border: 1px solid var(--rs-line); border-radius: 6px; padding: 14px 16px 16px; margin: 0; min-width: 0; }
 .rs-fieldset legend { font-weight: 700; font-size: 15px; padding: 0 6px; color: var(--rs-navy); }
+.rs-disease { display: flex; flex-direction: column; gap: 14px; }
+.rs-choice-row { display: flex; gap: 10px; flex-wrap: wrap; }
+.rs-choice {
+  display: inline-flex; align-items: center; gap: 8px; min-width: 110px; padding: 10px 16px;
+  border: 1px solid #8a96a8; border-radius: 6px; background: var(--rs-surface); font-size: 15px; font-weight: 600; cursor: pointer;
+}
+.rs-choice input { width: 18px; height: 18px; margin: 0; accent-color: var(--rs-primary); }
+.rs-choice.is-on { border-color: var(--rs-primary); outline: 2px solid var(--rs-focus); }
 .rs-health-list { margin: 4px 0 14px; padding-left: 22px; display: flex; flex-direction: column; gap: 6px; font-size: 14.5px; }
 
 .rs-inline-form { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
@@ -405,6 +420,7 @@
   .rs-lockup-text strong { font-size: 21px; }
   .rs-lockup-text span { font-size: 13.5px; }
   .rs-back { padding: 8px 10px; font-size: 13px; }
+  .rs-signout { padding: 8px 10px; font-size: 13px; }
   .rs-back .rs-back-long { display: none; }
   .rs-nav-inner { padding: 0 6px; }
   .rs-nav-link { padding: 13px 12px; font-size: 14px; gap: 7px; }
@@ -829,4 +845,25 @@
   .rs-chips::-webkit-scrollbar { display: none; }
   .rs-chip { flex: 0 0 auto; }
   .rs-toolbar-city { flex-basis: 100%; }
+}
+
+/* ---------------------------------------------- admin: members + current disease */
+.rs-table-wrap { overflow-x: auto; border: 1px solid var(--rs-line); border-radius: 6px; }
+.rs-member-table { width: 100%; border-collapse: collapse; font-size: 14.5px; }
+.rs-member-table th { text-align: left; background: var(--rs-navy); color: #fff; font-weight: 700; padding: 10px 12px; white-space: nowrap; }
+.rs-member-table td { padding: 10px 12px; border-top: 1px solid var(--rs-line); vertical-align: middle; }
+.rs-member-table tbody tr:nth-child(even) td { background: #F7F9FC; }
+.rs-member-table tr.is-sick td { background: #FFF4F4; }
+.rs-member-table td strong { display: block; }
+.rs-member-table td .rs-muted { display: block; font-size: 13px; word-break: break-all; }
+.rs-disease-tag { display: inline-block; color: #B42318; font-weight: 700; }
+.rs-yes { color: #0F7B5A; font-weight: 700; }
+.rs-no { color: #B42318; font-weight: 700; }
+@media (max-width: 640px) {
+  .rs-table-wrap { border: 0; }
+  .rs-member-table thead { display: none; }
+  .rs-member-table, .rs-member-table tbody, .rs-member-table tr, .rs-member-table td { display: block; width: 100%; }
+  .rs-member-table tr { border: 1px solid var(--rs-line); border-radius: 6px; margin-bottom: 10px; overflow: hidden; }
+  .rs-member-table td { display: grid; grid-template-columns: 110px 1fr; gap: 8px; border-top: 0; padding: 7px 12px; }
+  .rs-member-table td::before { content: attr(data-label); font-size: 12.5px; color: var(--rs-muted); font-weight: 600; }
 }

@@ -13,7 +13,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle, ArrowLeft, Bell, CalendarDays, CheckCircle2, ClipboardList, HeartHandshake,
-  HeartPulse as HeartPulseIcon, Home, Hourglass, PlusCircle, Scale, Shield, UserRound, XCircle,
+  HeartPulse as HeartPulseIcon, Home, Hourglass, LogOut, PlusCircle, Scale, Shield, UserRound, XCircle,
 } from "lucide-react";
 
 import { RequireAuth, useAuth } from "../lib/auth.jsx";
@@ -95,6 +95,15 @@ const NAV = [
 ];
 
 function Header({ path, navigate, user, isAdmin, lang, setLang, tr }) {
+  const { signOut } = useAuth();
+  const [leaving, setLeaving] = useState(false);
+  const doSignOut = async () => {
+    setLeaving(true);
+    try { sessionStorage.removeItem("dnyansetu:view"); sessionStorage.removeItem("dnyansetu:browsing-home"); } catch { /* ignore */ }
+    await signOut().catch(() => {});
+    setLeaving(false);
+    navigate("/raktsetu");
+  };
   const items = isAdmin ? [...NAV, { to: "/raktsetu/admin", label: ["Moderation", "नियंत्रण"], icon: Shield }] : NAV;
   const navRef = useRef(null);
 
@@ -113,6 +122,11 @@ function Header({ path, navigate, user, isAdmin, lang, setLang, tr }) {
             <button type="button" className={lang === "en" ? "is-active" : ""} aria-pressed={lang === "en"} onClick={() => setLang("en")}>EN</button>
             <button type="button" lang="mr" className={lang === "mr" ? "is-active" : ""} aria-pressed={lang === "mr"} onClick={() => setLang("mr")}>मराठी</button>
           </div>
+          {user && (
+            <button type="button" className="rs-signout" onClick={doSignOut} disabled={leaving}>
+              <LogOut size={15} /> <span className="rs-back-long">{leaving ? tr("Signing out…", "बाहेर पडत आहे…") : tr("Sign out", "बाहेर पडा")}</span>
+            </button>
+          )}
           <a className="rs-back" href="/">
             <ArrowLeft size={16} /> <span className="rs-back-long">{tr("Back to ", "परत ")}</span><span>DnyanSetu</span>
           </a>
@@ -391,9 +405,21 @@ function MemberArea({ children }) {
   useEffect(() => { load(); }, [load]);
 
   if (state.loading) return <Spinner />;
-  if (state.error) return <div className="rs-alert rs-alert--error">{state.error}</div>;
+  /* A failed load (weak network, expired session) is never a dead end: retry,
+     or step out to DnyanSetu. */
+  if (state.error || !state.base) {
+    return (
+      <div className="rs-alert rs-alert--error">
+        <p>{state.error || "Could not load your account."}</p>
+        <div className="rs-actions" style={{ marginTop: 10 }}>
+          <button type="button" className="rs-btn rs-btn-primary rs-btn-sm" onClick={() => { setState((x) => ({ ...x, loading: true })); load(); }}>Try again</button>
+          <a className="rs-btn rs-btn-ghost rs-btn-sm" href="/">Back to DnyanSetu</a>
+        </div>
+      </div>
+    );
+  }
 
-  if (!state.base || state.base.restricted || state.base.status !== "active") {
+  if (state.base.restricted || state.base.status !== "active") {
     return (
       <div className="rs-alert rs-alert--error">
         This account is restricted. Please contact the administrator at smuiqac@gmail.com.
