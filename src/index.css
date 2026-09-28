@@ -91,3 +91,5 @@ body .landing-brand-tag, body .footer-brand-slogan, body .rs-lockup-text span {
 @keyframes dsSlide { 0% { transform: translateX(-110%); } 100% { transform: translateX(260%); } }
 @keyframes dsRise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .ds-splash-logo, .ds-splash-bar span, .ds-splash-name { animation: none; } }
+
+.ds-splash.is-leaving { opacity: 0; transition: opacity .45s ease; pointer-events: none; }

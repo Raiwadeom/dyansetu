@@ -36,6 +36,9 @@ const FOLDER_ROLES = {
   "dnyansetu/id-proofs": ["faculty", "staff"],
 };
 
+/* The only file types anyone may upload: PDFs and photos. */
+const ALLOWED_FORMATS = "pdf,jpg,jpeg,png,webp";
+
 /* ------------------------------- the handler ------------------------------ */
 
 export async function handleSignUpload(body) {
@@ -63,15 +66,9 @@ export async function handleSignUpload(body) {
   ].filter(([, value]) => !value).map(([name]) => name);
 
   if (missing.length) {
-    return {
-      status: 503,
-      json: {
-        error:
-          `Uploads are not configured: ${missing.join(", ")} ` +
-          `${missing.length === 1 ? "is" : "are"} missing from .env.local. ` +
-          "Add it and restart the dev server. See SETUP.md.",
-      },
-    };
+    /* The names go to the server log only; the browser gets a plain message. */
+    console.error("[sign-upload] missing env:", missing.join(", "));
+    return { status: 503, json: { error: "Uploads are not available right now. Please try again later." } };
   }
 
   const token = typeof body?.accessToken === "string" ? body.accessToken : "";
@@ -105,7 +102,9 @@ export async function handleSignUpload(body) {
 
   /* Cloudinary signs the alphabetically sorted parameters, then the secret. */
   const timestamp = Math.floor(Date.now() / 1000);
-  const params = { folder, timestamp };
+  /* Signed, so Cloudinary itself refuses any other file type (the browser's
+     own check can be skipped by anyone calling the API directly). */
+  const params = { allowed_formats: ALLOWED_FORMATS, folder, timestamp };
   if (CLOUDINARY_UPLOAD_PRESET) params.upload_preset = CLOUDINARY_UPLOAD_PRESET;
 
   const toSign = Object.keys(params)
@@ -120,7 +119,7 @@ export async function handleSignUpload(body) {
 
   return {
     status: 200,
-    json: { signature, timestamp, apiKey: CLOUDINARY_API_KEY, folder, uploadPreset: CLOUDINARY_UPLOAD_PRESET || null },
+    json: { signature, timestamp, apiKey: CLOUDINARY_API_KEY, folder, allowedFormats: ALLOWED_FORMATS, uploadPreset: CLOUDINARY_UPLOAD_PRESET || null },
   };
 }
 

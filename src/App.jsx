@@ -13,10 +13,10 @@ const NotesPage = lazy(() => import("./notes/NotesPage"));
 const LegalPage = lazy(() => import("./legal/LegalPage"));
 import { generateTrackingId } from "./utils/identity";
 import { downloadCsv, timestampedName } from "./utils/exportSheet";
-import { isBackendConfigured } from "./lib/supabase";
+import { isBackendConfigured, supabase } from "./lib/supabase";
 import { ErrorBoundary, NotFoundPage } from "./lib/errorPages";
 import {
-  useAuth, acceptTerms, readOAuthIntent, clearOAuthIntent, safeNext,
+  useAuth, acceptTerms, readOAuthIntent, clearOAuthIntent, safeNext, deleteMyAccount,
 } from "./lib/auth";
 import {
   fetchProfile, updateProfile, listProfiles, adminUpdateProfile, adminDeleteProfile, fetchSignIns,
@@ -71,7 +71,9 @@ const SCHOLARSHIP_ADMIN_EMAIL = "smuscholarship2007p@gmail.com";
 /* Used only while the app runs on offline seed data, so that the admin screens
    can be opened before Firebase is connected. It guards nothing real — once
    the keys are in .env.local the password is the one held by Firebase Auth. */
-const DEMO_ADMIN_PASSWORD = "pass@123";
+/* Only in `npm run dev`; the live build carries no password at all (and demo
+   mode never runs there, since the Supabase keys are set). */
+const DEMO_ADMIN_PASSWORD = import.meta.env.DEV ? "pass@123" : "";
 
 /* The principal's message on the landing page.
 
@@ -654,6 +656,39 @@ function Landing({ goAuth, onOpenAbout, onOpenPage, user, onOpenDashboard }) {
     io.observe(el);
     return () => io.disconnect();
   }, []);
+  /* Site pages menu: a side drawer on laptops/tablets/PCs, and the same
+     links at the top of the phone menu panel. */
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  useEffect(() => {
+    if (!drawerOpen) return undefined;
+    const onKey = (e) => { if (e.key === "Escape") setDrawerOpen(false); };
+    document.addEventListener("keydown", onKey);
+    document.body.style.overflow = "hidden";
+    return () => { document.removeEventListener("keydown", onKey); document.body.style.overflow = ""; };
+  }, [drawerOpen]);
+  const closeMenus = () => { setDrawerOpen(false); setMobileMenuOpen(false); };
+  const siteLinks = [
+    { key: "home", icon: Home, label: tr("Home", "मुख्यपृष्ठ"), run: () => window.scrollTo({ top: 0, behavior: "smooth" }) },
+    { key: "about", icon: Info, label: tr("About DnyanSetu", "डायनसेतू विषयी"), run: onOpenAbout },
+    { key: "raktsetu", icon: Droplet, label: tr("About RaktSetu", "रक्तसेतू विषयी"), href: "/raktsetu" },
+    { key: "terms", icon: ScrollText, label: tr("Terms & Conditions", "अटी व शर्ती"), run: () => onOpenPage("terms") },
+    { key: "privacy", icon: Shield, label: tr("Privacy Policy", "गोपनीयता धोरण"), run: () => onOpenPage("privacy") },
+    { key: "contact", icon: Phone, label: tr("Contact", "संपर्क"), run: () => document.getElementById("contact")?.scrollIntoView({ behavior: "smooth", block: "center" }) },
+  ];
+  const siteLinkList = (className) => (
+    <ul className={className}>
+      {siteLinks.map(({ key, icon: Icon, label, run, href }) => (
+        <li key={key}>
+          {href ? (
+            <a href={href} className="site-link" onClick={closeMenus}><Icon size={17} /> <span>{label}</span></a>
+          ) : (
+            <button type="button" className="site-link" onClick={() => { closeMenus(); run(); }}><Icon size={17} /> <span>{label}</span></button>
+          )}
+        </li>
+      ))}
+    </ul>
+  );
+
   const langSwitch = (className) => (
     <div className={className} role="group" aria-label="Choose language / भाषा निवडा">
       <button type="button" className={`nav-lang-btn ${lang === "en" ? "is-active" : ""}`} onClick={() => setLang("en")}>
@@ -728,6 +763,9 @@ function Landing({ goAuth, onOpenAbout, onOpenPage, user, onOpenDashboard }) {
       </div>
 
       <nav className={`nav-marketing anim-nav-enter ${isScrolled ? "is-floating" : ""} ${user ? "has-user" : ""}`}>
+        <button type="button" className="site-menu-btn" aria-label="Open site menu" aria-expanded={drawerOpen} onClick={() => setDrawerOpen(true)}>
+          <Menu size={20} />
+        </button>
         <div className="nav-gov-brand">
           <CollegeCrest size={38} />
           <span className="landing-brand-divider" aria-hidden="true" />
@@ -764,6 +802,7 @@ function Landing({ goAuth, onOpenAbout, onOpenPage, user, onOpenDashboard }) {
 
         <div className={`nav-collapse ${mobileMenuOpen ? "is-open" : ""}`}>
         {user && langSwitch("nav-lang-switch nav-lang-in-menu")}
+        {siteLinkList("site-links site-links--panel")}
         <div className="nav-search" ref={searchWrapRef}>
           <div className={`nav-search-field ${searchOpen && searchResults.length ? "is-open" : ""}`}>
             <Search size={16} className="nav-search-icon" />
@@ -849,6 +888,30 @@ function Landing({ goAuth, onOpenAbout, onOpenPage, user, onOpenDashboard }) {
         </div>
         </div>
       </nav>
+
+      {drawerOpen && (
+        <div className="site-drawer-wrap" onClick={() => setDrawerOpen(false)}>
+          <aside className="site-drawer" role="dialog" aria-modal="true" aria-label="Site menu" onClick={(e) => e.stopPropagation()}>
+            <div className="site-drawer-head">
+              <div className="site-drawer-brand">
+                <BrandLogo variant="nav" />
+                <div>
+                  <strong>DnyanSetu</strong>
+                  <small>{tr(INSTITUTION.short, INSTITUTION.shortMr)}</small>
+                </div>
+              </div>
+              <button type="button" className="site-drawer-close" aria-label="Close menu" onClick={() => setDrawerOpen(false)} autoFocus>
+                <X size={20} />
+              </button>
+            </div>
+            {siteLinkList("site-links")}
+            <div className="site-drawer-foot">
+              <a href="mailto:smuiqac@gmail.com"><Mail size={14} /> smuiqac@gmail.com</a>
+              <a href="tel:+919850757663"><Phone size={14} /> +91 98507 57663</a>
+            </div>
+          </aside>
+        </div>
+      )}
 
       {/* Full-width photo hero */}
       <header
@@ -1124,7 +1187,7 @@ function Landing({ goAuth, onOpenAbout, onOpenPage, user, onOpenDashboard }) {
               <button type="button" className="footer-link" onClick={() => onOpenPage("terms")}>{tr("Terms of Service", "सेवा अटी")}</button>
             </nav>
 
-            <address className="footer-col">
+            <address className="footer-col" id="contact">
               <h4>{tr("Contact", "संपर्क")}</h4>
               <a href="mailto:smuiqac@gmail.com" className="footer-link">
                 <Mail size={14} /> smuiqac@gmail.com
@@ -1424,6 +1487,18 @@ function AuthScreen({ mode, setMode, onSubmit, goLanding, roleScope = "student",
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
+  /* The scholarship admin account is created once; after that the login page
+     offers only Log in and Forgot password for it. null = not known yet. */
+  const [scholarshipAdminExists, setScholarshipAdminExists] = useState(null);
+  useEffect(() => {
+    if (!isStaffScope || !supabase) return;
+    supabase.rpc("scholarship_admin_exists").then(({ data, error }) => {
+      setScholarshipAdminExists(error ? true : Boolean(data));
+    });
+  }, [isStaffScope, successMessage]);
+  useEffect(() => {
+    if (scholarshipAdminExists && mode === "signup" && selectedRole === "scholarship") setSelectedRole("faculty");
+  }, [scholarshipAdminExists, mode, selectedRole]);
   const [submitting, setSubmitting] = useState(false);
   const [forgotMode, setForgotMode] = useState(false);
   const [resetEmail, setResetEmail] = useState("");
@@ -1706,7 +1781,7 @@ function AuthScreen({ mode, setMode, onSubmit, goLanding, roleScope = "student",
                     </button>
                     {/* Two fixed admin accounts: the main administrator (log in only)
                         and the scholarship in-charge (can create the account once). */}
-                    {(mode === "login" || selectedRole === "scholarship") && (
+                    {(mode === "login" || (selectedRole === "scholarship" && scholarshipAdminExists === false)) && (
                       <button type="button" className={`role-tab ${["admin", "scholarship"].includes(selectedRole) ? "role-tab-active" : ""}`} onClick={() => setSelectedRole(mode === "login" ? "admin" : "scholarship")}>
                         <Shield size={16} /> Admin
                       </button>
@@ -1728,8 +1803,10 @@ function AuthScreen({ mode, setMode, onSubmit, goLanding, roleScope = "student",
                     <p className="auth-staff-note">
                       For the scholarship in-charge: edit scholarships, documents, dates and home-page
                       announcements. {mode === "login"
-                        ? <>First time? <button type="button" className="auth-inline-link" onClick={() => setMode("signup")}>Create the scholarship admin account</button>.</>
-                        : "Choose a password for this account — only this email address can be the scholarship admin."}
+                        ? (scholarshipAdminExists === false
+                          ? <>First time? <button type="button" className="auth-inline-link" onClick={() => setMode("signup")}>Create the scholarship admin account</button>.</>
+                          : <>To change the password, use <strong>Forgot password?</strong> below.</>)
+                        : "Choose a password for this account — only this email address can be the scholarship admin. This can be done only once."}
                     </p>
                   )}
                   {mode === "signup" && (
@@ -2316,6 +2393,57 @@ function ScholarshipsPage({ onBack, onRegisterBack }) {
 
 /* =============================== VIEW: Student Profile ============================== */
 
+/* "Delete my account": the user removes their own account and data. Two steps
+   (open, then type DELETE) so it cannot happen by a stray tap. */
+function DeleteAccountCard() {
+  const [open, setOpen] = useState(false);
+  const [typed, setTyped] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const run = async () => {
+    setBusy(true);
+    setError("");
+    const result = await deleteMyAccount();
+    if (!result.success) { setError(result.message); setBusy(false); return; }
+    try { sessionStorage.clear(); } catch { /* ignore */ }
+    window.location.assign("/");
+  };
+  return (
+    <section className="profile-card delete-account-card">
+      <div className="profile-card-heading">
+        <div>
+          <span className="profile-section-kicker">YOUR DATA</span>
+          <h2>Delete my account</h2>
+        </div>
+        <Trash2 size={18} />
+      </div>
+      <p className="delete-account-copy">
+        Removes your DnyanSetu account for good: your profile, quiz results and RaktSetu details.
+        Notes you uploaded stay available to students without your name. This cannot be undone.
+      </p>
+      {!open ? (
+        <button type="button" className="btn btn-outline btn-sm delete-account-open" onClick={() => setOpen(true)}>
+          <Trash2 size={14} /> Delete my account
+        </button>
+      ) : (
+        <div className="delete-account-confirm">
+          <label>
+            Type <strong>DELETE</strong> to confirm
+            <input className="field-input" value={typed} onChange={(e) => setTyped(e.target.value)} autoComplete="off" />
+          </label>
+          {error && <p className="upload-error">{error}</p>}
+          <div className="delete-account-actions">
+            <button type="button" className="btn btn-outline btn-sm" onClick={() => { setOpen(false); setTyped(""); setError(""); }} disabled={busy}>Cancel</button>
+            <button type="button" className="btn btn-danger btn-sm" onClick={run} disabled={busy || typed.trim() !== "DELETE"}>
+              {busy ? <Loader2 size={14} className="spin" /> : <Trash2 size={14} />} Delete for good
+            </button>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
 function StudentProfile({ profile, onSaveProfile }) {
   const [isEditing, setIsEditing] = useState(false);
   const [draft, setDraft] = useState({
@@ -2495,6 +2623,8 @@ function StudentProfile({ profile, onSaveProfile }) {
               {skills.map((skill) => <span key={skill} className="skill-pill">{skill}</span>)}
             </div>
           </section>
+
+          <DeleteAccountCard />
 
         </div>
 
@@ -2695,6 +2825,8 @@ function FacultyPortal({ profile, onSaveProfile }) {
       {showNotesModal && !isStaff && (
         <NoteUploadModal author={profile} onClose={() => setShowNotesModal(false)} onUploaded={refreshMyNotes} />
       )}
+
+      <div style={{ gridColumn: "1 / -1" }}><DeleteAccountCard /></div>
     </div>
   );
 }
@@ -3806,7 +3938,7 @@ function TopNavApp({ view, go, onHome, onLogout, user, pendingCount = 0 }) {
     <header className="app-header">
       <div className="app-header-inner">
         {/* The logo opens the public home page, like the Home link — still signed in. */}
-        <button className="app-brand" type="button" onClick={onHome} title="DnyanSetu home">
+        <button className="app-brand" type="button" onClick={isScholarshipAdmin ? () => go("admin-content") : onHome} title="DnyanSetu home">
           <span className="app-brand-mark">
             <BrandLogo variant="mark" />
           </span>
@@ -3823,9 +3955,11 @@ function TopNavApp({ view, go, onHome, onLogout, user, pendingCount = 0 }) {
         <div className={`app-nav-wrap${rail ? " has-rail" : ""}`}>
         <nav className="app-navigation" aria-label="Application navigation" ref={navRef}>
           {/* The public home page, still signed in (see browsingHome in App). */}
-          <button type="button" className="app-nav-item" onClick={onHome}>
-            Home
-          </button>
+          {!isScholarshipAdmin && (
+            <button type="button" className="app-nav-item" onClick={onHome}>
+              Home
+            </button>
+          )}
 
           {isStudent && (
             <button type="button" className={`app-nav-item ${view === "profile" ? "active" : ""}`} onClick={() => go("profile")}>
@@ -3881,7 +4015,7 @@ function TopNavApp({ view, go, onHome, onLogout, user, pendingCount = 0 }) {
             </button>
           )}
 
-          {!isStaffOnly && (
+          {!isStaffOnly && !isScholarshipAdmin && (
             <button type="button" className={`app-nav-item ${view === "scholarships" ? "active" : ""}`} onClick={() => go("scholarships")}>
               Scholarships
             </button>
@@ -3889,9 +4023,11 @@ function TopNavApp({ view, go, onHome, onLogout, user, pendingCount = 0 }) {
 
           {/* A separate app on the same domain and session, so a plain link
               opens it already signed in. */}
-          <a className="app-nav-item" href={RAKTSETU_APP_URL}>
-            RaktSetu
-          </a>
+          {!isScholarshipAdmin && (
+            <a className="app-nav-item" href={RAKTSETU_APP_URL}>
+              RaktSetu
+            </a>
+          )}
         </nav>
         {rail && (
           <>
@@ -3926,20 +4062,22 @@ function TopNavApp({ view, go, onHome, onLogout, user, pendingCount = 0 }) {
           {/* No menu for any role: the only destination it ever held was the
               user's own space, which the navigation already covers, so the
               avatar is a badge and sign-out sits beside it. */}
-          <button
-            type="button"
-            className="header-profile-button"
-            onClick={() => go(homeViewFor(user))}
-            title="Open your profile"
-          >
-            <span className="header-avatar">
-              {hasFullName ? initials : <User size={15} />}
-            </span>
-            <span className="header-user-info">
-              <strong>{user.name || "User"}</strong>
-              <small>{user.role}</small>
-            </span>
-          </button>
+          {!isScholarshipAdmin && (
+            <button
+              type="button"
+              className="header-profile-button"
+              onClick={() => go(homeViewFor(user))}
+              title="Open your profile"
+            >
+              <span className="header-avatar">
+                {hasFullName ? initials : <User size={15} />}
+              </span>
+              <span className="header-user-info">
+                <strong>{user.name || "User"}</strong>
+                <small>{user.role}</small>
+              </span>
+            </button>
+          )}
 
           <InstallAppButton compact />
 
@@ -4385,7 +4523,8 @@ export default function App() {
     if ((view === "landing" && !browsingHome)
       || (awaiting && !["pending-approval", "terms", "privacy", "about", "notfound"].includes(view))
       || (!awaiting && view === "pending-approval")
-      || (currentUser.role === "staff" && STUDY_PAGES.has(view))) {
+      || (currentUser.role === "staff" && STUDY_PAGES.has(view))
+      || (currentUser.role === "scholarship" && !["admin-content", "auth", "accept-terms", "terms", "privacy", "notfound"].includes(view))) {
       replaceView(homeViewFor(currentUser));
     }
   }, [view, currentUser, booting, browsingHome]);
@@ -4450,7 +4589,7 @@ export default function App() {
         return { success: true, message: "Sign up successful! Please sign in with your email and password." };
       }
       if (!existing) return { success: false, message: "No account found for that email. Please sign up first." };
-      if (existing.role === "admin" && creds.password !== DEMO_ADMIN_PASSWORD) {
+      if (existing.role === "admin" && (!DEMO_ADMIN_PASSWORD || creds.password !== DEMO_ADMIN_PASSWORD)) {
         return { success: false, message: "Incorrect password." };
       }
       const full = normalizeStudentProfile(existing);
@@ -6281,6 +6420,27 @@ function Styles() {
         cursor: pointer;
       }
       .nav-collapse { display: contents; }
+      /* Site menu: button + side drawer on wider screens; on phones the links sit in the menu panel. */
+      .site-menu-btn { display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; flex: 0 0 auto; margin-right: 4px; border: 1px solid var(--border-strong, rgba(15,23,42,0.14)); border-radius: 10px; background: #F1ECFB; color: var(--abc-navy); cursor: pointer; transition: background .15s, border-color .15s; }
+      .site-menu-btn:hover { background: #E6DEFA; border-color: var(--abc-navy); }
+      .site-links--panel { display: none; }
+      .site-drawer-wrap { position: fixed; inset: 0; z-index: 1200; background: rgba(15, 23, 42, 0.45); animation: siteFade .18s ease-out; }
+      .site-drawer { position: absolute; top: 0; left: 0; bottom: 0; width: min(340px, 86vw); background: #fff; display: flex; flex-direction: column; box-shadow: 8px 0 30px rgba(15,23,42,.18); animation: siteSlide .22s ease-out; overflow-y: auto; }
+      .site-drawer-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 18px 18px 16px; border-bottom: 3px solid var(--abc-navy); }
+      .site-drawer-brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
+      .site-drawer-brand strong { display: block; font-size: 17px; color: var(--abc-navy); }
+      .site-drawer-brand small { display: block; font-size: 11.5px; color: var(--text-muted); line-height: 1.3; }
+      .site-drawer-close { width: 38px; height: 38px; flex: 0 0 auto; display: grid; place-items: center; border: 1px solid var(--border-light, #D9E0E8); border-radius: 8px; background: #fff; cursor: pointer; color: var(--abc-navy); }
+      .site-links { list-style: none; margin: 0; padding: 10px; display: flex; flex-direction: column; gap: 2px; }
+      .site-link { width: 100%; display: flex; align-items: center; gap: 12px; padding: 12px; border: 0; border-radius: 8px; background: none; font: inherit; font-size: 15px; font-weight: 600; color: #1F2937; text-decoration: none; cursor: pointer; text-align: left; }
+      .site-link svg { color: var(--abc-saffron, #E65100); flex: 0 0 auto; }
+      .site-link:hover, .site-link:focus-visible { background: #F3F6FA; color: var(--abc-navy); }
+      .site-drawer-foot { margin-top: auto; padding: 16px 20px 22px; border-top: 1px solid var(--border-light, #E2E8F0); display: flex; flex-direction: column; gap: 8px; }
+      .site-drawer-foot a { display: inline-flex; align-items: center; gap: 8px; font-size: 13.5px; color: var(--text-muted); text-decoration: none; }
+      .site-drawer-foot a:hover { color: var(--abc-navy); }
+      @keyframes siteSlide { from { transform: translateX(-100%); } to { transform: none; } }
+      @keyframes siteFade { from { opacity: 0; } to { opacity: 1; } }
+      @media (prefers-reduced-motion: reduce) { .site-drawer, .site-drawer-wrap { animation: none; } }
       .nav-dash-bar, .nav-lang-in-menu, .nav-dash-short { display: none; }
       .nav-dash-bar { align-items: center; gap: 6px; flex: 0 0 auto; margin-left: auto; white-space: nowrap; min-height: 38px; padding: 8px 14px; font-size: 13px; }
       /* The smallest phones (320–360 px): signed in, the bar also carries the
@@ -6539,6 +6699,13 @@ function Styles() {
       .auth-sub { color: var(--text-muted); font-size: 14px; line-height: 1.65; max-width: 42ch; }
       .auth-host-note { font-size: 12.5px; line-height: 1.5; color: var(--abc-blue); word-break: break-all; }
       .boot-screen { min-height: 50vh; display: flex; align-items: center; justify-content: center; gap: 10px; color: var(--text-muted); font-size: 15px; font-weight: 500; padding: 40px 16px; text-align: center; }
+      .delete-account-card { border-color: #F3C7C3 !important; }
+      .delete-account-copy { margin: 0 0 12px; font-size: 14px; color: var(--text-muted); line-height: 1.55; }
+      .delete-account-open { color: #B42318 !important; border-color: #F1B5B0 !important; }
+      .delete-account-confirm { display: flex; flex-direction: column; gap: 10px; max-width: 420px; }
+      .delete-account-confirm label { display: flex; flex-direction: column; gap: 6px; font-size: 13.5px; font-weight: 600; color: #334155; }
+      .delete-account-confirm .field-input { padding: 9px 11px; font: inherit; font-weight: 400; }
+      .delete-account-actions { display: flex; gap: 8px; flex-wrap: wrap; }
       .admin-kind { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 6px; margin: 8px 0 10px; }
       .admin-kind button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 10px; border: 1px solid var(--border-light, #D9E0E8); border-radius: 8px; background: #fff; font: inherit; font-size: 13px; font-weight: 600; color: #334155; cursor: pointer; }
       .admin-kind button.is-on { border-color: var(--abc-navy, #1E3A5F); background: #EAF0F7; color: var(--abc-navy, #1E3A5F); }
@@ -7259,6 +7426,9 @@ function Styles() {
         .landing-brand-copy { min-width: 0; }
         .nav-topstrip-text { font-size: 10.5px; }
         .nav-menu-toggle { display: inline-flex; }
+        .site-menu-btn { display: none; }
+        .nav-collapse.is-open .site-links--panel { display: flex; padding: 0 0 12px; border-bottom: 1px solid var(--border-light, #E2E8F0); }
+        .nav-collapse.is-open .site-links--panel .site-link { padding: 11px 6px; }
         .nav-marketing.has-user > .nav-lang-switch { display: none; }
         .nav-marketing.has-user .nav-dash-bar { display: inline-flex; }
         .nav-marketing.has-user .nav-dash-menu { display: none; }

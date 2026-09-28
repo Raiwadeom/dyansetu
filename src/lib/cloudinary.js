@@ -33,8 +33,9 @@ const SIGN_URL = "/api/sign-upload";
 
 export const MAX_UPLOAD_BYTES = 15 * 1024 * 1024;
 
-/* Formats checked here for a quick, clear error. The upload preset enforces the
-   same list server-side, which is what actually matters. */
+/* Formats checked here for a quick, clear error. The signature from
+   /api/sign-upload carries allowed_formats, so Cloudinary enforces the same
+   list itself, which is what actually matters. */
 const ALLOWED_TYPES = new Set([
   "application/pdf", "image/png", "image/jpeg", "image/jpg", "image/webp",
 ]);
@@ -71,7 +72,7 @@ export async function uploadFile(file, { folder = "dnyansetu/notes", onProgress 
     throw new Error(`"${file.name}" is not a PDF or an image.`);
   }
 
-  const { signature, timestamp, apiKey, uploadPreset } = await requestSignature(folder);
+  const { signature, timestamp, apiKey, uploadPreset, allowedFormats } = await requestSignature(folder);
 
   const form = new FormData();
   form.append("file", file);
@@ -79,6 +80,7 @@ export async function uploadFile(file, { folder = "dnyansetu/notes", onProgress 
   form.append("timestamp", timestamp);
   form.append("signature", signature);
   form.append("folder", folder);
+  if (allowedFormats) form.append("allowed_formats", allowedFormats);
   if (uploadPreset) form.append("upload_preset", uploadPreset);
 
   /* XHR rather than fetch, because it reports upload progress. */

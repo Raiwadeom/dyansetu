@@ -5,9 +5,8 @@
    talks to supabase.auth directly, so the auth backend lives in exactly one
    file.
 
-   Sign-in methods: Google (OAuth) and email + password. Accounts migrated from
-   Firebase get their Supabase password on first sign-in — see
-   api/legacy-login.js.
+   Sign-in methods: Google (OAuth) and email + password. (The one-time move of
+   old Firebase passwords is finished; its endpoint was removed 2026-09-28.)
    ========================================================================== */
 
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
@@ -109,28 +108,6 @@ export function AuthProvider({ children }) {
 
     const first = await supabase.auth.signInWithPassword({ email: normalised, password });
     if (!first.error) return { success: true, session: first.data.session, message: "Login successful." };
-    if (!/invalid login credentials/i.test(first.error.message || "")) {
-      return { success: false, message: friendlyError(first.error) };
-    }
-
-    /* Maybe an account from before the move to Supabase that has not signed in
-       since. The server checks the password against Firebase and, if right,
-       sets it on the Supabase account; then we simply try again. */
-    try {
-      const response = await fetch("/api/legacy-login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: normalised, password }),
-      });
-      const body = await response.json().catch(() => ({}));
-      if (body.migrated) {
-        const second = await supabase.auth.signInWithPassword({ email: normalised, password });
-        if (!second.error) return { success: true, session: second.data.session, message: "Login successful." };
-        return { success: false, message: friendlyError(second.error) };
-      }
-      if (body.error) return { success: false, message: body.error };
-    } catch { /* fall through to the original answer */ }
-
     return { success: false, message: friendlyError(first.error) };
   }, []);
 
@@ -224,6 +201,25 @@ export async function acceptTerms(role = "student") {
     p_terms_version: TERMS_VERSION,
   });
   if (error) return { success: false, message: friendlyError(error) };
+  return { success: true };
+}
+
+/* Deletes the signed-in user's own account (api/delete-account.js), then
+   clears this browser's copy of the session. */
+export async function deleteMyAccount() {
+  if (!supabase) return { success: false, message: "Accounts are not configured yet." };
+  const { data } = await supabase.auth.getSession();
+  const token = data?.session?.access_token;
+  if (!token) return { success: false, message: "Please sign in again first." };
+  try {
+    const response = await fetch("/api/delete-account", { method: "POST", headers: { Authorization: `Bearer ${token}` } });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) return { success: false, message: body.error || "Could not delete the account." };
+  } catch {
+    return { success: false, message: "No connection. Please try again." };
+  }
+  try { Object.keys(localStorage).filter((k) => /^sb-.*-auth-token/.test(k)).forEach((k) => localStorage.removeItem(k)); } catch { /* ignore */ }
+  await supabase.auth.signOut({ scope: "local" }).catch(() => {});
   return { success: true };
 }
 

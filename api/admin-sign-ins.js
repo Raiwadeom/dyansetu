@@ -21,7 +21,8 @@ export default async function handler(req, res) {
 
   const missing = missingEnv(["SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY"]);
   if (missing.length) {
-    res.status(503).json({ error: `Not configured: ${missing.join(", ")} missing.` });
+    console.error("[admin-sign-ins] missing env:", missing.join(", "));
+    res.status(503).json({ error: "This is not available right now. Please try again later." });
     return;
   }
 

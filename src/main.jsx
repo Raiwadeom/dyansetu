@@ -18,6 +18,17 @@ const isRaktSetu = /^\/raktsetu(\/|$)/i.test(window.location.pathname);
 
 const root = document.getElementById("root");
 
+/* The start-up screen in index.html stays for at least ~1.5 s (it used to
+   flash past too quickly to read) and then fades out over the app. */
+const boot = document.getElementById("ds-boot");
+if (boot) {
+  const wait = Math.max(0, 1500 - performance.now());
+  setTimeout(() => {
+    boot.classList.add("is-leaving");
+    setTimeout(() => boot.remove(), 500);
+  }, wait);
+}
+
 ReactDOM.createRoot(root).render(
   <React.StrictMode>
     <ErrorBoundary>
