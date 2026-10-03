@@ -97,6 +97,16 @@ export function ProfileForm({ userId, defaultName = "", existing = null, onboard
     if (form.last_donation_date && form.last_donation_date > todayIso()) return setError("The last donation date cannot be in the future.");
     if (!form.consent) return setError("Please give your consent to continue.");
 
+    /* Joining with alerts on: ask for notification permission now, while
+       this tap still counts as the user's gesture (asking after the save's
+       network round-trip loses it on iPhone). The browser is linked once the
+       profile exists. */
+    const support = pushSupport();
+    const wantsPush = form.notify && !existing && support.supported && isPushConfigured && !support.needsHomeScreen;
+    const permissionAsk = wantsPush && Notification.permission === "default"
+      ? Notification.requestPermission().catch(() => "default")
+      : null;
+
     setSaving(true);
     try {
       const profile = await saveMyRaktProfile(userId, {
@@ -104,6 +114,9 @@ export function ProfileForm({ userId, defaultName = "", existing = null, onboard
         notify_push: form.notify,
         notify_email: form.notify,
       });
+      if (wantsPush && (await permissionAsk || Notification.permission) === "granted") {
+        await enablePush().catch((err) => console.error("[raktsetu] push on join failed", err));
+      }
       setSaved(true);
       onSaved?.(profile);
     } catch (err) {

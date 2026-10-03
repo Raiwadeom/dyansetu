@@ -52,7 +52,11 @@ async function registration() {
 export async function ensureServiceWorker() {
   if (!pushSupport().supported) return null;
   try {
-    return await registration();
+    const reg = await registration();
+    /* Pick up a new raktsetu-sw.js promptly, also in the installed app,
+       which can stay open for days without a full reload. */
+    reg.update().catch(() => {});
+    return reg;
   } catch (error) {
     console.error("[raktsetu] service worker registration failed", error);
     return null;

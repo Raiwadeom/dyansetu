@@ -1,6 +1,10 @@
 /* ============================================================================
    POST   /api/raktsetu/push-subscription — save this browser's subscription
    DELETE /api/raktsetu/push-subscription — remove it (push turned off)
+   PUT    /api/raktsetu/push-subscription — the service worker swapping in a
+          renewed subscription ({ oldEndpoint, subscription }). No sign-in:
+          the worker has no session, and only the browser that held the old
+          endpoint (an unguessable URL) can name it.
 
    One row per browser, keyed on the push endpoint. A browser that signs in as
    a different account moves its subscription to that account. Signing out
@@ -21,7 +25,7 @@ function isPushEndpoint(value) {
 }
 
 export default async function handler(req, res) {
-  if (req.method !== "POST" && req.method !== "DELETE") {
+  if (!["POST", "DELETE", "PUT"].includes(req.method)) {
     res.status(405).json({ error: "Method not allowed." });
     return;
   }
@@ -30,6 +34,22 @@ export default async function handler(req, res) {
   if (missing.length) {
     console.error("[push-subscription] missing env:", missing.join(", "));
     res.status(503).json({ error: "Alerts are not available right now. Please try again later." });
+    return;
+  }
+
+  if (req.method === "PUT") {
+    const body = readBody(req);
+    const sub = body.subscription || {};
+    if (!isPushEndpoint(body.oldEndpoint) || !isPushEndpoint(sub.endpoint)
+      || typeof sub.keys?.p256dh !== "string" || typeof sub.keys?.auth !== "string") {
+      res.status(400).json({ error: "That is not a valid push subscription." });
+      return;
+    }
+    const { error } = await supabaseAdmin().from("push_subscriptions")
+      .update({ endpoint: sub.endpoint, keys: { p256dh: sub.keys.p256dh, auth: sub.keys.auth } })
+      .eq("endpoint", body.oldEndpoint);
+    if (error) console.error("[raktsetu] subscription renew failed:", error.message);
+    res.status(200).json({ ok: true });
     return;
   }
 

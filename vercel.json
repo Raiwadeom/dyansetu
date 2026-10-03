@@ -24,6 +24,9 @@
   "functions": {
     "api/raktsetu/requests.js": {
       "maxDuration": 60
+    },
+    "api/raktsetu/notify.js": {
+      "maxDuration": 30
     }
   },
   "crons": [
@@ -63,6 +66,19 @@
         {
           "key": "Cross-Origin-Opener-Policy",
           "value": "same-origin"
+        }
+      ]
+    },
+    {
+      "source": "/raktsetu-sw.js",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache"
+        },
+        {
+          "key": "Service-Worker-Allowed",
+          "value": "/raktsetu/"
         }
       ]
     }

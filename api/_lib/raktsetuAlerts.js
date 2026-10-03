@@ -42,7 +42,9 @@ function formatNeededBy(iso) {
 
 /* ---------------------------------------------------------------- push ---- */
 
-export async function sendPushAlerts(request) {
+/* Sends one payload to a list of subscriptions ({ id, endpoint, keys }) and
+   tidies up afterwards: dead subscriptions are deleted, live ones stamped. */
+async function deliverPush(targets, payload) {
   const publicKey = env("VAPID_PUBLIC_KEY");
   const privateKey = env("VAPID_PRIVATE_KEY");
   const subject = env("VAPID_SUBJECT", "mailto:smuiqac@gmail.com");
@@ -51,27 +53,18 @@ export async function sendPushAlerts(request) {
   }
   webpush.setVapidDetails(subject, publicKey, privateKey);
 
-  const admin = supabaseAdmin();
-  const { data: targets, error } = await admin.rpc("raktsetu_push_targets", { p_request_id: request.id });
-  if (error) throw new Error(`Could not load push targets: ${error.message}`);
-
-  const payload = JSON.stringify({
-    title: `Blood needed: ${request.blood_group} — ${request.units} unit${request.units === 1 ? "" : "s"}`,
-    body: `${request.hospital}, ${request.city}`,
-    url: `/raktsetu/requests/${request.id}`,
-    tag: `raktsetu-${request.id}`,
-  });
-
+  const list = targets || [];
+  const body = JSON.stringify(payload);
   let sent = 0;
   let failed = 0;
   const gone = [];
   const delivered = [];
 
-  for (let i = 0; i < (targets || []).length; i += PUSH_CHUNK) {
-    const chunk = targets.slice(i, i + PUSH_CHUNK);
+  for (let i = 0; i < list.length; i += PUSH_CHUNK) {
+    const chunk = list.slice(i, i + PUSH_CHUNK);
     const results = await Promise.allSettled(chunk.map((t) => webpush.sendNotification(
       { endpoint: t.endpoint, keys: t.keys },
-      payload,
+      body,
       { TTL: 12 * 60 * 60, urgency: "high", timeout: 8000 },
     )));
     results.forEach((result, index) => {
@@ -89,12 +82,58 @@ export async function sendPushAlerts(request) {
     });
   }
 
+  const admin = supabaseAdmin();
   if (gone.length) await admin.from("push_subscriptions").delete().in("id", gone);
   if (delivered.length) {
     await admin.from("push_subscriptions").update({ last_used_at: new Date().toISOString() }).in("id", delivered);
   }
 
-  return { sent, failed, removed: gone.length, targets: (targets || []).length };
+  return { sent, failed, removed: gone.length, targets: list.length };
+}
+
+async function userTargets(userIds) {
+  if (!userIds.length) return [];
+  const { data, error } = await supabaseAdmin().rpc("raktsetu_user_push_targets", { p_user_ids: userIds });
+  if (error) throw new Error(`Could not load push targets: ${error.message}`);
+  return data || [];
+}
+
+/* New request: everyone opted in within the city, plus all-cities donors. */
+export async function sendPushAlerts(request) {
+  const { data: targets, error } = await supabaseAdmin().rpc("raktsetu_push_targets", { p_request_id: request.id });
+  if (error) throw new Error(`Could not load push targets: ${error.message}`);
+
+  return deliverPush(targets, {
+    kind: "request",
+    title: `Blood needed: ${request.blood_group} — ${request.units} unit${request.units === 1 ? "" : "s"}`,
+    body: `${request.hospital}, ${request.city}. Tap to see if you can help.`,
+    url: `/raktsetu/requests/${request.id}`,
+    tag: `raktsetu-${request.id}`,
+  });
+}
+
+/* A donor said "I can help": tell the person who posted the request. */
+export async function sendResponsePush(request, donor) {
+  const where = donor.city ? ` from ${donor.city}` : "";
+  return deliverPush(await userTargets([request.requester_id]), {
+    kind: "response",
+    title: "A donor offered to help",
+    body: `A ${donor.blood_group && donor.blood_group !== "unknown" ? `${donor.blood_group} ` : ""}donor${where} responded to your ${request.blood_group} request at ${request.hospital}. Open it to see their number.`,
+    url: `/raktsetu/requests/${request.id}`,
+    tag: `raktsetu-response-${request.id}`,
+  });
+}
+
+/* The requester closed the request: tell everyone who offered to help. */
+export async function sendClosedPush(request, responderIds) {
+  const fulfilled = request.status === "fulfilled";
+  return deliverPush(await userTargets(responderIds), {
+    kind: "closed",
+    title: fulfilled ? "Blood arranged — thank you" : "Blood request cancelled",
+    body: `The ${request.blood_group} request at ${request.hospital}, ${request.city} is ${fulfilled ? "fulfilled" : "cancelled"}. You do not need to go.`,
+    url: `/raktsetu/requests/${request.id}`,
+    tag: `raktsetu-${request.id}`,
+  });
 }
 
 /* --------------------------------------------------------------- email ---- */

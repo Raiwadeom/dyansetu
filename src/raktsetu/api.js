@@ -181,8 +181,23 @@ export async function createRequest(form) {
   return body;
 }
 
+/* Asks the server to push the other side about what just happened. Fire and
+   forget: the action itself already succeeded, and the server sends each
+   event at most once however often this runs. */
+function notifyEvent(type, requestId) {
+  getAccessToken()
+    .then((token) => fetch("/api/raktsetu/notify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ type, requestId }),
+      keepalive: true,
+    }))
+    .catch(() => {});
+}
+
 export async function respondToRequest(id) {
   const rows = check(await supabase.rpc("raktsetu_respond", { p_request_id: id }), "Could not record your response.");
+  notifyEvent("response", id);
   return Array.isArray(rows) ? rows[0] : rows;
 }
 
@@ -192,6 +207,7 @@ export async function listResponders(id) {
 
 export async function setRequestStatus(id, status) {
   check(await supabase.rpc("raktsetu_set_request_status", { p_request_id: id, p_status: status }), "Could not update the request.");
+  notifyEvent("closed", id);
 }
 
 export async function markDonated(id, date) {
