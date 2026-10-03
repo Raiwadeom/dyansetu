@@ -1187,9 +1187,19 @@ function Landing({ goAuth, onOpenAbout, onOpenPage, user, onOpenDashboard }) {
           <div className="footer-columns">
             <nav className="footer-col" aria-label="Support">
               <h4>{tr("Support", "सहाय्य")}</h4>
+              {/* Real links (not buttons) so search engines can follow them to
+                  each page; a normal click still opens the page in the app. */}
               <button type="button" className="footer-link" onClick={onOpenAbout}>{tr("About DnyanSetu", "डायनसेतू विषयी")}</button>
-              <button type="button" className="footer-link" onClick={() => onOpenPage("privacy")}>{tr("Privacy Policy", "गोपनीयता धोरण")}</button>
-              <button type="button" className="footer-link" onClick={() => onOpenPage("terms")}>{tr("Terms of Service", "सेवा अटी")}</button>
+              <a href="/privacy" className="footer-link" onClick={(e) => { e.preventDefault(); onOpenPage("privacy"); }}>{tr("Privacy Policy", "गोपनीयता धोरण")}</a>
+              <a href="/terms" className="footer-link" onClick={(e) => { e.preventDefault(); onOpenPage("terms"); }}>{tr("Terms of Service", "सेवा अटी")}</a>
+            </nav>
+
+            <nav className="footer-col" aria-label="Quick links">
+              <h4>{tr("Quick links", "महत्त्वाचे दुवे")}</h4>
+              <a href="/scholarships" className="footer-link" onClick={(e) => { e.preventDefault(); onOpenPage("scholarships"); }}>{tr("Scholarships", "शिष्यवृत्ती")}</a>
+              <a href="/raktsetu" className="footer-link">{tr("RaktSetu — blood donors", "रक्तसेतू — रक्तदाते")}</a>
+              <a href="/login" className="footer-link" onClick={(e) => { e.preventDefault(); goAuth("login", "student"); }}>{tr("Student login", "विद्यार्थी लॉगिन")}</a>
+              <a href="/staff" className="footer-link" onClick={(e) => { e.preventDefault(); goAuth("login", "staff"); }}>{tr("Faculty & staff login", "प्राध्यापक व कर्मचारी लॉगिन")}</a>
             </nav>
 
             <address className="footer-col" id="contact">

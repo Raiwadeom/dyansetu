@@ -17,6 +17,34 @@
   ],
   "rewrites": [
     {
+      "source": "/scholarships",
+      "destination": "/seo/scholarships.html"
+    },
+    {
+      "source": "/raktsetu",
+      "destination": "/seo/raktsetu.html"
+    },
+    {
+      "source": "/login",
+      "destination": "/seo/login.html"
+    },
+    {
+      "source": "/signup",
+      "destination": "/seo/signup.html"
+    },
+    {
+      "source": "/staff",
+      "destination": "/seo/staff.html"
+    },
+    {
+      "source": "/terms",
+      "destination": "/seo/terms.html"
+    },
+    {
+      "source": "/privacy",
+      "destination": "/seo/privacy.html"
+    },
+    {
       "source": "/((?!api/).*)",
       "destination": "/index.html"
     }
