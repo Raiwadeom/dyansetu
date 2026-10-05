@@ -41,8 +41,18 @@ function urlBase64ToUint8Array(base64) {
   return Uint8Array.from([...raw].map((c) => c.charCodeAt(0)));
 }
 
+/* RaktSetu's own worker, matched on its exact scope. getRegistration(url)
+   returns whichever worker *covers* the URL, and DnyanSetu's site-wide
+   worker (scope "/") covers /raktsetu/ too — so RaktSetu used to grab that
+   one, never registered its own, and both kinds of alerts shared a single
+   subscription (turning off college notifications killed blood alerts). */
+async function ownRegistration() {
+  const regs = await navigator.serviceWorker.getRegistrations();
+  return regs.find((r) => new URL(r.scope).pathname === SW_SCOPE) || null;
+}
+
 async function registration() {
-  const existing = await navigator.serviceWorker.getRegistration(SW_SCOPE);
+  const existing = await ownRegistration();
   if (existing) return existing;
   return navigator.serviceWorker.register(SW_URL, { scope: SW_SCOPE });
 }
@@ -100,7 +110,7 @@ export async function ensureServiceWorker() {
 
 export async function currentSubscription() {
   if (!pushSupport().supported) return null;
-  const reg = await navigator.serviceWorker.getRegistration(SW_SCOPE);
+  const reg = await ownRegistration();
   return reg ? reg.pushManager.getSubscription() : null;
 }
 
@@ -157,7 +167,7 @@ export async function syncPush() {
   const support = pushSupport();
   if (!support.supported || !isPushConfigured || support.permission !== "granted") return;
   try {
-    const reg = await navigator.serviceWorker.getRegistration(SW_SCOPE);
+    const reg = await ownRegistration();
     const sub = reg && await reg.pushManager.getSubscription();
     if (!sub) return;
     await callApi("POST", { subscription: sub.toJSON(), sync: true });
@@ -170,7 +180,7 @@ export async function syncPush() {
 export async function forgetPushOnThisDevice() {
   try {
     if (!("serviceWorker" in navigator)) return;
-    const reg = await navigator.serviceWorker.getRegistration(SW_SCOPE);
+    const reg = await ownRegistration();
     const sub = reg && await reg.pushManager.getSubscription();
     if (!sub) return;
     await callApi("DELETE", { endpoint: sub.endpoint }).catch(() => {});

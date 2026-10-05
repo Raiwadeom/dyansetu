@@ -1570,10 +1570,10 @@ function AuthScreen({ mode, setMode, onSubmit, notice = "", onClearNotice, goLan
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  /* The scholarship admin's email/password change link goes to the main
-     administrator's inbox, never to the scholarship account itself. */
+  /* The scholarship admin's and the main admin's email/password change
+     links both go to the college inbox (smuiqac@gmail.com). */
   const [scholarshipChangeBusy, setScholarshipChangeBusy] = useState(false);
-  const requestScholarshipChange = async () => {
+  const requestScholarshipChange = async (target = "scholarship") => {
     setError("");
     setSuccessMessage("");
     setScholarshipChangeBusy(true);
@@ -1581,11 +1581,12 @@ function AuthScreen({ mode, setMode, onSubmit, notice = "", onClearNotice, goLan
       const response = await fetch("/api/scholarship-account", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "request" }),
+        body: JSON.stringify({ action: "request", target }),
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || "Could not send the link.");
-      setSuccessMessage(`A link to change the scholarship admin email and password was sent to ${data.sentTo || ADMIN_EMAIL}. It works once, for 1 hour.`);
+      const who = target === "admin" ? "main admin" : "scholarship admin";
+      setSuccessMessage(`A link to change the ${who} email and password was sent to ${data.sentTo || ADMIN_EMAIL}. It works once, for 1 hour.`);
     } catch (err) {
       setError(err.message || "Could not send the link.");
     } finally {
@@ -1667,10 +1668,9 @@ function AuthScreen({ mode, setMode, onSubmit, notice = "", onClearNotice, goLan
       setError("Please enter a valid email address.");
       return;
     }
-    if (selectedRole === "admin" && normalizedEmail !== ADMIN_EMAIL) {
-      setError("This email is not authorised for administrator access.");
-      return;
-    }
+    /* No fixed-address check here any more: the admin's email can be changed
+       (migration 0017). A non-admin account is turned away right after
+       sign-in by the role check, with a clear message. */
     setSubmitting(true);
     try {
       const result = await onSubmit({
@@ -1922,10 +1922,12 @@ function AuthScreen({ mode, setMode, onSubmit, notice = "", onClearNotice, goLan
                 <button
                   type="button"
                   className="auth-forgot-link"
-                  onClick={selectedRole === "scholarship" ? requestScholarshipChange : () => { setForgotMode(true); setResetEmail(email); }}
+                  onClick={["scholarship", "admin"].includes(selectedRole)
+                    ? () => requestScholarshipChange(selectedRole)
+                    : () => { setForgotMode(true); setResetEmail(email); }}
                   disabled={scholarshipChangeBusy}
                 >
-                  {selectedRole === "scholarship" ? "Forgot or change email / password?" : "Forgot password?"}
+                  {["scholarship", "admin"].includes(selectedRole) ? "Forgot or change email / password?" : "Forgot password?"}
                 </button>
               )}
 
@@ -4386,7 +4388,7 @@ export default function App() {
 
     /* The Admin tab's Google button is only for the one administrator
        address; any other Google account used there is signed straight out. */
-    if (intent?.role === "admin" && (current.email || "").toLowerCase() !== ADMIN_EMAIL) {
+    if (intent?.role === "admin" && current.role !== "admin") {
       await auth.signOut();
       setCurrentUser(null);
       setNotice("This Google account is not the administrator account. Use the Admin tab only with the administrator email.");

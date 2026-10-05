@@ -40,7 +40,10 @@ export default async function handler(req, res) {
     return;
   }
   const email = (caller.profile.email || "").toLowerCase();
-  if (caller.profile.role !== "admin" || email !== ADMIN_EMAIL) {
+  /* The admin's address is a setting now (migration 0017), not fixed. */
+  const { data: setting } = await supabaseAdmin().from("app_settings").select("value").eq("key", "admin_email").maybeSingle();
+  const adminEmail = (setting?.value || ADMIN_EMAIL).toLowerCase();
+  if (caller.profile.role !== "admin" || email !== adminEmail) {
     res.status(403).json({ error: "Only the administrator can see the sign-in list." });
     return;
   }

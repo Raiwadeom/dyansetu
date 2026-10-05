@@ -3,7 +3,7 @@
    (api/scholarship-account.js) checks the one-time link before and on save. */
 
 import React, { useEffect, useState } from "react";
-import { CheckCircle2, Coins, Loader2, Lock, Mail } from "lucide-react";
+import { CheckCircle2, Coins, Loader2, Lock, Mail, Shield } from "lucide-react";
 
 async function call(body) {
   const response = await fetch("/api/scholarship-account", {
@@ -27,6 +27,9 @@ export default function ScholarshipResetPage({ onDone }) {
   const token = LINK_TOKEN;
   const [state, setState] = useState("checking"); // checking | ready | bad | done
   const [currentEmail, setCurrentEmail] = useState("");
+  /* "scholarship" or "admin" — which login this link changes. */
+  const [kind, setKind] = useState("scholarship");
+  const who = kind === "admin" ? "Main admin" : "Scholarship admin";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -37,7 +40,7 @@ export default function ScholarshipResetPage({ onDone }) {
   useEffect(() => {
     if (!token) { setState("bad"); setError("This link is incomplete. Open it straight from the email."); return; }
     call({ action: "check", token })
-      .then((d) => { setCurrentEmail(d.email || ""); setState("ready"); })
+      .then((d) => { setCurrentEmail(d.email || ""); setKind(d.kind === "admin" ? "admin" : "scholarship"); setState("ready"); })
       .catch((e) => { setError(e.message); setState("bad"); });
   }, [token]);
 
@@ -65,7 +68,7 @@ export default function ScholarshipResetPage({ onDone }) {
       <div className="auth-brand-panel" />
       <div className="auth-form-panel">
         <div className="auth-heading">
-          <span className="pending-status"><Coins size={14} /> Scholarship admin</span>
+          <span className="pending-status">{kind === "admin" ? <Shield size={14} /> : <Coins size={14} />} {who}</span>
           <h2 className="auth-title">Change email and password</h2>
           {state === "ready" && (
             <p className="auth-sub">Current email: <strong>{currentEmail}</strong>. Enter the new email (or the same one) and a new password.</p>
@@ -83,7 +86,7 @@ export default function ScholarshipResetPage({ onDone }) {
 
         {state === "done" && (
           <>
-            <div className="form-success"><CheckCircle2 size={15} /> <span>Saved. The scholarship admin now logs in with <strong>{currentEmail}</strong> and the new password.</span></div>
+            <div className="form-success"><CheckCircle2 size={15} /> <span>Saved. The {who.toLowerCase()} now logs in with <strong>{currentEmail}</strong> and the new password.</span></div>
             <button type="button" className="btn btn-primary btn-block" onClick={onDone}>Go to Staff Login</button>
           </>
         )}
