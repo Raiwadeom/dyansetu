@@ -5170,8 +5170,9 @@ function InstallAppButton({ compact = false, variant = compact ? "compact" : "bu
           </button>
         </div>
       )) : variant === "compact" ? (
-        <button type="button" className="header-logout" onClick={onClick} title={label} aria-label={label}>
-          <Download size={17} />
+        <button type="button" className="header-install" onClick={onClick} title={label} aria-label={label}>
+          <span className="header-install-icon"><Download size={15} /></span>
+          <span className="header-install-label">{label}</span>
         </button>
       ) : (
         <button type="button" className="btn btn-outline install-app-btn" onClick={onClick} aria-label={label} title={label}>
@@ -7359,6 +7360,27 @@ function Styles() {
         .lp-glyph { flex-basis: 40px; height: 40px; font-size: 19px; }
       }
       .install-app-btn { display: inline-flex; align-items: center; gap: 6px; }
+      /* Dashboard header "Install app": a saffron pill that disappears by
+         itself once the app is installed on this device (the browser stops
+         offering it) and comes back if the app is uninstalled. */
+      .header-install {
+        display: inline-flex; align-items: center; gap: 8px; flex: none;
+        height: 38px; padding: 0 14px 0 5px; border-radius: 999px;
+        border: 1px solid rgba(230, 81, 0, 0.35);
+        background: linear-gradient(180deg, #FFF7F0, #FFEBDC);
+        color: #B23C00; font-size: 13.5px; font-weight: 700; white-space: nowrap;
+        box-shadow: 0 1px 2px rgba(230, 81, 0, 0.12);
+        transition: background 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+      }
+      .header-install:hover { background: linear-gradient(180deg, #FFEBDC, #FFD9BF); box-shadow: 0 4px 12px rgba(230, 81, 0, 0.22); transform: translateY(-1px); }
+      .header-install-icon {
+        display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%;
+        background: linear-gradient(135deg, #FF8A3D, #E65100); color: #fff;
+      }
+      @media (max-width: 900px) {
+        .header-install { padding: 0 5px; }
+        .header-install-label { display: none; }
+      }
       /* Phones only: desktop visitors have the nav button. */
       .install-banner { display: none; }
       @media (max-width: 760px) {
