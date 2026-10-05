@@ -36,6 +36,7 @@ import { builtInSchemes, fetchSchemes, schemeStatus, fetchLiveAnnouncements } fr
 import ContentAdminPage, { FacultyAnnouncementsCard } from "./admin/ContentAdminPage.jsx";
 import NotificationPrompt from "./lib/NotificationPrompt.jsx";
 import { GMAIL_ONLY_MESSAGE, isGmail } from "./lib/gmailOnly.js";
+import { PAPER_SESSIONS, deletePaper, fetchMyPapers, fetchPapers, uploadPaper } from "./lib/papers.js";
 import { ensureSiteWorker } from "./lib/sitePush";
 import ScholarshipResetPage from "./admin/ScholarshipResetPage.jsx";
 import { LANG_KEY, LangContext, useLang, makeTr } from "./lib/i18n";
@@ -1710,7 +1711,7 @@ function AuthScreen({ mode, setMode, onSubmit, notice = "", onClearNotice, goLan
         setError("Please enter a valid email address.");
         return;
       }
-      if (!isGmail(normalizedEmail)) {
+      if (!demoMode && !isGmail(normalizedEmail)) {
         setError(GMAIL_ONLY_MESSAGE);
         return;
       }
@@ -1746,7 +1747,7 @@ function AuthScreen({ mode, setMode, onSubmit, notice = "", onClearNotice, goLan
       setError("Please enter a valid email address.");
       return;
     }
-    if (!isGmail(normalizedEmail)) {
+    if (!demoMode && !isGmail(normalizedEmail)) {
       setError(GMAIL_ONLY_MESSAGE);
       return;
     }
@@ -1826,7 +1827,7 @@ function AuthScreen({ mode, setMode, onSubmit, notice = "", onClearNotice, goLan
       setResetError("Please enter a valid email address.");
       return;
     }
-    if (!isGmail(normalizedEmail)) {
+    if (!demoMode && !isGmail(normalizedEmail)) {
       setResetError(GMAIL_ONLY_MESSAGE);
       return;
     }
@@ -2365,7 +2366,62 @@ function PyqPage({ onBack }) {
         </span>
         <ExternalLink size={18} className="pyq-official-arrow" />
       </a>
+
+      <FacultyPapers />
     </main>
+  );
+}
+
+/* Papers uploaded by the college's own faculty, by branch, newest year first. */
+function FacultyPapers() {
+  const [papers, setPapers] = useState(null);
+  const [stream, setStream] = useState("all");
+  useEffect(() => {
+    let alive = true;
+    fetchPapers().then((rows) => { if (alive) setPapers(rows); }).catch(() => { if (alive) setPapers([]); });
+    return () => { alive = false; };
+  }, []);
+  if (!papers || papers.length === 0) return null;
+
+  const streamsWithPapers = NOTE_STREAMS.filter((st) => papers.some((pp) => pp.streamId === st.id));
+  const shown = stream === "all" ? papers : papers.filter((pp) => pp.streamId === stream);
+  return (
+    <section className="pyq-faculty">
+      <div className="pyq-faculty-head">
+        <h2><ScrollText size={20} /> Uploaded by our faculty</h2>
+        <p>Papers shared by teachers of the college. Tap one to download.</p>
+      </div>
+      <div className="pyq-chips" role="tablist" aria-label="Branch">
+        <button type="button" role="tab" aria-selected={stream === "all"} className={stream === "all" ? "is-active" : ""} onClick={() => setStream("all")}>All ({papers.length})</button>
+        {streamsWithPapers.map((st) => (
+          <button key={st.id} type="button" role="tab" aria-selected={stream === st.id} className={stream === st.id ? "is-active" : ""} onClick={() => setStream(st.id)}>
+            {st.name} ({papers.filter((pp) => pp.streamId === st.id).length})
+          </button>
+        ))}
+      </div>
+      <ul className="pyq-list">
+        {shown.map((pp) => (
+          <li key={pp.id} className="pyq-item">
+            <span className="pyq-item-year"><strong>{pp.year}</strong><small>{pp.session}</small></span>
+            <span className="pyq-item-body">
+              <strong>{pp.subject}</strong>
+              <small>
+                {NOTE_STREAMS.find((st) => st.id === pp.streamId)?.name || pp.streamId}
+                {pp.semester && <> · {pp.semester}</>}
+                {pp.author && <> · {pp.author}</>}
+              </small>
+            </span>
+            <span className="pyq-item-files">
+              {pp.files.map((file, i) => (
+                <a key={file.publicId || file.url} href={downloadUrl(file)} target="_blank" rel="noreferrer" className="pyq-dl" title={file.name}>
+                  <Download size={15} /> {pp.files.length > 1 ? `Part ${i + 1}` : "Download"}
+                </a>
+              ))}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 
@@ -2839,9 +2895,25 @@ function FacultyPortal({ profile, onSaveProfile }) {
     }
   };
 
+  const [myPapers, setMyPapers] = useState([]);
+  const [papersLoading, setPapersLoading] = useState(true);
+  const [papersError, setPapersError] = useState("");
+  const refreshMyPapers = async () => {
+    setPapersLoading(true);
+    try {
+      setMyPapers(await fetchMyPapers(profile.id));
+      setPapersError("");
+    } catch {
+      setPapersError("Could not load your question papers.");
+    } finally {
+      setPapersLoading(false);
+    }
+  };
+
   useEffect(() => {
-    if (isStaff) { setNotesLoading(false); return; }
+    if (isStaff) { setNotesLoading(false); setPapersLoading(false); return; }
     refreshMyNotes();
+    refreshMyPapers();
   }, [profile.id, isStaff]);
   const [showProfileEditor, setShowProfileEditor] = useState(false);
 
@@ -2931,7 +3003,7 @@ function FacultyPortal({ profile, onSaveProfile }) {
         <div className="fac-hero-actions">
           {!isStaff && (
             <button className="btn btn-primary btn-lg" onClick={() => setShowNotesModal(true)}>
-              <NotebookPen size={18} /> Upload Notes
+              <NotebookPen size={18} /> Upload Notes / Papers
             </button>
           )}
           <button className="btn btn-outline btn-lg" onClick={() => setShowProfileEditor((prev) => !prev)}>
@@ -3001,8 +3073,22 @@ function FacultyPortal({ profile, onSaveProfile }) {
         />
       )}
 
+      {!isStaff && (
+        <NotesManageList
+          title="My Question Papers"
+          notes={myPapers.map((pp) => ({ ...pp, title: `${pp.subject} — ${pp.session} ${pp.year}`, description: "" }))}
+          loading={papersLoading}
+          error={papersError}
+          noun="paper"
+          icon={ScrollText}
+          onDelete={deletePaper}
+          emptyText={<>No question papers yet. Use <strong>Upload Notes / Papers</strong> and pick <strong>Question Paper</strong>.</>}
+          onDeleted={(id) => setMyPapers((prev) => prev.filter((pp) => pp.id !== id))}
+        />
+      )}
+
       {showNotesModal && !isStaff && (
-        <NoteUploadModal author={profile} onClose={() => setShowNotesModal(false)} onUploaded={refreshMyNotes} />
+        <NoteUploadModal author={profile} onClose={() => setShowNotesModal(false)} onUploaded={refreshMyNotes} onPaperUploaded={refreshMyPapers} />
       )}
 
       <div style={{ gridColumn: "1 / -1" }}><DeleteAccountCard variant={isStaff ? "staff" : "faculty"} /></div>
@@ -3010,42 +3096,50 @@ function FacultyPortal({ profile, onSaveProfile }) {
   );
 }
 
-/* The upload form, shared by the Faculty Studio and the admin desk. */
-function NoteUploadModal({ author, onClose, onUploaded }) {
+/* The upload dialog, shared by the Faculty Studio and the admin desk. One
+   dialog for both kinds of upload: subject notes, or a previous year
+   question paper. Header and buttons stay put; only the middle scrolls, so
+   the form never runs off the screen. */
+const PAPER_YEARS = Array.from({ length: 12 }, (_, i) => String(new Date().getFullYear() - i));
+
+function NoteUploadModal({ author, onClose, onUploaded, onPaperUploaded, initialKind = "notes" }) {
+  const [kind, setKind] = useState(initialKind);
+  const isPaper = kind === "paper";
   const [uploadError, setUploadError] = useState("");
   const [nStream, setNStream] = useState("bsc-cs");
   const [nSemester, setNSemester] = useState(SEMESTERS[0]);
   const [nSubject, setNSubject] = useState("");
   const [nTitle, setNTitle] = useState("");
   const [nDesc, setNDesc] = useState("");
+  const [pYear, setPYear] = useState(PAPER_YEARS[0]);
+  const [pSession, setPSession] = useState(PAPER_SESSIONS[0]);
   const [nFiles, setNFiles] = useState([]);
   const [publishing, setPublishing] = useState(false);
   const [progress, setProgress] = useState(null);
   /* Get the upload signature while the form is being filled in. */
-  useEffect(() => { warmUpload("dnyansetu/notes"); }, []);
+  useEffect(() => { warmUpload(isPaper ? "dnyansetu/papers" : "dnyansetu/notes"); }, [isPaper]);
 
-  const handleNoteSubmit = async (e) => {
+  const ready = nSubject.trim() && nFiles.length && (isPaper || nTitle.trim());
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!nTitle.trim() || !nSubject.trim() || !nFiles.length || publishing) return;
-
+    if (!ready || publishing) return;
     setPublishing(true);
     setUploadError("");
     setProgress({ pct: 0, index: 1, total: nFiles.length });
+    const onProgress = (pct, index, total) => setProgress({ pct, index, total });
     try {
-      await uploadNote({
-        streamId: nStream,
-        subject: nSubject,
-        semester: nSemester,
-        title: nTitle,
-        description: nDesc,
-        files: nFiles,
-        author,
-        onProgress: (pct, index, total) => setProgress({ pct, index, total }),
-      });
-      onClose();
-      await onUploaded?.();
+      if (isPaper) {
+        await uploadPaper({ streamId: nStream, subject: nSubject, semester: nSemester, year: pYear, session: pSession, files: nFiles, author, onProgress });
+        onClose();
+        await onPaperUploaded?.();
+      } else {
+        await uploadNote({ streamId: nStream, subject: nSubject, semester: nSemester, title: nTitle, description: nDesc, files: nFiles, author, onProgress });
+        onClose();
+        await onUploaded?.();
+      }
     } catch (err) {
-      setUploadError(err.message || "Could not upload these notes.");
+      setUploadError(err.message || "Could not upload these files.");
       setPublishing(false);
       setProgress(null);
     }
@@ -3053,55 +3147,91 @@ function NoteUploadModal({ author, onClose, onUploaded }) {
 
   return (
     <div className="modal-overlay">
-      <div className="modal-card">
-        <div className="modal-head">
-          <h3>Upload Notes</h3>
-          <button className="btn btn-ghost" onClick={() => onClose()}><X size={18} /></button>
+      <form className="modal-card upload-modal" onSubmit={handleSubmit}>
+        <div className="upload-modal-head">
+          <div>
+            <h3>{isPaper ? "Upload Question Paper" : "Upload Notes"}</h3>
+            <p>{isPaper ? "Previous year paper for students to download." : "Notes appear for students in this branch straight away."}</p>
+          </div>
+          <button type="button" className="btn btn-ghost upload-modal-close" onClick={() => onClose()} aria-label="Close"><X size={18} /></button>
         </div>
-        <form onSubmit={handleNoteSubmit}>
-          <Field
-            label="Title or Unit Name"
-            value={nTitle}
-            onChange={(e) => setNTitle(e.target.value)}
-            placeholder="e.g. Unit 3 — Normalisation and Keys"
-            required
-          />
-          <SelectField
-            label="Branch / Class"
-            value={nStream}
-            onChange={(e) => setNStream(e.target.value)}
-            options={NOTE_STREAMS.map((st) => ({ value: st.id, label: st.name }))}
-          />
-          <SelectField
-            label="Semester"
-            value={nSemester}
-            onChange={(e) => setNSemester(e.target.value)}
-            options={SEMESTERS}
-          />
-          <Field
-            label="Subject"
-            icon={BookOpen}
-            value={nSubject}
-            onChange={(e) => setNSubject(e.target.value)}
-            placeholder="e.g. Database Management Systems"
-            required
-          />
-          <Field
-            label="Short Description (optional)"
-            value={nDesc}
-            onChange={(e) => setNDesc(e.target.value)}
-            placeholder="What these notes cover..."
-          />
 
-          <label className="field-label" style={{ marginTop: 12, display: "block" }}>
-            PDF or Images
-          </label>
-          <label className="note-dropzone">
-            <ImagePlus size={20} />
-            <span>
-              {nFiles.length
-                ? `${nFiles.length} file${nFiles.length === 1 ? "" : "s"} selected`
-                : "Choose PDFs or photos of handwritten notes"}
+        <div className="upload-modal-body">
+          <div className="upload-kind" role="tablist" aria-label="What are you uploading?">
+            <button type="button" role="tab" aria-selected={!isPaper} className={!isPaper ? "is-active" : ""} onClick={() => setKind("notes")} disabled={publishing}>
+              <NotebookPen size={16} /> Notes
+            </button>
+            <button type="button" role="tab" aria-selected={isPaper} className={isPaper ? "is-active" : ""} onClick={() => setKind("paper")} disabled={publishing}>
+              <ScrollText size={16} /> Question Paper
+            </button>
+          </div>
+
+          <div className="upload-grid">
+            <SelectField
+              label="Branch / Class"
+              value={nStream}
+              onChange={(e) => setNStream(e.target.value)}
+              options={NOTE_STREAMS.map((st) => ({ value: st.id, label: st.name }))}
+            />
+            <SelectField label="Semester" value={nSemester} onChange={(e) => setNSemester(e.target.value)} options={SEMESTERS} />
+            <div className="upload-span-2">
+              <Field
+                label="Subject"
+                icon={BookOpen}
+                value={nSubject}
+                maxLength={120}
+                onChange={(e) => setNSubject(e.target.value)}
+                placeholder="e.g. Database Management Systems"
+                required
+              />
+            </div>
+            {isPaper ? (
+              <>
+                <SelectField label="Exam year" value={pYear} onChange={(e) => setPYear(e.target.value)} options={PAPER_YEARS} />
+                <SelectField
+                  label="Exam session"
+                  value={pSession}
+                  onChange={(e) => setPSession(e.target.value)}
+                  options={[{ value: "Summer", label: "Summer (Mar–May)" }, { value: "Winter", label: "Winter (Oct–Dec)" }]}
+                />
+              </>
+            ) : (
+              <>
+                <div className="upload-span-2">
+                  <Field
+                    label="Title or unit name"
+                    value={nTitle}
+                    maxLength={150}
+                    onChange={(e) => setNTitle(e.target.value)}
+                    placeholder="e.g. Unit 3 — Normalisation and Keys"
+                    required
+                  />
+                </div>
+                <label className="field upload-span-2">
+                  <span className="field-label">Short description <em className="upload-opt">(optional)</em></span>
+                  <textarea
+                    className="field-input upload-textarea"
+                    rows={2}
+                    maxLength={400}
+                    value={nDesc}
+                    onChange={(e) => setNDesc(e.target.value)}
+                    placeholder="What these notes cover…"
+                  />
+                </label>
+              </>
+            )}
+          </div>
+
+          <span className="field-label upload-files-label">{isPaper ? "Paper (PDF or photos)" : "PDF or images"}</span>
+          <label className={`note-dropzone upload-drop ${nFiles.length ? "has-files" : ""}`}>
+            <span className="upload-drop-icon"><ImagePlus size={20} /></span>
+            <span className="upload-drop-text">
+              <strong>
+                {nFiles.length
+                  ? `${nFiles.length} file${nFiles.length === 1 ? "" : "s"} selected — tap to change`
+                  : isPaper ? "Choose the question paper" : "Choose PDFs or photos of handwritten notes"}
+              </strong>
+              <small>PDF, JPG, PNG or WebP · up to 15 MB each</small>
             </span>
             <input
               type="file"
@@ -3116,7 +3246,7 @@ function NoteUploadModal({ author, onClose, onUploaded }) {
             <ul className="note-file-preview">
               {nFiles.map((f, i) => (
                 <li key={`${f.name}-${i}`}>
-                  <FileText size={13} /> {f.name} <em>{formatBytes(f.size)}</em>
+                  <FileText size={13} /> <span className="upload-file-name">{f.name}</span> <em>{formatBytes(f.size)}</em>
                 </li>
               ))}
             </ul>
@@ -3127,34 +3257,27 @@ function NoteUploadModal({ author, onClose, onUploaded }) {
               <div className="upload-progress-bar">
                 <span style={{ width: progress.pct + "%" }} />
               </div>
-              <small>
-                Uploading file {progress.index} of {progress.total} — {progress.pct}%
-              </small>
+              <small>Uploading file {progress.index} of {progress.total} — {progress.pct}%</small>
             </div>
           )}
 
           {uploadError && <p className="upload-error" style={{ marginTop: 12 }}>{uploadError}</p>}
+        </div>
 
-          <p className="modal-note-info">
-            <Info size={12} /> Uploaded notes appear immediately under Subject-wise Notes for
-            students in this branch.
-          </p>
-
-          <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 16 }}>
-            <button type="button" className="btn btn-outline" onClick={() => onClose()}>Cancel</button>
-            <button type="submit" className="btn btn-primary" disabled={publishing || !nFiles.length}>
-              {publishing ? <><Loader2 size={15} className="spin" /> Uploading…</> : "Publish Notes"}
-            </button>
-          </div>
-        </form>
-      </div>
+        <div className="upload-modal-foot">
+          <button type="button" className="btn btn-outline" onClick={() => onClose()}>Cancel</button>
+          <button type="submit" className="btn btn-primary" disabled={publishing || !ready}>
+            {publishing ? <><Loader2 size={15} className="spin" /> Uploading…</> : isPaper ? "Publish Paper" : "Publish Notes"}
+          </button>
+        </div>
+      </form>
     </div>
   );
 }
 
 /* Uploaded notes with a delete button on each. Deleting removes the row, so
    the note disappears from the student library as well. */
-function NotesManageList({ title, notes, loading, error, emptyText, onDeleted }) {
+function NotesManageList({ title, notes, loading, error, emptyText, onDeleted, onDelete = deleteNote, noun = "note", icon: Icon = NotebookPen }) {
   const [deletingId, setDeletingId] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [deleteError, setDeleteError] = useState("");
@@ -3163,11 +3286,11 @@ function NotesManageList({ title, notes, loading, error, emptyText, onDeleted })
     setDeletingId(note.id);
     setDeleteError("");
     try {
-      await deleteNote(note);
+      await onDelete(note);
       onDeleted(note.id);
       setConfirmDelete(null);
     } catch (err) {
-      setDeleteError(err.message || "Could not delete that note.");
+      setDeleteError(err.message || `Could not delete that ${noun}.`);
     } finally {
       setDeletingId("");
     }
@@ -3176,13 +3299,13 @@ function NotesManageList({ title, notes, loading, error, emptyText, onDeleted })
   return (
     <div className="dash-modules">
       <h3 className="dash-section-title">
-        <NotebookPen size={20} /> {title} ({notes.length})
+        <Icon size={20} /> {title} ({notes.length})
       </h3>
 
       {(error || deleteError) && <p className="upload-error">{error || deleteError}</p>}
 
       {loading ? (
-        <p className="notes-loading"><Loader2 size={18} className="spin" /> Loading notes…</p>
+        <p className="notes-loading"><Loader2 size={18} className="spin" /> Loading…</p>
       ) : notes.length === 0 ? (
         <p className="resource-empty">{emptyText}</p>
       ) : (
@@ -3215,7 +3338,7 @@ function NotesManageList({ title, notes, loading, error, emptyText, onDeleted })
               <div className="note-actions">
                 {confirmDelete === note.id ? (
                   <>
-                    <span className="note-confirm">Delete this note for everyone?</span>
+                    <span className="note-confirm">Delete this {noun} for everyone?</span>
                     <button
                       type="button"
                       className="btn btn-xs btn-outline"
@@ -4486,7 +4609,7 @@ export default function App() {
 
     /* Gmail addresses only — a work or school Google account is turned away
        (the database refuses new ones too, see migration 0020). */
-    if (!isGmail(current.email)) {
+    if (!demoMode && !isGmail(current.email)) {
       await auth.signOut();
       setCurrentUser(null);
       setAuthMode("login");
@@ -7455,6 +7578,87 @@ function Styles() {
       .modal-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid var(--border-light); padding-bottom: 12px; color: var(--abc-navy); }
 
       .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+      /* Upload dialog (notes or question paper): fixed header and footer,
+         scrolling middle, two-column fields on wider screens. */
+      .modal-card.upload-modal {
+        max-width: 720px; padding: 0; display: flex; flex-direction: column;
+        max-height: min(88dvh, 820px); overflow: hidden;
+      }
+      .upload-modal-head {
+        display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+        padding: 20px 24px 14px; border-bottom: 1px solid var(--border-light);
+      }
+      .upload-modal-head h3 { margin: 0; font-size: 19px; color: var(--abc-navy); }
+      .upload-modal-head p { margin: 4px 0 0; font-size: 13px; color: var(--text-muted); }
+      .upload-modal-close { flex: none; }
+      .upload-modal-body { flex: 1; min-height: 0; overflow-y: auto; padding: 16px 24px 20px; }
+      .upload-modal-foot {
+        display: flex; justify-content: flex-end; gap: 10px;
+        padding: 14px 24px; border-top: 1px solid var(--border-light); background: #F8FAFC;
+      }
+      .upload-kind {
+        display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; margin-bottom: 16px;
+        border-radius: 10px; background: #EEF2F7;
+      }
+      .upload-kind button {
+        display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+        padding: 9px 12px; border: 0; border-radius: 8px; background: transparent;
+        font-size: 14px; font-weight: 700; color: #475569;
+      }
+      .upload-kind button.is-active { background: #fff; color: var(--abc-navy); box-shadow: 0 1px 3px rgba(11, 30, 46, 0.15); }
+      .upload-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 16px; }
+      .upload-grid .field { margin-top: 0; min-width: 0; }
+      .upload-span-2 { grid-column: 1 / -1; min-width: 0; }
+      .upload-opt { font-style: normal; font-weight: 400; color: var(--text-muted); }
+      .upload-textarea { width: 100%; resize: vertical; min-height: 64px; padding: 10px 12px; }
+      .upload-files-label { display: block; margin-top: 12px; }
+      .upload-drop { display: flex; align-items: center; gap: 12px; }
+      .upload-drop-icon { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: #fff; }
+      .upload-drop-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+      .upload-drop-text strong { font-size: 14px; }
+      .upload-drop-text small { font-size: 12px; color: var(--text-muted); font-weight: 500; }
+      .upload-drop.has-files { border-style: solid; }
+      .upload-file-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      @media (max-width: 640px) {
+        .modal-card.upload-modal { max-height: 92dvh; }
+        .upload-modal-head, .upload-modal-body, .upload-modal-foot { padding-left: 16px; padding-right: 16px; }
+        .upload-grid { grid-template-columns: 1fr; }
+        .upload-modal-foot .btn { flex: 1; justify-content: center; }
+      }
+
+      /* Question Papers page: faculty uploads. */
+      .pyq-faculty { max-width: 900px; margin: 28px auto 0; }
+      .pyq-faculty-head h2 { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 20px; color: var(--abc-navy); }
+      .pyq-faculty-head p { margin: 4px 0 12px; font-size: 13.5px; color: var(--text-muted); }
+      .pyq-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+      .pyq-chips button {
+        padding: 6px 12px; border-radius: 999px; border: 1px solid var(--border-light);
+        background: #fff; font-size: 13px; font-weight: 700; color: #334155;
+      }
+      .pyq-chips button.is-active { background: var(--abc-navy); border-color: var(--abc-navy); color: #fff; }
+      .pyq-list { list-style: none; margin: 0; padding: 0; border: 1px solid var(--border-light); border-radius: 10px; background: #fff; }
+      .pyq-item { display: flex; align-items: center; gap: 14px; padding: 12px 14px; }
+      .pyq-item + .pyq-item { border-top: 1px solid var(--border-light); }
+      .pyq-item-year {
+        flex: 0 0 64px; display: flex; flex-direction: column; align-items: center;
+        padding-right: 12px; border-right: 2px solid #CBD5E1; color: #C62828; line-height: 1.1;
+      }
+      .pyq-item-year strong { font-size: 17px; font-weight: 800; }
+      .pyq-item-year small { font-size: 11.5px; font-weight: 700; }
+      .pyq-item-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; text-align: left; }
+      .pyq-item-body strong { font-size: 15px; color: var(--abc-navy); overflow-wrap: anywhere; }
+      .pyq-item-body small { font-size: 12.5px; color: var(--text-muted); }
+      .pyq-item-files { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+      .pyq-dl {
+        display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border-radius: 6px;
+        border: 1px solid #F3C4C4; background: #FFF5F5; color: #B42318; font-size: 13px; font-weight: 700; text-decoration: none;
+      }
+      .pyq-dl:hover { background: #C62828; border-color: #C62828; color: #fff; }
+      @media (max-width: 560px) {
+        .pyq-item { flex-wrap: wrap; }
+        .pyq-item-files { width: 100%; justify-content: flex-start; padding-left: 78px; }
+      }
+
 
       /* ================================================================
          DnyanSetu LAYOUT REPAIR / APP SHELL
