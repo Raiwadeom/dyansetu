@@ -34,11 +34,11 @@ import { NOTE_STREAMS, SEMESTERS, ACCEPTED_NOTE_TYPES, formatBytes } from "./dat
 import { SCHOLARSHIP_CATEGORIES } from "./data/resources";
 import { builtInSchemes, fetchSchemes, schemeStatus, fetchLiveAnnouncements } from "./lib/siteContent";
 import ContentAdminPage, { FacultyAnnouncementsCard } from "./admin/ContentAdminPage.jsx";
-import SiteAlertsButton from "./lib/SiteAlertsButton.jsx";
+import NotificationPrompt from "./lib/NotificationPrompt.jsx";
 import { ensureSiteWorker } from "./lib/sitePush";
 import ScholarshipResetPage from "./admin/ScholarshipResetPage.jsx";
 import { LANG_KEY, LangContext, useLang, makeTr } from "./lib/i18n";
-import { markIosStepsSeen, useInstallApp } from "./lib/installPrompt";
+import { isStandalone, markIosStepsSeen, useInstallApp } from "./lib/installPrompt";
 import { VisitorCounter } from "./lib/visitCounter.jsx";
 import {
   Mail, Phone, Lock, User, ArrowRight, ArrowLeft, CheckCircle2, Users, Award, Linkedin, GraduationCap,
@@ -1087,7 +1087,6 @@ function Landing({ goAuth, onOpenAbout, onOpenPage, user, onOpenDashboard }) {
         <div className="notice-board">
           <div className="notice-board-head">
             <h2>{tr("Announcements", "घोषणा")}</h2>
-            <SiteAlertsButton tr={tr} />
           </div>
           {notices.length === 0 ? (
             <ul className="notice-board-list">
@@ -2649,7 +2648,6 @@ function StudentProfile({ profile, onSaveProfile }) {
 
   return (
     <main className="profile-page">
-      <div className="profile-site-alerts"><SiteAlertsButton variant="card" /></div>
       <section className="profile-header-card">
         <div className="profile-cover">
           <div className="profile-cover-grid" />
@@ -2978,8 +2976,6 @@ function FacultyPortal({ profile, onSaveProfile }) {
       {!isStaff && (
         <div style={{ gridColumn: "1 / -1" }}><FacultyAnnouncementsCard profile={profile} /></div>
       )}
-
-      <div style={{ gridColumn: "1 / -1" }}><SiteAlertsButton variant="card" /></div>
 
       {!isStaff && (
         <NotesManageList
@@ -4118,7 +4114,6 @@ function TopNavApp({ view, go, onHome, onLogout, user, pendingCount = 0 }) {
           <span className="app-brand-divider" aria-hidden="true" />
           <CollegeCrest size={36} className="app-brand-crest" />
           <span className="app-brand-college">
-            <small>{INSTITUTION.trust}</small>
             <strong>{INSTITUTION.short}</strong>
           </span>
         </button>
@@ -4981,6 +4976,8 @@ export default function App() {
       <Styles />
 
       {askLang && <LanguagePicker onChoose={setLang} current={savedLang} />}
+      {/* Asked once per device, after signing in or when opened as the installed app. */}
+      {!askLang && (currentUser || isStandalone()) && <NotificationPrompt tr={makeTr(lang)} signedIn={Boolean(currentUser)} />}
       {/* The install strip belongs to the landing page only; the header's
           download icon covers every other page. */}
       {!askLang && view === "landing" && <InstallAppButton variant="banner" />}
@@ -5852,19 +5849,13 @@ function Styles() {
         margin: 0 2px;
         background: rgba(11, 30, 46, 0.14);
       }
-      /* Signed-in header: college crest, then the trust line in small saffron
-         capitals over the college name in the same serif as the wordmark. */
+      /* Signed-in header: college crest, then the college name in the same
+         serif as the wordmark. */
       .app-brand-crest { border-radius: 50%; box-shadow: 0 0 0 1px rgba(11, 30, 46, 0.12), 0 2px 6px rgba(11, 30, 46, 0.12); }
       .app-brand-college {
         display: flex; flex-direction: column; gap: 2px;
         max-width: 280px;
         text-align: left;
-      }
-      .app-brand-college small {
-        font-size: 9.5px; font-weight: 700; line-height: 1.2;
-        letter-spacing: 0.09em; text-transform: uppercase;
-        color: var(--abc-saffron, #E65100);
-        white-space: nowrap;
       }
       .app-brand-college strong {
         font-size: 15px; font-weight: 700; line-height: 1.2;
@@ -6267,8 +6258,6 @@ function Styles() {
       }
       .note-card.is-focus { outline: 3px solid var(--abc-saffron, #E65100); outline-offset: 2px; animation: noteFocus 1.6s ease-out 2; }
       @keyframes noteFocus { 0% { box-shadow: 0 0 0 0 rgba(230,81,0,.45); } 100% { box-shadow: 0 0 0 14px rgba(230,81,0,0); } }
-      .profile-site-alerts { margin-bottom: 16px; }
-      .profile-site-alerts:empty { display: none; }
       .notice-new { padding: 2px 8px; border-radius: 999px; background: #DCFCE7; color: #15803D; font-size: 11px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; }
       .notice-item-arrow { flex: 0 0 auto; color: #C62828; }
 
