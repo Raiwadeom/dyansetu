@@ -4656,12 +4656,19 @@ export default function App() {
   /* Re-reads the account so an approval shows up without signing in again. */
   const refreshApproval = useCallback(async () => {
     if (!currentUser?.id) return null;
+    /* The offline demo has no administrator, so "Check approval status"
+       approves at once there. Never reached on the live site. */
+    if (demoMode) {
+      const approved = { ...currentUser, approvalStatus: "approved" };
+      setCurrentUser(approved);
+      return approved;
+    }
     const fresh = await fetchProfile(currentUser.id);
     if (!fresh) return null;
     const full = normalizeStudentProfile(fresh);
     setCurrentUser(full);
     return full;
-  }, [currentUser?.id]);
+  }, [currentUser, demoMode]);
 
   const refreshUsers = async () => {
     try { setUsers(await listProfiles()); } catch (e) { console.error(e); }
@@ -4705,8 +4712,16 @@ export default function App() {
         const newUser = normalizeStudentProfile({
           id: "user-" + Date.now(), role: creds.role, name: creds.name, email,
           phone: "", status: "active", restricted: false, joined: Date.now(),
+          approvalStatus: needsApproval(creds.role) ? "pending" : "approved",
         });
         setUsers([...users, newUser]);
+        /* Same as the live site: faculty/staff go straight to the ID-card
+           and waiting-for-approval screen. */
+        if (isAwaitingApproval(newUser)) {
+          setCurrentUser(newUser);
+          replaceView("pending-approval");
+          return { success: true, message: "Account created. Upload your college ID card to finish." };
+        }
         setAuthMode("login");
         return { success: true, message: "Sign up successful! Please sign in with your email and password." };
       }
