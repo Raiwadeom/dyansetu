@@ -34,6 +34,7 @@ const FOLDER_ROLES = {
   "dnyansetu/papers": ["faculty", "admin"],
   "dnyansetu/avatars": ["faculty", "admin"],
   "dnyansetu/id-proofs": ["faculty", "staff", "scholarship"],
+  "dnyansetu/announcements": ["faculty", "admin", "scholarship"],
 };
 
 /* The only file types anyone may upload: PDFs and photos. */
@@ -94,8 +95,8 @@ export async function handleSignUpload(body) {
   if (!FOLDER_ROLES[folder].includes(role)) {
     return { status: 403, json: { error: "Your account cannot upload files here." } };
   }
-  /* Notes stay closed until the administrator has approved the teacher. */
-  const publishing = folder === "dnyansetu/notes" || folder === "dnyansetu/papers";
+  /* Notes (and announcement PDFs) stay closed until the administrator has approved the teacher. */
+  const publishing = folder === "dnyansetu/notes" || folder === "dnyansetu/papers" || folder === "dnyansetu/announcements";
   if (publishing && role === "faculty" && caller.profile.approval_status && caller.profile.approval_status !== "approved") {
     return { status: 403, json: { error: "Your faculty account is waiting for administrator approval." } };
   }

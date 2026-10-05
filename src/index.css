@@ -70,6 +70,8 @@ img {
    would otherwise force the body font onto them). */
 body .landing-brand-name,
 body .footer-brand-name,
+body .app-brand-name,
+body .app-brand-college strong,
 body .rs-lockup-text strong {
   font-family: "Noto Serif", Georgia, serif !important;
 }

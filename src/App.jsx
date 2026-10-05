@@ -23,7 +23,7 @@ import {
   markNotesOpened, submitIdProof, listPendingApprovals, adminReviewPending,
 } from "./lib/profiles";
 import { fetchMyNotes, uploadNote, deleteNote } from "./lib/notes";
-import { uploadFile, shrinkPhoto, warmUpload } from "./lib/cloudinary";
+import { uploadFile, shrinkPhoto, warmUpload, downloadUrl } from "./lib/cloudinary";
 import { fetchAllAttempts } from "./lib/quizProgress";
 import { streamById, subjectOf } from "./data/quiz/curriculum.js";
 import {
@@ -46,7 +46,7 @@ import {
   FileText, Edit3, Trash2, Ban, Sparkles, BookOpen, ImagePlus, BarChart3,
   Info, Facebook, Instagram, CalendarDays, Search, Droplet, ClipboardList, ListChecks, Coins, HandHeart,
   ScrollText, NotebookPen, FileDown, AlertTriangle, Newspaper,
-  Languages, Menu, Briefcase, ChevronLeft, ChevronRight, Clock, BadgeCheck, IdCard, LogIn, UserCheck, RefreshCw, Download, Share, SquarePlus,
+  Languages, Menu, Briefcase, ChevronLeft, ChevronRight, Clock, BadgeCheck, IdCard, LogIn, UserCheck, RefreshCw, Download, Share, SquarePlus, Play, Pause,
 } from "lucide-react";
 
 /* ============================================================================
@@ -637,6 +637,58 @@ const NOTICE_CATEGORY = {
   workshop: { en: "Workshop", mr: "कार्यशाळा" },
 };
 
+/* Announcements roll upwards in a slow, endless loop (two or more of them);
+   pointing at the list (or tabbing into it) pauses it, and the pause/play
+   button stops it for good. The list is drawn twice so the loop has no seam,
+   and the window is kept a little shorter than one copy so the same notice
+   never shows twice at once. The second copy is hidden from screen readers
+   and the keyboard. It rolls even with the system's reduce-motion setting
+   (many Windows PCs have it on without knowing) because the pause button
+   and hover-to-stop give everyone control over it. */
+const NOTICE_TICKER_MAX_PX = 400;
+
+function NoticeTicker({ items, renderItem, tr }) {
+  const [paused, setPaused] = useState(false);
+  const [listHeight, setListHeight] = useState(0);
+  const firstList = useRef(null);
+  const rolling = items.length >= 2;
+
+  useEffect(() => {
+    const el = firstList.current;
+    if (!rolling || !el) return undefined;
+    const measure = () => setListHeight(el.offsetHeight);
+    measure();
+    if (typeof ResizeObserver === "undefined") return undefined;
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [rolling, items]);
+
+  const list = (hidden) => (
+    <ul className="notice-board-list" aria-hidden={hidden || undefined} ref={hidden ? undefined : firstList}>
+      {items.map((item) => (
+        <li key={item.id} className="notice-row">{renderItem(item, hidden)}</li>
+      ))}
+    </ul>
+  );
+  if (!rolling) return <div className="notice-ticker">{list(false)}</div>;
+  const windowHeight = listHeight ? Math.min(NOTICE_TICKER_MAX_PX, Math.round(listHeight * 0.8)) : undefined;
+  return (
+    <div className="notice-ticker-wrap">
+      <div className={`notice-ticker is-rolling ${paused ? "is-paused" : ""}`} style={{ height: windowHeight }}>
+        <div className="notice-ticker-track" style={{ animationDuration: `${Math.max(12, items.length * 5)}s` }}>
+          {list(false)}
+          {list(true)}
+        </div>
+      </div>
+      <button type="button" className="notice-ticker-toggle" onClick={() => setPaused((p) => !p)} aria-pressed={paused}>
+        {paused ? <Play size={13} /> : <Pause size={13} />}
+        {paused ? tr("Play", "सुरू करा") : tr("Pause", "थांबवा")}
+      </button>
+    </div>
+  );
+}
+
 function Landing({ goAuth, onOpenAbout, onOpenPage, user, onOpenDashboard }) {
   /* Announcements come from the administrator's Scholarships & Notices page;
      the built-in notices show until they load or if the database is unreachable. */
@@ -655,6 +707,8 @@ function Landing({ goAuth, onOpenAbout, onOpenPage, user, onOpenDashboard }) {
         href: r.href || undefined,
         category: r.category && r.category !== "notice" ? r.category : "",
         author: r.author_name || "",
+        pdf: r.pdf_url || "",
+        pdfName: r.pdf_name || "",
       })));
     });
     return () => { alive = false; };
@@ -1035,42 +1089,60 @@ function Landing({ goAuth, onOpenAbout, onOpenPage, user, onOpenDashboard }) {
             <h2>{tr("Announcements", "घोषणा")}</h2>
             <SiteAlertsButton tr={tr} />
           </div>
-          <ul className="notice-board-list">
-            {notices.length === 0 && (
+          {notices.length === 0 ? (
+            <ul className="notice-board-list">
               <li className="notice-empty">{tr("No announcements right now.", "सध्या कोणत्याही घोषणा नाहीत.")}</li>
-            )}
-            {notices.map((item) => {
-              const Row = item.href ? "a" : "div";
-              const [day, month, year] = item.date.split(" ");
-              const inApp = item.href === "/scholarships";
-              return (
-                <li key={item.id}>
-                  <Row
-                    className="notice-item"
-                    {...(item.href ? { href: item.href, ...linkTarget(item.href) } : {})}
-                    {...(inApp ? { onClick: (e) => { e.preventDefault(); onOpenPage("scholarships"); } } : {})}
-                  >
-                    <span className="notice-date" aria-label={item.date}>
-                      <strong>{day}</strong>
-                      <span>{month}</span>
-                    </span>
-                    <span className="notice-item-body">
-                      <span className="notice-item-title">{tr(item.title, item.titleMr || item.title)}</span>
-                      <span className="notice-item-meta">
-                        {item.status === "live" && <span className="notice-new">{tr("New", "नवीन")}</span>}
-                        {item.category && <span className={`notice-cat notice-cat--${item.category}`}>{tr(NOTICE_CATEGORY[item.category]?.en || item.category, NOTICE_CATEGORY[item.category]?.mr || item.category)}</span>}
-                        {year}
-                        {item.author && <span className="notice-author">· {item.author}</span>}
+            </ul>
+          ) : (
+            <NoticeTicker
+              items={notices}
+              tr={tr}
+              renderItem={(item, hidden) => {
+                const Row = item.href ? "a" : "div";
+                const [day, month, year] = item.date.split(" ");
+                const inApp = item.href === "/scholarships";
+                const skip = hidden ? { tabIndex: -1 } : {};
+                return (
+                  <>
+                    <Row
+                      className="notice-item"
+                      {...(item.href ? { href: item.href, ...linkTarget(item.href), ...skip } : {})}
+                      {...(inApp ? { onClick: (e) => { e.preventDefault(); onOpenPage("scholarships"); } } : {})}
+                    >
+                      <span className="notice-date" aria-label={item.date}>
+                        <strong>{day}</strong>
+                        <span>{month}</span>
                       </span>
-                    </span>
-                    {item.href && (item.href.startsWith("/")
-                      ? <ArrowRight size={16} className="notice-item-arrow" />
-                      : <ExternalLink size={16} className="notice-item-arrow" />)}
-                  </Row>
-                </li>
-              );
-            })}
-          </ul>
+                      <span className="notice-item-body">
+                        <span className="notice-item-title">{tr(item.title, item.titleMr || item.title)}</span>
+                        <span className="notice-item-meta">
+                          {item.status === "live" && <span className="notice-new">{tr("New", "नवीन")}</span>}
+                          {item.category && <span className={`notice-cat notice-cat--${item.category}`}>{tr(NOTICE_CATEGORY[item.category]?.en || item.category, NOTICE_CATEGORY[item.category]?.mr || item.category)}</span>}
+                          {year}
+                          {item.author && <span className="notice-author">· {item.author}</span>}
+                        </span>
+                      </span>
+                      {item.href && (item.href.startsWith("/")
+                        ? <ArrowRight size={16} className="notice-item-arrow" />
+                        : <ExternalLink size={16} className="notice-item-arrow" />)}
+                    </Row>
+                    {item.pdf && (
+                      <a
+                        className="notice-pdf"
+                        href={downloadUrl({ url: item.pdf })}
+                        target="_blank"
+                        rel="noreferrer"
+                        title={item.pdfName || tr("Download PDF", "PDF डाउनलोड करा")}
+                        {...skip}
+                      >
+                        <Download size={15} /> <span>{tr("PDF", "PDF")}</span>
+                      </a>
+                    )}
+                  </>
+                );
+              }}
+            />
+          )}
         </div>
       </section>
 
@@ -4042,9 +4114,13 @@ function TopNavApp({ view, go, onHome, onLogout, user, pendingCount = 0 }) {
           <span className="app-brand-mark">
             <BrandLogo variant="mark" />
           </span>
-          <span>DnyanSetu</span>
+          <span className="app-brand-name">DnyanSetu</span>
           <span className="app-brand-divider" aria-hidden="true" />
-          <span className="app-brand-college">{INSTITUTION.short}</span>
+          <CollegeCrest size={36} className="app-brand-crest" />
+          <span className="app-brand-college">
+            <small>{INSTITUTION.trust}</small>
+            <strong>{INSTITUTION.short}</strong>
+          </span>
         </button>
 
         {/* Signing in used to be a one-way door: the header offered nothing but
@@ -5776,15 +5852,24 @@ function Styles() {
         margin: 0 2px;
         background: rgba(11, 30, 46, 0.14);
       }
+      /* Signed-in header: college crest, then the trust line in small saffron
+         capitals over the college name in the same serif as the wordmark. */
+      .app-brand-crest { border-radius: 50%; box-shadow: 0 0 0 1px rgba(11, 30, 46, 0.12), 0 2px 6px rgba(11, 30, 46, 0.12); }
       .app-brand-college {
-        font-family: 'Space Grotesk', 'Plus Jakarta Sans', system-ui, sans-serif;
-        font-size: 13.5px;
-        font-weight: 600;
-        line-height: 1.25;
-        letter-spacing: 0.005em;
-        color: var(--abc-navy);
-        max-width: 260px;
+        display: flex; flex-direction: column; gap: 2px;
+        max-width: 280px;
         text-align: left;
+      }
+      .app-brand-college small {
+        font-size: 9.5px; font-weight: 700; line-height: 1.2;
+        letter-spacing: 0.09em; text-transform: uppercase;
+        color: var(--abc-saffron, #E65100);
+        white-space: nowrap;
+      }
+      .app-brand-college strong {
+        font-size: 15px; font-weight: 700; line-height: 1.2;
+        letter-spacing: -0.005em;
+        color: var(--abc-navy);
       }
 
       /* Sole brand element on the login panel now, so it centres itself. */
@@ -6112,6 +6197,35 @@ function Styles() {
       .scheme-status--soon { background: #FFF4E0; color: #9A5B00; }
       .scheme-status--closed { background: #F1F3F6; color: #5A6675; }
       .notice-board-list li { border-bottom: 1px solid var(--border-light); }
+      .notice-row { display: flex; align-items: center; gap: 10px; }
+      .notice-row > .notice-item { flex: 1; min-width: 0; }
+      .notice-pdf {
+        flex: none; display: inline-flex; align-items: center; gap: 6px; margin-right: 6px;
+        padding: 7px 12px; border-radius: 6px; border: 1px solid #F3C4C4; background: #FFF5F5;
+        color: #B42318; font-size: 13px; font-weight: 700; text-decoration: none;
+        transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+      }
+      .notice-pdf:hover, .notice-pdf:focus-visible { background: #C62828; border-color: #C62828; color: #fff; }
+      /* Rolling list: a fixed window with soft fades top and bottom. */
+      .notice-ticker-wrap { position: relative; }
+      .notice-ticker.is-rolling {
+        max-height: 400px; overflow: hidden; position: relative;
+        -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 28px, #000 calc(100% - 28px), transparent 100%);
+        mask-image: linear-gradient(180deg, transparent 0, #000 28px, #000 calc(100% - 28px), transparent 100%);
+      }
+      .notice-ticker-track { animation: notice-roll linear infinite; will-change: transform; }
+      .notice-ticker.is-rolling:hover .notice-ticker-track,
+      .notice-ticker.is-rolling:focus-within .notice-ticker-track,
+      .notice-ticker.is-paused .notice-ticker-track { animation-play-state: paused; }
+      @keyframes notice-roll { from { transform: translateY(0); } to { transform: translateY(-50%); } }
+      .notice-ticker-toggle {
+        position: absolute; right: 0; bottom: -34px;
+        display: inline-flex; align-items: center; gap: 5px;
+        padding: 4px 10px; border: 1px solid var(--border-light); border-radius: 999px;
+        background: #fff; color: var(--abc-navy); font-size: 12px; font-weight: 700; cursor: pointer;
+      }
+      .notice-ticker-toggle:hover { border-color: #C62828; color: #C62828; }
+      .notice-ticker-wrap { margin-bottom: 34px; }
       .notice-item {
         display: flex; align-items: center; gap: 20px;
         padding: 18px 8px; text-decoration: none; color: inherit;
@@ -7422,7 +7536,7 @@ function Styles() {
       .app-navigation > :first-child { margin-left: auto; }
       .app-navigation > :last-child { margin-right: auto; }
       /* Two short lines instead of one long one, so the links get the room. */
-      .app-brand .app-brand-college { white-space: normal; max-width: 170px; font-size: 12.5px; }
+      .app-brand .app-brand-college { white-space: normal; max-width: 220px; }
 
       /* Laptops: the links move to their own row under the brand, as on phones,
          instead of hiding behind a sideways scroll. */
@@ -7829,6 +7943,12 @@ function Styles() {
         .notice-date strong { font-size: 19px; }
         .notice-date span { font-size: 16px; }
         .notice-item-title { font-size: 14.5px; }
+        /* Phones: the PDF button shrinks to its icon so the notice text keeps the room. */
+        .notice-row { gap: 4px; }
+        .notice-pdf { padding: 9px; margin-right: 2px; }
+        .notice-pdf span { display: none; }
+        .notice-item-meta { flex-wrap: wrap; row-gap: 4px; }
+        .notice-ticker.is-rolling { max-height: 340px; }
 
 
         .story-shell { padding: 24px 18px; gap: 18px; }
@@ -7866,6 +7986,7 @@ function Styles() {
         .app-brand-mark { width: 30px; height: 30px; }
         .app-brand-divider { display: none; }
         .app-brand-college { display: none; }
+        .app-brand-crest { width: 28px !important; height: 28px !important; flex-basis: 28px !important; }
         .app-header-right { gap: 4px; }
         .header-logout { width: 38px; height: 38px; }
         .dash-grid, .profile-page { width: calc(100% - 24px); padding-bottom: calc(60px + env(safe-area-inset-bottom)); }

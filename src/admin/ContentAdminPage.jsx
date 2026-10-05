@@ -11,9 +11,10 @@
 
 import React, { useCallback, useEffect, useState } from "react";
 import {
-  ArrowDown, ArrowUp, CalendarDays, CheckCircle2, Coins, Eye, EyeOff, Loader2, Megaphone,
+  ArrowDown, ArrowUp, CalendarDays, CheckCircle2, Coins, Eye, EyeOff, FileText, Loader2, Megaphone,
   Pencil, Plus, Save, Trash2, X,
 } from "lucide-react";
+import { MAX_UPLOAD_BYTES, uploadFile, warmUpload } from "../lib/cloudinary";
 import { SCHOLARSHIP_CATEGORIES } from "../data/resources";
 import {
   addAnnouncement, deleteAnnouncement, deleteSchemeRow, fetchAllAnnouncements, fetchAllSchemeRows, fetchMyAnnouncements,
@@ -63,18 +64,51 @@ function AnnouncementForm({ initial, onSave, onCancel, busy }) {
     category: initial?.category || "notice",
     title: initial?.title || "", title_mr: initial?.title_mr || "",
     notice_date: initial?.notice_date || todayIso(), href: initial?.href || "", expires_on: initial?.expires_on || "",
+    pdf_url: initial?.pdf_url || "", pdf_name: initial?.pdf_name || "",
   }));
+  /* A newly picked PDF is uploaded when the form is saved. */
+  const [pdfFile, setPdfFile] = useState(null);
+  const [progress, setProgress] = useState(null);
   const [err, setErr] = useState("");
   const set = (k) => (e) => setF((x) => ({ ...x, [k]: e.target.value }));
-  const submit = (e) => {
+  const pickPdf = (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (file.type !== "application/pdf" && !/\.pdf$/i.test(file.name)) return setErr("Choose a PDF file.");
+    if (file.size > MAX_UPLOAD_BYTES) return setErr("The PDF must be smaller than 15 MB.");
+    setErr("");
+    setPdfFile(file);
+    warmUpload("dnyansetu/announcements");
+  };
+  const removePdf = () => { setPdfFile(null); setF((x) => ({ ...x, pdf_url: "", pdf_name: "" })); };
+  const submit = async (e) => {
     e.preventDefault();
     if (f.title.trim().length < 3) return setErr("Write the announcement text.");
     const href = f.href.trim();
     if (href && !/^(https?:\/\/|\/)/i.test(href)) return setErr("A link must start with https:// (or leave it empty).");
     if (f.expires_on && f.expires_on < f.notice_date) return setErr("The remove-on date must be after the announcement date.");
     setErr("");
-    onSave({ category: f.category, title: f.title.trim(), title_mr: f.title_mr.trim(), notice_date: f.notice_date, href, expires_on: f.expires_on || null });
+    let { pdf_url, pdf_name } = f;
+    if (pdfFile) {
+      try {
+        setProgress(0);
+        const up = await uploadFile(pdfFile, { folder: "dnyansetu/announcements", onProgress: setProgress });
+        pdf_url = up.url;
+        pdf_name = pdfFile.name.slice(0, 200);
+        setF((x) => ({ ...x, pdf_url, pdf_name }));
+        setPdfFile(null);
+      } catch (upErr) {
+        setErr(upErr.message || "The PDF could not be uploaded.");
+        return;
+      } finally {
+        setProgress(null);
+      }
+    }
+    onSave({ category: f.category, title: f.title.trim(), title_mr: f.title_mr.trim(), notice_date: f.notice_date, href, expires_on: f.expires_on || null, pdf_url, pdf_name });
   };
+  const uploading = progress !== null;
+  const pdfLabel = pdfFile?.name || f.pdf_name || (f.pdf_url ? "Attached PDF" : "");
   return (
     <form className="ca-form" onSubmit={submit}>
       <label className="ca-field"><span>Type</span>
@@ -89,11 +123,28 @@ function AnnouncementForm({ initial, onSave, onCancel, busy }) {
         <label className="ca-field"><span>Link <em>(optional)</em></span><input type="url" className="field-input" placeholder="https://…" value={f.href} onChange={set("href")} /></label>
         <label className="ca-field"><span>Remove from home page after <em>(optional)</em></span><input type="date" className="field-input" value={f.expires_on || ""} onChange={set("expires_on")} /></label>
       </div>
+      <div className="ca-field">
+        <span>PDF for students to download <em>(optional, up to 15 MB)</em></span>
+        {pdfLabel ? (
+          <div className="ca-pdf">
+            <FileText size={16} />
+            {f.pdf_url && !pdfFile
+              ? <a href={f.pdf_url} target="_blank" rel="noreferrer" className="ca-pdf-name">{pdfLabel}</a>
+              : <span className="ca-pdf-name">{pdfLabel}{uploading ? ` — uploading ${progress}%` : " — uploads when you save"}</span>}
+            <button type="button" className="btn btn-xs btn-outline ca-del" onClick={removePdf} disabled={busy || uploading}><X size={13} /> Remove</button>
+          </div>
+        ) : (
+          <label className="ca-pdf ca-pdf--pick">
+            <FileText size={16} /> <span>Attach a PDF (notice, circular, form…)</span>
+            <input type="file" accept="application/pdf,.pdf" onChange={pickPdf} hidden />
+          </label>
+        )}
+      </div>
       {err && <p className="upload-error">{err}</p>}
       <div className="ca-actions">
-        {onCancel && <button type="button" className="btn btn-outline btn-sm" onClick={onCancel} disabled={busy}>Cancel</button>}
-        <button type="submit" className="btn btn-primary btn-sm" disabled={busy}>
-          {busy ? <Loader2 size={14} className="spin" /> : <Save size={14} />} {initial ? "Save changes" : "Publish announcement"}
+        {onCancel && <button type="button" className="btn btn-outline btn-sm" onClick={onCancel} disabled={busy || uploading}>Cancel</button>}
+        <button type="submit" className="btn btn-primary btn-sm" disabled={busy || uploading}>
+          {busy || uploading ? <Loader2 size={14} className="spin" /> : <Save size={14} />} {uploading ? `Uploading PDF ${progress}%` : initial ? "Save changes" : "Publish announcement"}
         </button>
       </div>
     </form>
@@ -156,6 +207,7 @@ function AnnouncementsCard() {
                         {r.author_name && <span className="ca-tag">By {r.author_name}</span>}
                         {r.scholarship_id && <span className="ca-tag">From scholarship dates</span>}
                         {r.href && <span className="ca-tag">Has link</span>}
+                        {r.pdf_url && <span className="ca-tag">Has PDF</span>}
                         {r.expires_on && <span className={`ca-tag ${expired ? "ca-tag--off" : ""}`}>{expired ? "Removed from home page" : `Until ${formatNoticeDate(r.expires_on)}`}</span>}
                       </span>
                     </button>
@@ -609,6 +661,11 @@ const CSS = `
 .ca-actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; align-items: center; }
 .ca-actions--split { justify-content: space-between; }
 .ca-del { color: #B42318 !important; }
+.ca-pdf { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 9px 11px; border: 1px solid #CBD5E1; border-radius: 6px; background: #F8FAFC; font-weight: 500; color: #334155; }
+.ca-pdf svg { flex: none; color: #B42318; }
+.ca-pdf-name { flex: 1; min-width: 0; overflow-wrap: anywhere; font-size: 14px; }
+.ca-pdf--pick { cursor: pointer; border-style: dashed; background: #fff; }
+.ca-pdf--pick:hover { border-color: #0B3D91; background: #F1F5FB; }
 .ca-list { list-style: none; margin: 0; padding: 0; border: 1px solid var(--border, #D9E0E8); border-radius: 6px; overflow: hidden; }
 .ca-list > li { border-top: 1px solid var(--border, #D9E0E8); }
 .ca-list > li:first-child { border-top: 0; }
