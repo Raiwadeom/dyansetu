@@ -70,12 +70,6 @@ const SOCIAL_LINKS = {
 /* The single administrator. The database enforces this too — see admin_email()
    in supabase/migrations/0001_core.sql — so changing it here alone grants nothing. */
 const ADMIN_EMAIL = "smuiqac@gmail.com";
-/* Used only while the app runs on offline seed data, so that the admin screens
-   can be opened before Firebase is connected. It guards nothing real — once
-   the keys are in .env.local the password is the one held by Firebase Auth. */
-/* Only in `npm run dev`; the live build carries no password at all (and demo
-   mode never runs there, since the Supabase keys are set). */
-const DEMO_ADMIN_PASSWORD = import.meta.env.DEV ? "pass@123" : "";
 
 /* The principal's message on the landing page.
 
@@ -533,7 +527,7 @@ function SplashScreen({ label = "Loading…" }) {
     <div className="ds-splash" role="status" aria-live="polite">
       <div className="ds-splash-logo"><img src="/dnyansetu-logo.png" alt="" width="96" height="96" /></div>
       <div className="ds-splash-name">Dnyan<span>Setu</span></div>
-      <div className="ds-splash-bar" aria-hidden="true"><span /></div>
+      <div className="ds-splash-bar" aria-hidden="true"><i /><i /><i /><i /><i /></div>
       <div className="ds-splash-label">{label}</div>
     </div>
   );
@@ -1711,7 +1705,7 @@ function AuthScreen({ mode, setMode, onSubmit, notice = "", onClearNotice, goLan
         setError("Please enter a valid email address.");
         return;
       }
-      if (!demoMode && !isGmail(normalizedEmail)) {
+      if (!isGmail(normalizedEmail)) {
         setError(GMAIL_ONLY_MESSAGE);
         return;
       }
@@ -1747,7 +1741,7 @@ function AuthScreen({ mode, setMode, onSubmit, notice = "", onClearNotice, goLan
       setError("Please enter a valid email address.");
       return;
     }
-    if (!demoMode && !isGmail(normalizedEmail)) {
+    if (!isGmail(normalizedEmail)) {
       setError(GMAIL_ONLY_MESSAGE);
       return;
     }
@@ -1827,7 +1821,7 @@ function AuthScreen({ mode, setMode, onSubmit, notice = "", onClearNotice, goLan
       setResetError("Please enter a valid email address.");
       return;
     }
-    if (!demoMode && !isGmail(normalizedEmail)) {
+    if (!isGmail(normalizedEmail)) {
       setResetError(GMAIL_ONLY_MESSAGE);
       return;
     }
@@ -4609,7 +4603,7 @@ export default function App() {
 
     /* Gmail addresses only — a work or school Google account is turned away
        (the database refuses new ones too, see migration 0020). */
-    if (!demoMode && !isGmail(current.email)) {
+    if (!isGmail(current.email)) {
       await auth.signOut();
       setCurrentUser(null);
       setAuthMode("login");
@@ -4937,34 +4931,10 @@ export default function App() {
     /* A fresh attempt: the banner from the last one must not linger over it. */
     setNotice("");
 
+    /* Without the backend there are no accounts at all: the offline demo
+       has no sign-in or sign-up (no demo passwords exist anywhere). */
     if (demoMode) {
-      const existing = users.find((u) => u.email && u.email.toLowerCase() === email);
-      if (creds.mode === "signup") {
-        if (existing) return { success: false, message: "An account with this email already exists. Please log in instead." };
-        const newUser = normalizeStudentProfile({
-          id: "user-" + Date.now(), role: creds.role, name: creds.name, email,
-          phone: "", status: "active", restricted: false, joined: Date.now(),
-          approvalStatus: needsApproval(creds.role) ? "pending" : "approved",
-        });
-        setUsers([...users, newUser]);
-        /* Same as the live site: faculty/staff go straight to the ID-card
-           and waiting-for-approval screen. */
-        if (isAwaitingApproval(newUser)) {
-          setCurrentUser(newUser);
-          replaceView("pending-approval");
-          return { success: true, message: "Account created. Upload your college ID card to finish." };
-        }
-        setAuthMode("login");
-        return { success: true, message: "Sign up successful! Please sign in with your email and password." };
-      }
-      if (!existing) return { success: false, message: "No account found for that email. Please sign up first." };
-      if (existing.role === "admin" && (!DEMO_ADMIN_PASSWORD || creds.password !== DEMO_ADMIN_PASSWORD)) {
-        return { success: false, message: "Incorrect password." };
-      }
-      const full = normalizeStudentProfile(existing);
-      setCurrentUser(full);
-      redirectUser(full);
-      return { success: true, message: "Login successful." };
+      return { success: false, message: "Signing in needs the live site. The offline demo has no accounts." };
     }
 
     if (!email) {
