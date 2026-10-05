@@ -36,6 +36,8 @@ import { builtInSchemes, fetchSchemes, schemeStatus, fetchLiveAnnouncements } fr
 import ContentAdminPage, { FacultyAnnouncementsCard } from "./admin/ContentAdminPage.jsx";
 import NotificationPrompt from "./lib/NotificationPrompt.jsx";
 import { GMAIL_ONLY_MESSAGE, isGmail } from "./lib/gmailOnly.js";
+import { AvatarCycle, CampusCover, ProfileCover } from "./lib/ProfileArt.jsx";
+import PageHero from "./lib/PageHero.jsx";
 import { PAPER_SESSIONS, deletePaper, fetchMyPapers, fetchPapers, uploadPaper } from "./lib/papers.js";
 import { ensureSiteWorker } from "./lib/sitePush";
 import ScholarshipResetPage from "./admin/ScholarshipResetPage.jsx";
@@ -169,9 +171,17 @@ function homeViewFor(u) {
   if (u.role === "admin") return "admin-portal";
   if (isAwaitingApproval(u)) return "pending-approval";
   if (u.role === "scholarship") return "admin-content";
-  if (isStaffRole(u.role)) return u.qualification ? "faculty-portal" : "faculty-setup";
-  return "profile";
+  if (isStaffRole(u.role)) return u.qualification && u.gender ? "faculty-portal" : "faculty-setup";
+  /* Asked once after signing in; it also picks the profile avatar. */
+  return u.gender ? "profile" : "student-setup";
 }
+
+const GENDER_OPTIONS = [
+  { value: "", label: "Select gender" },
+  { value: "male", label: "Male" },
+  { value: "female", label: "Female" },
+  { value: "other", label: "Other / prefer not to say" },
+];
 
 /* Notes, papers, quizzes and scholarships are for students and faculty only. */
 const STUDY_PAGES = new Set(["notes", "pyq", "quiz", "scholarships"]);
@@ -193,7 +203,7 @@ function mayOpenView(view, profile) {
   if (isAwaitingApproval(profile)) return false;
   if (profile?.role === "staff" && STUDY_PAGES.has(view)) return false;
   if (MEMBERS_ONLY_PAGES.has(view)) return Boolean(profile);
-  if (view === "profile") return profile?.role === "student";
+  if (view === "profile" || view === "student-setup") return profile?.role === "student";
   if (view === "faculty-portal" || view === "faculty-setup") return isStaffRole(profile?.role);
   if (view === "admin-content") return profile?.role === "admin" || profile?.role === "scholarship";
   if (ADMIN_VIEWS.has(view)) return profile?.role === "admin";
@@ -2255,10 +2265,56 @@ function PendingApprovalScreen({ user, onRefresh, onSignOut }) {
 
 /* =============================== VIEW: Faculty Setup ============================== */
 
+/* Asked once after a student signs in: the same details as Edit Profile, plus
+   gender (which also picks the profile avatar). */
+function StudentProfileSetup({ profile, onComplete, onHome, onSignOut }) {
+  const [form, setForm] = useState({
+    name: profile.name || "",
+    gender: profile.gender || "",
+    studentIdNum: profile.studentIdNum || "",
+    degree: profile.degree || "",
+    branch: profile.branch || "",
+    gradYear: profile.gradYear || "",
+    college: profile.college || INSTITUTION.short,
+  });
+  const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
+  return (
+    <div className="wizard-screen">
+      <div className="card wizard-card">
+        <h2 className="wizard-title"><GraduationCap size={24} /> Complete your profile</h2>
+        <p className="wizard-sub">A few details for your student profile. You can change them later in Edit Profile.</p>
+        <form onSubmit={(e) => { e.preventDefault(); onComplete(form); }}>
+          <div className="two-col">
+            <Field label="Full Name" icon={User} value={form.name} onChange={set("name")} required />
+            <SelectField label="Gender" value={form.gender} onChange={set("gender")} options={GENDER_OPTIONS} required />
+          </div>
+          <div className="two-col">
+            <Field label="Degree" icon={GraduationCap} value={form.degree} onChange={set("degree")} placeholder="e.g. B.Sc." required />
+            <Field label="Branch" icon={Code2} value={form.branch} onChange={set("branch")} placeholder="e.g. Computer Science" required />
+          </div>
+          <div className="two-col">
+            <Field label="Student ID / Roll Number (optional)" icon={FileText} value={form.studentIdNum} onChange={set("studentIdNum")} />
+            <Field label="Graduation Year" icon={CalendarDays} value={form.gradYear} onChange={set("gradYear")} placeholder="e.g. 2027" inputMode="numeric" maxLength={4} />
+          </div>
+          <Field label="College" icon={GraduationCap} value={form.college} onChange={set("college")} />
+          <button type="submit" className="btn btn-primary btn-block btn-lg" style={{ marginTop: 20 }}>
+            Open My Profile <ArrowRight size={16} />
+          </button>
+        </form>
+        <div className="wizard-exit">
+          <button type="button" className="btn btn-ghost btn-sm" onClick={onHome}><Home size={15} /> DnyanSetu home</button>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={onSignOut}><LogOut size={15} /> Sign out</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function FacultyProfileSetup({ profile, onComplete, onHome, onSignOut }) {
   const isStaff = profile.role === "staff";
   const [form, setForm] = useState({
     name: profile.name || "",
+    gender: profile.gender || "",
     designation: profile.designation || (isStaff ? "Clerk" : "Assistant Professor"),
     department: profile.department || "",
     qualification: profile.qualification || "",
@@ -2285,7 +2341,10 @@ function FacultyProfileSetup({ profile, onComplete, onHome, onSignOut }) {
         <p className="wizard-sub">{isStaff ? "Add your post, section and qualification" : "Add your department, qualification and research links"}</p>
 
         <form onSubmit={handleSubmit}>
-          <Field label="Full Name" icon={User} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
+          <div className="two-col">
+            <Field label="Full Name" icon={User} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
+            <SelectField label="Gender" value={form.gender} onChange={(e) => setForm({ ...form, gender: e.target.value })} options={GENDER_OPTIONS} required />
+          </div>
           <div className="two-col">
             <SelectField label="Designation" value={form.designation} onChange={(e) => setForm({ ...form, designation: e.target.value })} options={isStaff ? STAFF_DESIGNATIONS : FACULTY_DESIGNATIONS} />
             <Field label={isStaff ? "Section / Office" : "Department"} icon={GraduationCap} value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })} placeholder={isStaff ? "e.g. Administration" : "e.g. Department of Physics"} required />
@@ -2332,15 +2391,13 @@ function PyqPage({ onBack }) {
         <button type="button" className="btn btn-ghost btn-sm" onClick={onBack}>
           <ArrowLeft size={16} /> Back
         </button>
-        <div className="resource-head-copy">
-          <p className="section-eyebrow"><ScrollText size={14} /> Previous Year Questions</p>
-          <h1 className="resource-title">Previous year question papers</h1>
-          <p className="resource-sub">
-            The college publishes every paper itself, sorted by course, year and semester. That
-            is the authoritative set, so this page sends you straight to it rather than keeping
-            a second copy that would fall behind.
-          </p>
-        </div>
+        <PageHero
+          icon={ScrollText}
+          eyebrow="Previous Year Questions"
+          title="Previous year"
+          highlight="question papers"
+          sub="Every course, year and semester from the college archive, plus papers shared by our faculty."
+        />
       </div>
 
       <a
@@ -2469,16 +2526,20 @@ function ScholarshipsPage({ onBack, onRegisterBack }) {
         <button type="button" className="btn btn-ghost btn-sm" onClick={handleBackClick}>
           <ArrowLeft size={16} /> {tr("Back", "मागे")}
         </button>
-        <div className="resource-head-copy">
-          <p className="section-eyebrow"><Coins size={14} /> {tr("Scholarships", "शिष्यवृत्ती")}</p>
-          <h1 className="resource-title">{tr("Find the scholarships you can actually apply for", "तुम्ही प्रत्यक्षात अर्ज करू शकता अशा शिष्यवृत्ती शोधा")}</h1>
-          <p className="resource-sub">
-            {tr(
-              "Choose the category on your certificate. You will see only the schemes open to that category, with the documents each one asks for.",
-              "तुमच्या प्रमाणपत्रावरील प्रवर्ग निवडा. तुम्हाला फक्त त्या प्रवर्गासाठी खुल्या असलेल्या योजना दिसतील, प्रत्येकीसाठी आवश्यक कागदपत्रांसह.",
-            )}
-          </p>
-        </div>
+        <PageHero
+          icon={Coins}
+          eyebrow={tr("Scholarships", "शिष्यवृत्ती")}
+          title={tr("Find the scholarships", "तुम्ही अर्ज करू शकता")}
+          highlight={tr("you can apply for", "अशा शिष्यवृत्ती शोधा")}
+          sub={tr(
+            "Choose the category on your certificate to see the schemes open to you, with the documents each one asks for.",
+            "तुमच्या प्रमाणपत्रावरील प्रवर्ग निवडा — तुमच्यासाठी खुल्या योजना आणि आवश्यक कागदपत्रे दिसतील.",
+          )}
+          stats={[
+            { icon: Award, value: schemes.length, label: tr("Schemes", "योजना") },
+            { icon: Users, value: SCHOLARSHIP_CATEGORIES.length, label: tr("Categories", "प्रवर्ग") },
+          ]}
+        />
       </div>
 
       <p className="resource-note">
@@ -2673,6 +2734,7 @@ function StudentProfile({ profile, onSaveProfile }) {
   const [isEditing, setIsEditing] = useState(false);
   const [draft, setDraft] = useState({
     name: profile.name || "",
+    gender: profile.gender || "",
     degree: profile.degree || "B.Tech",
     branch: profile.branch || "Computer Science & Engineering",
     college: profile.college || "",
@@ -2686,6 +2748,7 @@ function StudentProfile({ profile, onSaveProfile }) {
   useEffect(() => {
     setDraft({
       name: profile.name || "",
+      gender: profile.gender || "",
       degree: profile.degree || "B.Tech",
       branch: profile.branch || "Computer Science & Engineering",
       college: profile.college || "",
@@ -2712,13 +2775,11 @@ function StudentProfile({ profile, onSaveProfile }) {
   return (
     <main className="profile-page">
       <section className="profile-header-card">
-        <div className="profile-cover">
-          <div className="profile-cover-grid" />
-        </div>
+        <ProfileCover className="profile-cover" />
 
         <div className="profile-header-content">
           <div className="profile-avatar-wrap">
-            <div className="profile-avatar profile-avatar-initials">{initials || "ST"}</div>
+            <div className="profile-avatar profile-avatar-art" title={initials || "Student"}><AvatarCycle gender={profile.gender} seed={profile.id} /></div>
             <span className="profile-online-dot" title="Active" />
           </div>
 
@@ -2783,8 +2844,9 @@ function StudentProfile({ profile, onSaveProfile }) {
               }}>
                 <div className="two-col">
                   <Field label="Full Name" icon={User} value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} />
-                  <Field label="Student ID / Roll Number" icon={FileText} value={draft.studentIdNum} onChange={(e) => setDraft({ ...draft, studentIdNum: e.target.value })} />
+                  <SelectField label="Gender" value={draft.gender} onChange={(e) => setDraft({ ...draft, gender: e.target.value })} options={GENDER_OPTIONS} />
                 </div>
+                <Field label="Student ID / Roll Number" icon={FileText} value={draft.studentIdNum} onChange={(e) => setDraft({ ...draft, studentIdNum: e.target.value })} />
                 <div className="two-col">
                   <Field label="Degree" icon={GraduationCap} value={draft.degree} onChange={(e) => setDraft({ ...draft, degree: e.target.value })} />
                   <Field label="Branch" icon={Code2} value={draft.branch} onChange={(e) => setDraft({ ...draft, branch: e.target.value })} />
@@ -2913,6 +2975,7 @@ function FacultyPortal({ profile, onSaveProfile }) {
 
   const [profileForm, setProfileForm] = useState({
     name: profile.name || "",
+    gender: profile.gender || "",
     designation: profile.designation || (isStaff ? "Clerk" : "Associate Professor"),
     department: profile.department || (isStaff ? "Administration" : "School of Physical Sciences"),
     qualification: profile.qualification || "",
@@ -2929,6 +2992,7 @@ function FacultyPortal({ profile, onSaveProfile }) {
   useEffect(() => {
     setProfileForm({
       name: profile.name || "",
+      gender: profile.gender || "",
       designation: profile.designation || (isStaff ? "Clerk" : "Associate Professor"),
       department: profile.department || (isStaff ? "Administration" : "School of Physical Sciences"),
       qualification: profile.qualification || "",
@@ -2948,11 +3012,11 @@ function FacultyPortal({ profile, onSaveProfile }) {
     <div className="dash-grid">
       {/* Organized Faculty Profile Header Card */}
       <div className="card faculty-profile-hero" style={{ gridColumn: "1 / -1" }}>
-        <div className="fac-hero-cover" />
+        <ProfileCover className="fac-hero-cover" />
         <div className="fac-hero-main">
           <div className="fac-pfp-wrap">
-            <div className="fac-pfp-placeholder">
-              {facultyInitials || <User size={36} />}
+            <div className="fac-pfp-placeholder fac-pfp-art" title={facultyInitials || "Faculty"}>
+              <AvatarCycle gender={profile.gender} seed={profile.id} />
             </div>
           </div>
 
@@ -3024,6 +3088,7 @@ function FacultyPortal({ profile, onSaveProfile }) {
               <Field label="Full Name" icon={User} value={profileForm.name} onChange={(e) => setProfileForm({ ...profileForm, name: e.target.value })} />
               <Field label="Department" icon={GraduationCap} value={profileForm.department} onChange={(e) => setProfileForm({ ...profileForm, department: e.target.value })} />
             </div>
+            <SelectField label="Gender" value={profileForm.gender} onChange={(e) => setProfileForm({ ...profileForm, gender: e.target.value })} options={GENDER_OPTIONS} />
             <div className="two-col">
               <SelectField label="Designation" value={profileForm.designation} onChange={(e) => setProfileForm({ ...profileForm, designation: e.target.value })} options={isStaff ? STAFF_DESIGNATIONS : FACULTY_DESIGNATIONS} />
               <Field label="College" icon={GraduationCap} value={profileForm.college} onChange={(e) => setProfileForm({ ...profileForm, college: e.target.value })} />
@@ -4270,6 +4335,7 @@ function TopNavApp({ view, go, onHome, onLogout, user, pendingCount = 0 }) {
           <span className="app-brand-college">
             <strong>{INSTITUTION.short}</strong>
           </span>
+          <span className="app-brand-college-short" aria-hidden="true">CSM</span>
         </button>
 
         {/* Signing in used to be a one-way door: the header offered nothing but
@@ -5227,6 +5293,14 @@ export default function App() {
         )}
         {view === "pending-approval" && currentUser && (
           <PendingApprovalScreen user={currentUser} onRefresh={refreshApproval} onSignOut={logout} />
+        )}
+        {view === "student-setup" && currentUser && (
+          <StudentProfileSetup
+            profile={currentUser}
+            onComplete={async (data) => { await handleProfileEdit({ ...currentUser, ...data }); replaceView("profile"); }}
+            onHome={() => { setBrowsingHome(true); navigateTo("landing"); }}
+            onSignOut={logout}
+          />
         )}
         {view === "faculty-setup" && currentUser && <FacultyProfileSetup profile={currentUser} onComplete={handleFacultySetupComplete} onHome={() => { setBrowsingHome(true); navigateTo("landing"); }} onSignOut={logout} />}
         {view === "profile" && currentUser?.role === "student" && (
@@ -7357,6 +7431,63 @@ function Styles() {
       .fac-hero-cover { min-height: 120px; border-radius: 14px; background: linear-gradient(135deg,#0B1E2E,#1D4ED8,#059669); position: relative; overflow: hidden; display: flex; align-items: flex-start; justify-content: flex-end; padding: 14px; }
       .fac-hero-main { display: flex; gap: 20px; align-items: flex-start; flex: 1; min-width: 280px; }
       .fac-pfp-wrap { display: flex; flex-direction: column; align-items: center; gap: 7px; flex-shrink: 0; }
+      /* Phone header: "CSM" beside the crest once the full name is hidden. */
+      .app-brand-college-short { display: none; font-weight: 800; font-size: 15px; letter-spacing: 0.04em; color: var(--abc-navy); }
+      /* Profile banner photos + drawn avatars (src/lib/ProfileArt.jsx). */
+      /* Profile banner: abstract navy + saffron with flowing lines and a faint crest. */
+      .profile-art-cover {
+        position: relative; overflow: hidden;
+        background:
+          radial-gradient(520px 260px at 92% 10%, rgba(232, 174, 74, 0.45), transparent 65%),
+          radial-gradient(480px 240px at 8% 110%, rgba(56, 189, 248, 0.28), transparent 65%),
+          linear-gradient(120deg, #081A45 0%, #0F2C6E 55%, #16358C 100%);
+      }
+      .profile-art-lines { position: absolute; inset: 0; width: 100%; height: 100%; }
+      .profile-art-lines path { fill: none; stroke: rgba(255, 255, 255, 0.13); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+      .profile-art-lines path:nth-child(2) { stroke: rgba(232, 174, 74, 0.35); }
+      .profile-art-dots {
+        position: absolute; inset: 0;
+        background-image: radial-gradient(rgba(255, 255, 255, 0.16) 1px, transparent 1.4px);
+        background-size: 18px 18px;
+        -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 35%, transparent 75%);
+        mask-image: linear-gradient(90deg, transparent 0%, #000 35%, transparent 75%);
+      }
+      .profile-art-crest {
+        position: absolute; right: 4%; top: 50%; width: 120px; height: 120px; transform: translateY(-50%);
+        border-radius: 50%; opacity: 0.16; filter: grayscale(1) brightness(2.2); mix-blend-mode: screen;
+      }
+      .profile-art-cover::after {
+        content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 4px;
+        background: linear-gradient(90deg, #FF9933 0 33.3%, #FFFFFF 33.3% 66.6%, #138808 66.6%);
+        opacity: 0.85;
+      }
+      /* Laptops and PCs (mouse): no arrow buttons on the menu — the mouse
+         wheel and the slide bar scroll it. Phones and tablets keep them. */
+      @media (hover: hover) and (pointer: fine) {
+        .app-nav-arrow { display: none !important; }
+        .app-header .app-nav-wrap.has-rail { padding-left: 0; padding-right: 0; }
+      }
+      .campus-cover { position: relative; overflow: hidden; background: #0B1E4F; }
+      .campus-cover img {
+        position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
+        opacity: 0; transform: scale(1.04); transition: opacity 1.2s ease, transform 7s ease-out;
+      }
+      .campus-cover img.is-active { opacity: 1; transform: scale(1); }
+      .campus-cover-wash {
+        position: absolute; inset: 0;
+        background: linear-gradient(100deg, rgba(11, 30, 79, 0.88) 0%, rgba(11, 30, 79, 0.55) 45%, rgba(11, 30, 79, 0.25) 100%);
+      }
+      .campus-cover > :not(img):not(.campus-cover-wash):not(.campus-cover-art) { position: relative; z-index: 1; }
+      .campus-cover > .campus-cover-art { position: absolute; inset: 0; }
+      .campus-cover-art .profile-art-crest { width: 150px; height: 150px; right: 3%; opacity: 0.1; }
+      .avatar-cycle { position: relative; display: block; width: 100%; height: 100%; border-radius: 50%; overflow: hidden; }
+      .avatar-cycle-item { position: absolute; inset: 0; opacity: 0; transition: opacity 0.8s ease; }
+      .avatar-cycle-item.is-active { opacity: 1; }
+      .avatar-cycle-item img { width: 100%; height: 100%; display: block; object-fit: cover; transform: translateY(4%) scale(1.04); }
+      .avatar-cycle .avatar-illustration { width: 100%; height: 100%; display: block; object-fit: cover; transform: translateY(6%) scale(1.06); }
+      .avatar-cycle .avatar-figure { width: 100%; height: 100%; display: block; }
+      .profile-avatar.profile-avatar-art { padding: 0; overflow: hidden; background: #E2E8F0; }
+      .fac-pfp-placeholder.fac-pfp-art { padding: 0; overflow: hidden; border: 3px solid #fff; box-shadow: 0 4px 14px rgba(15, 23, 42, 0.16); background: #E2E8F0; }
       .fac-pfp-placeholder { width: 88px; height: 88px; border-radius: 50%; background: #F1F5F9; display: flex; align-items: center; justify-content: center; color: var(--abc-navy); border: 2px dashed var(--border-strong); flex-shrink: 0; font-size: 27px; font-weight: 700; letter-spacing: .5px; }
       .fac-info { display: flex; flex-direction: column; gap: 4px; flex: 1; }
       .fac-name-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
@@ -7916,7 +8047,7 @@ function Styles() {
       .profile-cover {
         position: relative;
         height: 185px;
-        overflow: visible;
+        overflow: hidden;
         background:
           radial-gradient(circle at 15% 25%,rgba(230,81,0,.55),transparent 34%),
           radial-gradient(circle at 65% 40%,rgba(2,132,199,.55),transparent 37%),
@@ -8231,6 +8362,7 @@ function Styles() {
         .app-brand-mark { width: 30px; height: 30px; }
         .app-brand-divider { display: none; }
         .app-brand-college { display: none; }
+        .app-brand-college-short { display: inline; }
         .app-brand-crest { width: 28px !important; height: 28px !important; flex-basis: 28px !important; }
         .app-header-right { gap: 4px; }
         .header-logout { width: 38px; height: 38px; }
@@ -8374,72 +8506,93 @@ function Styles() {
 
       /* Toolbar: subject search + session filter */
       .resource-toolbar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 18px; }
-      /* Subject Notes page banner (src/notes/NotesPage.jsx). */
+      /* Subject Notes page banner (src/notes/NotesPage.jsx): campus photos
+         under a navy wash, copy left, frosted stat tiles right, search below. */
       .notes-back { margin-bottom: 12px; }
-      .notes-hero {
-        position: relative; overflow: hidden;
-        padding: 28px 28px 22px; margin-bottom: 18px; border-radius: 18px;
+      .campus-cover.notes-hero {
+        padding: 30px 30px 24px; margin-bottom: 20px; border-radius: 20px;
+        color: #fff; box-shadow: 0 18px 40px rgba(11, 30, 79, 0.25);
+      }
+      .notes-hero .campus-cover-wash {
         background:
-          radial-gradient(420px 220px at 100% 0%, rgba(232, 174, 74, 0.28), transparent 70%),
-          radial-gradient(360px 200px at 0% 100%, rgba(255, 255, 255, 0.08), transparent 70%),
-          linear-gradient(135deg, #0B1E4F 0%, #16358C 100%);
-        color: #fff; box-shadow: 0 14px 34px rgba(11, 30, 79, 0.22);
+          linear-gradient(100deg, rgba(8, 22, 60, 0.94) 0%, rgba(11, 30, 79, 0.82) 50%, rgba(11, 30, 79, 0.55) 100%);
       }
-      .notes-hero::after {
-        content: ""; position: absolute; right: -40px; bottom: -60px; width: 220px; height: 220px;
-        border-radius: 50%; border: 28px solid rgba(255, 255, 255, 0.05); pointer-events: none;
-      }
-      .notes-hero-copy { position: relative; z-index: 1; max-width: 760px; }
+      .notes-hero-grid { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 24px; align-items: center; }
+      .notes-hero-copy { min-width: 0; }
       .notes-hero-eyebrow {
-        display: inline-flex; align-items: center; gap: 6px; margin: 0 0 10px; padding: 4px 10px;
-        border-radius: 999px; background: rgba(232, 174, 74, 0.18); color: #FFD27A;
-        font-size: 11.5px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase;
+        display: inline-flex; align-items: center; gap: 6px; margin: 0 0 12px; padding: 5px 12px;
+        border-radius: 999px; background: rgba(232, 174, 74, 0.2); border: 1px solid rgba(232, 174, 74, 0.45);
+        color: #FFD27A; font-size: 11.5px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase;
       }
-      .notes-hero-title { margin: 0; font-size: clamp(24px, 3.2vw, 34px); line-height: 1.15; font-weight: 800; color: #fff; letter-spacing: -0.02em; }
-      .notes-hero-sub { margin: 10px 0 0; font-size: 15px; line-height: 1.6; color: rgba(255, 255, 255, 0.82); }
-      .notes-hero-stats { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
-      .notes-hero-stats span {
-        display: inline-flex; align-items: baseline; gap: 5px; padding: 5px 12px; border-radius: 999px;
-        background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.18);
-        font-size: 13px; color: rgba(255, 255, 255, 0.85);
+      .campus-cover.notes-hero .notes-hero-title, .campus-cover.notes-hero h1 { color: #fff; }
+      .notes-hero-grid.is-single { grid-template-columns: 1fr; }
+      .resource-head > .campus-cover.notes-hero, .quiz-head > .campus-cover.notes-hero { align-self: stretch; width: 100%; margin-bottom: 4px; }
+      .notes-hero-title { margin: 0; font-size: clamp(26px, 3.4vw, 38px); line-height: 1.12; font-weight: 800; color: #fff; letter-spacing: -0.02em; }
+      .notes-hero-title span { color: #FFC35A; }
+      .notes-hero-sub { margin: 12px 0 0; max-width: 560px; font-size: 15px; line-height: 1.6; color: rgba(255, 255, 255, 0.85); }
+      .notes-hero .notes-admin-upload { margin: 16px 0 0; }
+      .notes-hero-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+      .notes-stat {
+        display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 14px 14px 12px;
+        border-radius: 14px; background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2);
+        backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
       }
-      .notes-hero-stats strong { font-size: 15px; color: #fff; }
-      .notes-hero .notes-admin-upload { margin: 14px 0 0; }
-      .resource-search.notes-hero-search {
-        position: relative; z-index: 1; margin-top: 18px; width: 100%; max-width: none;
-        background: #fff; border: 0; border-radius: 12px; padding: 4px 16px;
-        box-shadow: 0 8px 22px rgba(0, 0, 0, 0.18);
+      .notes-stat-icon { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 9px; background: rgba(232, 174, 74, 0.22); color: #FFD27A; margin-bottom: 4px; }
+      .notes-stat strong { font-size: 26px; line-height: 1; font-weight: 800; color: #fff; }
+      .notes-stat small { font-size: 12px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: rgba(255, 255, 255, 0.72); }
+      .notes-hero-search {
+        display: flex; align-items: center; gap: 10px; margin-top: 22px; padding: 6px 6px 6px 16px;
+        background: #fff; border-radius: 14px; box-shadow: 0 10px 26px rgba(0, 0, 0, 0.22);
       }
-      .notes-hero-search input { font-size: 15.5px; padding: 12px 0; }
-      .notes-hero-search svg { color: #E65100; }
-      .notes-toolbar:empty { display: none; }
-      /* Same banner for every study page header (Scholarships, Question
-         Papers, Practice Tests, legal pages) so they match Subject Notes. */
-      .resource-page .resource-head-copy, .quiz-page .quiz-head-copy {
-        position: relative; overflow: hidden; align-self: stretch; width: 100%; max-width: none;
-        margin: 0 0 16px; padding: 26px 28px 24px; border-radius: 18px; text-align: left;
-        background:
-          radial-gradient(420px 220px at 100% 0%, rgba(232, 174, 74, 0.28), transparent 70%),
-          linear-gradient(135deg, #0B1E4F 0%, #16358C 100%);
-        color: #fff; box-shadow: 0 14px 34px rgba(11, 30, 79, 0.22);
+      .notes-hero-search > svg { flex: none; color: #E65100; }
+      .notes-hero-search input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; font-size: 15.5px; padding: 10px 0; color: #0F172A; }
+      .notes-hero-search-btn {
+        flex: none; padding: 11px 22px; border: 0; border-radius: 10px;
+        background: linear-gradient(135deg, #FF8A3D, #E65100); color: #fff; font-size: 14.5px; font-weight: 700;
       }
-      .resource-page .resource-head-copy::after, .quiz-page .quiz-head-copy::after {
-        content: ""; position: absolute; right: -40px; bottom: -60px; width: 220px; height: 220px;
-        border-radius: 50%; border: 28px solid rgba(255, 255, 255, 0.05); pointer-events: none;
-      }
-      .resource-page .resource-head-copy .section-eyebrow, .quiz-page .quiz-head-copy .section-eyebrow {
-        display: inline-flex; justify-content: flex-start; width: auto; margin: 0 0 10px; padding: 4px 10px;
-        border-radius: 999px; background: rgba(232, 174, 74, 0.18); color: #FFD27A;
-        font-family: inherit; font-size: 11.5px; font-weight: 800; letter-spacing: 0.08em;
-      }
-      .resource-page .resource-head-copy .resource-title, .quiz-page .quiz-head-copy .quiz-title {
-        position: relative; color: #fff; font-weight: 800;
-      }
-      .resource-page .resource-head-copy .resource-sub, .quiz-page .quiz-head-copy .quiz-sub {
-        position: relative; color: rgba(255, 255, 255, 0.82); max-width: 760px;
+      .notes-hero-search-btn:hover { filter: brightness(1.05); }
+      @media (max-width: 820px) {
+        .notes-hero-grid { grid-template-columns: 1fr; gap: 18px; }
       }
       @media (max-width: 640px) {
-        .resource-page .resource-head-copy, .quiz-page .quiz-head-copy { padding: 20px 16px 18px; border-radius: 14px; }
+        .campus-cover.notes-hero { padding: 20px 16px 16px; border-radius: 16px; }
+        .notes-hero-sub { font-size: 14px; }
+        .notes-stat { padding: 10px; }
+        .notes-stat strong { font-size: 21px; }
+        .notes-hero-search-btn { padding: 10px 14px; }
+      }
+      .notes-toolbar:empty { display: none; }
+      /* Compact banner (user: the first version took too much space). */
+      .campus-cover.notes-hero { padding: 18px 22px 16px; border-radius: 16px; margin-bottom: 16px; }
+      .notes-hero-grid { gap: 14px 20px; }
+      .notes-hero-eyebrow { margin-bottom: 8px; padding: 3px 10px; font-size: 10.5px; }
+      .notes-hero-title { font-size: clamp(20px, 2.4vw, 28px); line-height: 1.18; }
+      .notes-hero-sub { margin-top: 6px; font-size: 14px; line-height: 1.5; }
+      .notes-hero-stats { display: flex !important; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+      .notes-stat {
+        flex-direction: row; align-items: center; gap: 8px; padding: 7px 12px 7px 7px;
+        border-radius: 999px; backdrop-filter: none; -webkit-backdrop-filter: none;
+      }
+      .notes-stat-icon { width: 26px; height: 26px; border-radius: 50%; margin: 0; }
+      .notes-stat-icon svg { width: 14px; height: 14px; }
+      .notes-stat strong { font-size: 16px; }
+      .notes-stat small { font-size: 11px; letter-spacing: 0.04em; }
+      .notes-hero-search { margin-top: 14px; padding: 4px 4px 4px 14px; border-radius: 12px; }
+      .notes-hero-search input { padding: 8px 0; font-size: 15px; }
+      .notes-hero-search-btn { padding: 9px 18px; }
+      .campus-cover-art .profile-art-crest { width: 110px; height: 110px; }
+      @media (max-width: 820px) {
+        .notes-hero-stats { justify-content: flex-start; }
+      }
+      @media (max-width: 640px) {
+        .campus-cover.notes-hero { padding: 14px 14px 14px; border-radius: 14px; }
+        .notes-hero-eyebrow { margin-bottom: 6px; }
+        .notes-hero-title { font-size: 20px; }
+        .notes-hero-sub { font-size: 13px; }
+        .notes-stat { padding: 5px 10px 5px 5px; }
+        .notes-stat-icon { width: 22px; height: 22px; }
+        .notes-stat strong { font-size: 14px; }
+        .campus-cover-art .profile-art-crest { display: none; }
       }
       @media (max-width: 640px) {
         .notes-hero { padding: 20px 16px 16px; border-radius: 14px; }

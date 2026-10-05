@@ -91,7 +91,13 @@ if (typeof window !== "undefined") {
   document.addEventListener("focusin", (e) => {
     const el = e.target;
     if (!el || !["INPUT", "TEXTAREA", "SELECT"].includes(el.tagName)) return;
+    /* Phones and tablets only, and only when the field sits low enough for
+       the keyboard to cover it — on a laptop clicking a search box must not
+       make the page jump. */
+    if (!window.matchMedia?.("(pointer: coarse)").matches) return;
     window.setTimeout(() => {
+      const rect = el.getBoundingClientRect();
+      if (rect.top > 80 && rect.bottom < window.innerHeight * 0.5) return;
       el.scrollIntoView({ block: "center", behavior: "smooth" });
     }, 300);
   });

@@ -5,6 +5,7 @@ import {
   AlertTriangle, ListChecks,
 } from "lucide-react";
 
+import PageHero from "../lib/PageHero.jsx";
 import {
   QUIZ_STREAMS, LEVELS, PRACTICE_RULES, EXAM_RULES,
   streamById, yearOf, subjectsFor, subjectOf,
@@ -212,14 +213,18 @@ export default function QuizPage({ onBack, onRegisterBack, user }) {
         <button type="button" className="btn btn-ghost btn-sm" onClick={handleBackClick}>
           <ArrowLeft size={16} /> Back
         </button>
-        <div className="quiz-head-copy">
-          <p className="section-eyebrow"><ClipboardList size={14} /> Quiz &amp; Practice Tests</p>
-          <h1 className="quiz-title">Practise level by level, then sit the exam</h1>
-          <p className="quiz-sub">
-            Built on the SRTM University NEP 2020 syllabus. Choose your year and branch, work
-            through Beginner, Intermediate and Advanced practice sets, then unlock the final exam.
-          </p>
-        </div>
+        <PageHero
+          icon={ClipboardList}
+          eyebrow="Quiz & Practice Tests"
+          title="Practise level by level,"
+          highlight="then sit the exam"
+          sub="Pick your branch, clear Beginner, Intermediate and Advanced sets, then take the final exam."
+          stats={[
+            { icon: Layers, value: LEVELS.length, label: "Levels" },
+            { icon: ListChecks, value: PRACTICE_RULES.questions, label: "Qs per set" },
+            { icon: Award, value: EXAM_RULES.questions, label: "Exam Qs" },
+          ]}
+        />
         <div className="quiz-rulebar">
           <span><ListChecks size={14} /> Practice: {PRACTICE_RULES.questions} questions · pass {PRACTICE_RULES.pass}</span>
           <span><Award size={14} /> Exam: {EXAM_RULES.questions} questions · pass {EXAM_RULES.pass}</span>

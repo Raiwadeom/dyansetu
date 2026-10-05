@@ -2,13 +2,14 @@ import React, { useState, useEffect, useMemo } from "react";
 import { rememberCrash } from "../lib/errorPages.jsx";
 import {
   ArrowLeft, ArrowRight, ChevronRight, GraduationCap, Search, Download,
-  NotebookPen, FileText, ImageIcon, Loader2, AlertTriangle, Calendar, User, Trash2, Upload,
+  NotebookPen, FileText, ImageIcon, Loader2, AlertTriangle, Calendar, User, Trash2, Upload, Layers, Users,
 } from "lucide-react";
 
 import { NOTE_STREAMS, SEMESTERS, noteStreamById, formatBytes } from "../data/notes.js";
 import { fetchNotes, deleteNote } from "../lib/notes.js";
 import { downloadUrl } from "../lib/cloudinary.js";
 import { isBackendConfigured } from "../lib/supabase.js";
+import { CampusCover } from "../lib/ProfileArt.jsx";
 
 /* ============================================================================
    DnyanSetu — Subject-wise notes library
@@ -160,27 +161,42 @@ export default function NotesPage({ onBack, onRegisterBack, user, UploadModal = 
         <ArrowLeft size={16} /> Back
       </button>
 
-      {/* Banner: what this page is, live counts, and the search box. */}
-      <section className="notes-hero">
-        <div className="notes-hero-copy">
-          <p className="notes-hero-eyebrow"><NotebookPen size={14} /> Subject-wise Notes</p>
-          <h1 className="notes-hero-title">Notes uploaded by your faculty</h1>
-          <p className="notes-hero-sub">
-            Pick your stream to see what your teachers have shared, or search every stream by
-            subject, topic or teacher.
-          </p>
-          <div className="notes-hero-stats">
-            <span><strong>{loading ? "…" : notes.length}</strong> notes</span>
-            <span><strong>{loading ? "…" : NOTE_STREAMS.filter((st) => countFor(st.id) > 0).length}</strong> streams</span>
-            <span><strong>{new Set(notes.map((n) => n.author)).size || 0}</strong> teachers</span>
+      {/* Banner: campus photos behind, the page's purpose on the left, live
+          counts on the right, and the search across the bottom. */}
+      <CampusCover className="notes-hero">
+        <div className="notes-hero-grid">
+          <div className="notes-hero-copy">
+            <p className="notes-hero-eyebrow"><NotebookPen size={14} /> Subject-wise Notes</p>
+            <h1 className="notes-hero-title">Notes uploaded by <span>your faculty</span></h1>
+            <p className="notes-hero-sub">
+              Pick your stream to see what your teachers have shared, or search every stream by
+              subject, topic or teacher.
+            </p>
+            {canManage && (
+              <button type="button" className="btn btn-primary btn-sm notes-admin-upload" onClick={() => setShowUpload(true)}>
+                <Upload size={15} /> Upload Notes
+              </button>
+            )}
           </div>
-          {canManage && (
-            <button type="button" className="btn btn-primary btn-sm notes-admin-upload" onClick={() => setShowUpload(true)}>
-              <Upload size={15} /> Upload Notes
-            </button>
-          )}
+          <div className="notes-hero-stats" aria-label="Library at a glance">
+            <div className="notes-stat">
+              <span className="notes-stat-icon"><FileText size={18} /></span>
+              <strong>{loading ? "…" : notes.length}</strong>
+              <small>Notes</small>
+            </div>
+            <div className="notes-stat">
+              <span className="notes-stat-icon"><Layers size={18} /></span>
+              <strong>{loading ? "…" : NOTE_STREAMS.filter((st) => countFor(st.id) > 0).length}</strong>
+              <small>Streams</small>
+            </div>
+            <div className="notes-stat">
+              <span className="notes-stat-icon"><Users size={18} /></span>
+              <strong>{loading ? "…" : new Set(notes.map((n) => n.author)).size}</strong>
+              <small>Teachers</small>
+            </div>
+          </div>
         </div>
-        <div className="resource-search notes-hero-search">
+        <form className="notes-hero-search" role="search" onSubmit={(e) => e.preventDefault()}>
           <Search size={18} />
           <input
             type="text"
@@ -189,8 +205,9 @@ export default function NotesPage({ onBack, onRegisterBack, user, UploadModal = 
             aria-label="Search notes"
             onChange={(e) => setQuery(e.target.value)}
           />
-        </div>
-      </section>
+          <button type="submit" className="notes-hero-search-btn">Search</button>
+        </form>
+      </CampusCover>
 
       {showUpload && UploadModal && (
         <UploadModal
