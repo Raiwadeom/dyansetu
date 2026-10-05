@@ -11,6 +11,11 @@ const todayIso = () => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 };
 
+/* Without the backend (offline demo) there is nothing to read or save. */
+function needBackend() {
+  if (!isBackendConfigured) throw new Error("This needs the DnyanSetu server, which is not connected here.");
+}
+
 function check({ data, error }, message) {
   if (error) throw new Error(`${message} (${error.message})`);
   return data;
@@ -85,6 +90,7 @@ export async function fetchLiveAnnouncements() {
 }
 
 export async function fetchAllAnnouncements() {
+  if (!isBackendConfigured) return [];
   return check(
     await supabase.from("announcements").select("*").order("notice_date", { ascending: false }).order("created_at", { ascending: false }),
     "Could not load announcements.",
@@ -93,17 +99,20 @@ export async function fetchAllAnnouncements() {
 
 /* New announcements also go out as a phone notification (in the background). */
 export async function addAnnouncement(row) {
+  needBackend();
   const saved = check(await supabase.from("announcements").insert(row).select("*").single(), "Could not add the announcement.");
   notifySite("announcement", saved.id);
   return saved;
 }
 
 export async function updateAnnouncement(id, row) {
+  needBackend();
   check(await supabase.from("announcements").update(row).eq("id", id), "Could not save the announcement.");
 }
 
 /* One teacher's own announcements, newest first. */
 export async function fetchMyAnnouncements(userId) {
+  if (!isBackendConfigured) return [];
   return check(
     await supabase.from("announcements").select("*").eq("posted_by", userId)
       .order("notice_date", { ascending: false }).order("created_at", { ascending: false }),

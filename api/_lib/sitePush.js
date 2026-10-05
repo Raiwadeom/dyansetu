@@ -46,7 +46,7 @@ export async function broadcast(payload) {
     const results = await Promise.allSettled(chunk.map((t) => webpush.sendNotification(
       { endpoint: t.endpoint, keys: t.keys },
       body,
-      { TTL: 24 * 60 * 60, urgency: "normal", timeout: 8000 },
+      { TTL: 24 * 60 * 60, urgency: "high", timeout: 8000 },
     )));
     results.forEach((result, index) => {
       if (result.status === "fulfilled") {
