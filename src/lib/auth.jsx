@@ -25,7 +25,15 @@ const OAUTH_INTENT_KEY = "dnyansetu:oauth-intent";
 export function readOAuthIntent() {
   try {
     const raw = localStorage.getItem(OAUTH_INTENT_KEY);
-    return raw ? JSON.parse(raw) : null;
+    const intent = raw ? JSON.parse(raw) : null;
+    /* A Google round-trip takes seconds. An older entry is a Google button
+       pressed and abandoned; honouring it later turned a normal email login
+       on another tab into a "cannot sign in as faculty" error. */
+    if (intent && !(Date.now() - (intent.at || 0) < 10 * 60 * 1000)) {
+      localStorage.removeItem(OAUTH_INTENT_KEY);
+      return null;
+    }
+    return intent;
   } catch {
     return null;
   }

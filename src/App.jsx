@@ -1245,19 +1245,17 @@ function Landing({ goAuth, onOpenAbout, onOpenPage, user, onOpenDashboard }) {
             </address>
 
             <div className="footer-col">
-              <h4>{tr("Connect & Social", "जोडा आणि सोशल")}</h4>
-              {/* Paste the real accounts into SOCIAL_LINKS near the top of this file. */}
-              <div className="footer-socials">
-                <a href={SOCIAL_LINKS.facebook} target="_blank" rel="noreferrer" className="footer-social social-fb" aria-label="Facebook">
-                  <Facebook size={17} /><span>Facebook</span>
-                </a>
-                <a href={SOCIAL_LINKS.instagram} target="_blank" rel="noreferrer" className="footer-social social-ig" aria-label="Instagram">
-                  <Instagram size={17} /><span>Instagram</span>
-                </a>
-                <a href={SOCIAL_LINKS.linkedin} target="_blank" rel="noreferrer" className="footer-social social-li" aria-label="LinkedIn">
-                  <Linkedin size={17} /><span>LinkedIn</span>
-                </a>
-              </div>
+              <h4>{tr("Follow the college", "महाविद्यालयाला फॉलो करा")}</h4>
+              {/* Same plain links as the other columns, so the footer reads as one block. */}
+              <a href={SOCIAL_LINKS.facebook} target="_blank" rel="noreferrer" className="footer-link">
+                <Facebook size={14} /> Facebook
+              </a>
+              <a href={SOCIAL_LINKS.instagram} target="_blank" rel="noreferrer" className="footer-link">
+                <Instagram size={14} /> Instagram
+              </a>
+              <a href={SOCIAL_LINKS.linkedin} target="_blank" rel="noreferrer" className="footer-link">
+                <Linkedin size={14} /> LinkedIn
+              </a>
             </div>
           </div>
         </div>
@@ -1530,7 +1528,7 @@ function roleMismatchMessage(tabRole, accountRole) {
   return `This email is registered as ${account.what}, so it cannot sign in as ${tabWhat}. Please sign in from ${account.where}.`;
 }
 
-function AuthScreen({ mode, setMode, onSubmit, goLanding, roleScope = "student", next = "", demoMode = false }) {
+function AuthScreen({ mode, setMode, onSubmit, notice = "", onClearNotice, goLanding, roleScope = "student", next = "", demoMode = false }) {
   const { signInWithGoogle, resetPassword, updatePassword, recovery } = useAuth();
   const isStaffScope = roleScope === "staff";
   const [termsAccepted, setTermsAccepted] = useState(false);
@@ -1538,6 +1536,13 @@ function AuthScreen({ mode, setMode, onSubmit, goLanding, roleScope = "student",
   const [newPassword, setNewPassword] = useState("");
   const [newPasswordDone, setNewPasswordDone] = useState(false);
   const [selectedRole, setSelectedRole] = useState(isStaffScope ? "faculty" : "student");
+  /* Picking another tab (Log in / Sign up, Faculty / Staff / Admin) closes
+     the banner about the previous attempt, which otherwise sat over the form. */
+  const firstPick = useRef(true);
+  useEffect(() => {
+    if (firstPick.current) { firstPick.current = false; return; }
+    onClearNotice?.();
+  }, [selectedRole, mode]); // eslint-disable-line react-hooks/exhaustive-deps
   /* Switching between Student login and Staff Login keeps this screen
      mounted, so the picked role has to follow the scope — otherwise the
      Staff page could still sign in as "student". */
@@ -1832,6 +1837,14 @@ function AuthScreen({ mode, setMode, onSubmit, goLanding, roleScope = "student",
             </div>
 
             <div className="auth-heading">
+              {/* On this page the app's notice sits in the form, not floating over it. */}
+              {notice && (
+                <div className="auth-notice" role="status">
+                  <AlertTriangle size={15} />
+                  <span>{notice}</span>
+                  <button type="button" onClick={onClearNotice} aria-label="Dismiss"><X size={14} /></button>
+                </div>
+              )}
               <h2 className="auth-title">{mode === "login" ? "Welcome back" : "Create your account"}</h2>
               <p className="auth-sub">
                 {mode === "login"
@@ -4672,6 +4685,8 @@ export default function App() {
 
   const handleAuthSubmit = async (creds) => {
     const email = (creds.email || "").trim().toLowerCase();
+    /* A fresh attempt: the banner from the last one must not linger over it. */
+    setNotice("");
 
     if (demoMode) {
       const existing = users.find((u) => u.email && u.email.toLowerCase() === email);
@@ -4714,6 +4729,16 @@ export default function App() {
          (Google sign-in stays one step.) */
       const profile = await loadForSession(result.session);
       if (profile) await seedNewProfile(profile);
+      /* Faculty / staff stay signed in and go straight to the ID-card upload
+         and "waiting for approval" screen. Logging in again later lands on
+         the same screen until the administrator approves. */
+      if (profile && isAwaitingApproval(profile)) {
+        const full = normalizeStudentProfile((await fetchProfile(profile.id).catch(() => null)) || profile);
+        setCurrentUser(full);
+        setPendingPage(null);
+        replaceView("pending-approval");
+        return { success: true, message: "Account created. Upload your college ID card to finish." };
+      }
       await auth.signOut();
       setCurrentUser(null);
       setUsers([]);
@@ -4738,6 +4763,9 @@ export default function App() {
     }
     const profile = await loadForSession(result.session);
     if (!profile) return { success: false, message: "Signed in, but your profile could not be loaded. Please try again." };
+    /* This was an email login, not a Google one: drop any Google choice left
+       over from an earlier, unfinished "Continue with Google". */
+    clearOAuthIntent();
     await completeSignIn(profile);
     return { success: true, message: "Login successful." };
   };
@@ -4867,7 +4895,7 @@ export default function App() {
       )}
 
       {/* Backend problems surface here rather than in a silent console log. */}
-      {notice && (
+      {notice && view !== "auth" && (
         <div className="app-notice" role="status">
           <AlertTriangle size={15} />
           <span>{notice}</span>
@@ -4934,6 +4962,8 @@ export default function App() {
             setMode={setAuthMode}
             roleScope={authRoleScope}
             onSubmit={handleAuthSubmit}
+            notice={notice}
+            onClearNotice={() => setNotice("")}
             goLanding={() => { setPendingNext(""); replaceView("landing"); }}
             next={pendingNext}
             demoMode={demoMode}
@@ -6485,22 +6515,6 @@ function Styles() {
       .footer-link.is-static { cursor: default; }
       .footer-link.is-static:hover { color: rgba(255, 255, 255, 0.74); transform: none; }
       .footer-link svg { flex: 0 0 auto; color: var(--abc-saffron); opacity: 0.9; }
-
-      /* -------------------------------- socials -------------------------------- */
-      .footer-socials { display: flex; flex-direction: column; gap: 9px; }
-      .footer-social {
-        display: inline-flex; align-items: center; gap: 10px;
-        padding: 10px 14px; border-radius: 11px; text-decoration: none;
-        background: rgba(255, 255, 255, 0.055);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        color: rgba(255, 255, 255, 0.85);
-        font-size: 13.5px; font-weight: 600;
-        transition: transform 0.18s ease, background 0.18s ease, border-color 0.18s ease;
-      }
-      .footer-social:hover { transform: translateY(-2px); color: #FFFFFF; }
-      .footer-social.social-fb:hover { background: rgba(24, 119, 242, 0.22); border-color: rgba(24, 119, 242, 0.55); }
-      .footer-social.social-ig:hover { background: rgba(214, 41, 118, 0.22); border-color: rgba(214, 41, 118, 0.55); }
-      .footer-social.social-li:hover { background: rgba(10, 102, 194, 0.22); border-color: rgba(10, 102, 194, 0.55); }
 
       /* ------------------------------- bottom bar ------------------------------ */
       .site-footer-bar {
@@ -8064,6 +8078,18 @@ function Styles() {
       }
 
       /* ------------------------- Backend status messages ------------------------- */
+
+      .auth-notice {
+        display: flex; align-items: flex-start; gap: 10px; margin: 0 0 14px;
+        padding: 11px 12px; border-radius: 8px; border: 1px solid #FED7AA; background: #FFF7ED;
+        color: #9A4E00; font-size: 13.5px; line-height: 1.5; text-align: left;
+      }
+      .auth-notice svg:first-child { flex: 0 0 auto; margin-top: 3px; }
+      .auth-notice span { flex: 1; }
+      .auth-notice button {
+        flex: 0 0 auto; display: grid; place-items: center; width: 22px; height: 22px;
+        border: 0; border-radius: 6px; background: rgba(154, 78, 0, 0.1); color: inherit; cursor: pointer;
+      }
 
       .app-notice {
         position: fixed;

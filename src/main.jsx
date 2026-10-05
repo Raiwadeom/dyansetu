@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import App from "./App.jsx";
 import { AuthProvider } from "./lib/auth.jsx";
 import { CrashPage, ErrorBoundary, rememberCrash } from "./lib/errorPages.jsx";
+import BackToTop from "./lib/BackToTop.jsx";
 import "./index.css";
 /* Imported early so the browser's one-time install offer is not missed. */
 import "./lib/installPrompt.js";
@@ -55,6 +56,7 @@ ReactDOM.createRoot(root).render(
         ) : (
           <App />
         )}
+        <BackToTop />
       </AuthProvider>
     </ErrorBoundary>
   </React.StrictMode>,
