@@ -39,6 +39,7 @@ import { ensureSiteWorker } from "./lib/sitePush";
 import ScholarshipResetPage from "./admin/ScholarshipResetPage.jsx";
 import { LANG_KEY, LangContext, useLang, makeTr } from "./lib/i18n";
 import { markIosStepsSeen, useInstallApp } from "./lib/installPrompt";
+import { VisitorCounter } from "./lib/visitCounter.jsx";
 import {
   Mail, Phone, Lock, User, ArrowRight, ArrowLeft, CheckCircle2, Users, Award, Linkedin, GraduationCap,
   Code2, Compass, MessageSquare, LogOut, Home, MapPin, X, Loader2, Target, Shield, ExternalLink,
@@ -1265,6 +1266,7 @@ function Landing({ goAuth, onOpenAbout, onOpenPage, user, onOpenDashboard }) {
             `DnyanSetu · ${INSTITUTION.name}. All rights reserved.`,
             `डायनसेतू · ${INSTITUTION.nameMr}. सर्व हक्क राखीव.`,
           )}</span>
+          <VisitorCounter site="dnyansetu" label={tr("Total visitors", "एकूण भेटी")} className="footer-visits" />
           <span className="footer-author">
             {tr("Built by", "यांनी तयार केले")}{" "}
             <a
@@ -6555,11 +6557,13 @@ function Styles() {
         position: relative; z-index: 1;
         max-width: 1180px; margin: 52px auto 0; padding: 20px 0 26px;
         border-top: 1px solid rgba(255, 255, 255, 0.1);
-        display: flex; align-items: center; justify-content: space-between;
-        gap: 14px; flex-wrap: wrap;
+        display: grid; grid-template-columns: 1fr auto 1fr; align-items: center;
+        gap: 14px;
         font-size: 12.5px; color: rgba(255, 255, 255, 0.55);
       }
-      .footer-author { display: inline-flex; align-items: center; gap: 6px; }
+      .site-footer-bar > :first-child { justify-self: start; }
+      .footer-visits { justify-self: center; }
+      .footer-author { display: inline-flex; align-items: center; gap: 6px; justify-self: end; }
       .footer-author strong {
         color: #FFFFFF; font-weight: 600;
         background: linear-gradient(90deg, var(--abc-saffron), #FFB74D);
@@ -6579,6 +6583,7 @@ function Styles() {
         /* The copyright / author line stacks and centres rather than hugging the
            left edge on a narrow screen. */
         .site-footer-bar {
+          display: flex;
           flex-direction: column;
           justify-content: center;
           align-items: center;

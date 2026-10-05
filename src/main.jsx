@@ -7,11 +7,15 @@ import BackToTop from "./lib/BackToTop.jsx";
 import "./index.css";
 /* Imported early so the browser's one-time install offer is not missed. */
 import "./lib/installPrompt.js";
+import { registerVisit } from "./lib/visitCounter.jsx";
 
 /* /raktsetu is its own full page with its own look, but the same site, domain
    and sign-in session — so it shares the AuthProvider and nothing else. */
 const RaktSetuApp = lazy(() => import("./raktsetu/RaktSetuApp.jsx"));
 const isRaktSetu = /^\/raktsetu(\/|$)/i.test(window.location.pathname);
+
+/* Every page load counts once towards the footer visitor counter. */
+registerVisit(isRaktSetu ? "raktsetu" : "dnyansetu");
 
 /* Any crash shows a calm "Something went wrong, try again after a while"
    screen (src/lib/errorPages.jsx) instead of a blank page or a stack trace.

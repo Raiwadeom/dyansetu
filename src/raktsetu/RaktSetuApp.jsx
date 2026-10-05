@@ -32,6 +32,7 @@ import {
   EmergencyHelp, HeartPulse, HeartbeatLine, Link, RaktSetuLockup, RaktSetuLogo, SectionTitle, Spinner,
 } from "./ui.jsx";
 import "./raktsetu.css";
+import { VisitorCounter } from "../lib/visitCounter.jsx";
 
 /* ------------------------------------------------------------------ router */
 
@@ -171,6 +172,7 @@ function Footer({ tr }) {
           <a href="mailto:smuiqac@gmail.com">{tr("Report a problem", "समस्या कळवा")}</a>
           <a href="/">{tr("DnyanSetu home", "DnyanSetu मुख्यपृष्ठ")}</a>
         </p>
+        <VisitorCounter site="raktsetu" label={tr("Total visitors", "एकूण भेटी")} className="rs-footer-visits" />
       </div>
       <div className="rs-tricolour" aria-hidden="true" />
     </footer>
