@@ -8,7 +8,7 @@
 
 import React, { useCallback, useEffect, useState } from "react";
 import {
-  AlertTriangle, Bell, BellOff, CheckCircle2, Flag, Loader2, Mail, MapPin, Phone, PlusCircle, Trash2,
+  AlertTriangle, Bell, BellOff, CheckCircle2, ClipboardList, Droplet, Flag, HandHeart, Loader2, Mail, MapPin, Phone, PlusCircle, Trash2,
 } from "lucide-react";
 
 import {
@@ -793,30 +793,92 @@ export function ActivityPage({ navigate, userId, profile, setProfile }) {
   useEffect(() => { load(); }, [load]);
 
   const next = nextEligibleDate(profile);
+  const resting = Boolean(next && next > new Date());
+  const donations = state.responded.filter((x) => x.donated_at).length;
+  /* Share of the rest period already done, for the progress bar. */
+  const restPct = (() => {
+    if (!resting || !profile?.last_donation_date) return 100;
+    const start = new Date(profile.last_donation_date).getTime();
+    const total = next.getTime() - start;
+    return Math.max(4, Math.min(100, Math.round(((Date.now() - start) / total) * 100)));
+  })();
 
   return (
-    <section className="rs-section">
-      <h1 className="rs-page-title">My activity</h1>
-      {next && next > new Date() && (
-        <div className="rs-alert">
-          You last donated on {formatDate(profile.last_donation_date)}. Thank you! You can donate again from{" "}
-          <strong>{formatDate(next.toISOString())}</strong>. Until then you will not be matched for donations.
+    <section className="rs-section rs-activity">
+      <div className="rs-activity-head">
+        <div>
+          <h1 className="rs-page-title">My activity</h1>
+          <p className="rs-lead">Requests you posted, people you offered to help, and your donation rest.</p>
+        </div>
+        <Link to="/raktsetu/new" navigate={navigate} className="rs-btn rs-btn-primary"><PlusCircle size={16} /> Request blood</Link>
+      </div>
+
+      <div className="rs-activity-stats">
+        <div className="rs-activity-stat">
+          <span className="rs-activity-stat-icon"><ClipboardList size={18} /></span>
+          <strong>{state.loading ? "…" : state.posted.length}</strong>
+          <small>Requests posted</small>
+        </div>
+        <div className="rs-activity-stat">
+          <span className="rs-activity-stat-icon"><HandHeart size={18} /></span>
+          <strong>{state.loading ? "…" : state.responded.length}</strong>
+          <small>Offers to help</small>
+        </div>
+        <div className="rs-activity-stat">
+          <span className="rs-activity-stat-icon"><Droplet size={18} /></span>
+          <strong>{state.loading ? "…" : donations}</strong>
+          <small>Donations recorded</small>
+        </div>
+      </div>
+
+      {resting && (
+        <div className="rs-rest-card">
+          <span className="rs-rest-icon"><Droplet size={22} /></span>
+          <div className="rs-rest-body">
+            <strong>Thank you for donating!</strong>
+            <p>
+              Last donation <b>{formatDate(profile.last_donation_date)}</b> · you can donate again from{" "}
+              <b>{formatDate(next.toISOString())}</b>. Until then you will not be matched for donations.
+            </p>
+            <div className="rs-rest-bar" aria-label={`Rest period ${restPct}% done`}><span style={{ width: `${restPct}%` }} /></div>
+          </div>
         </div>
       )}
+
       <ErrorBox message={state.error} />
       {state.loading ? <Spinner /> : (
-        <div className="rs-grid-2 rs-grid-2--wide">
-          <div>
-            <h2 className="rs-card-title">Requests I posted</h2>
-            {state.posted.length === 0 ? <p className="rs-empty">You have not posted any requests.</p> : (
+        <div className="rs-activity-grid">
+          <div className="rs-activity-panel">
+            <header className="rs-activity-panel-head">
+              <span className="rs-activity-panel-icon"><ClipboardList size={18} /></span>
+              <h2>Requests I posted</h2>
+              <span className="rs-count">{state.posted.length}</span>
+            </header>
+            {state.posted.length === 0 ? (
+              <div className="rs-activity-empty">
+                <span><ClipboardList size={24} /></span>
+                <p>You have not posted any requests.</p>
+                <Link to="/raktsetu/new" navigate={navigate} className="rs-btn rs-btn-ghost rs-btn-sm">Request blood</Link>
+              </div>
+            ) : (
               <div className="rs-request-list">
                 {state.posted.map((r) => <RequestCard key={r.id} request={r} navigate={navigate} />)}
               </div>
             )}
           </div>
-          <div>
-            <h2 className="rs-card-title">Requests I responded to</h2>
-            {state.responded.length === 0 ? <p className="rs-empty">You have not responded to any requests yet.</p> : (
+          <div className="rs-activity-panel">
+            <header className="rs-activity-panel-head">
+              <span className="rs-activity-panel-icon"><HandHeart size={18} /></span>
+              <h2>Requests I responded to</h2>
+              <span className="rs-count">{state.responded.length}</span>
+            </header>
+            {state.responded.length === 0 ? (
+              <div className="rs-activity-empty">
+                <span><HandHeart size={24} /></span>
+                <p>You have not responded to any requests yet.</p>
+                <Link to="/raktsetu/requests" navigate={navigate} className="rs-btn rs-btn-ghost rs-btn-sm">See open requests</Link>
+              </div>
+            ) : (
               <div className="rs-request-list">
                 {state.responded.map((x) => (
                   <div key={x.request_id} className="rs-stack">

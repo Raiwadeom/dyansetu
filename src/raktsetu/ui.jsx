@@ -144,12 +144,10 @@ export function HeartbeatLine() {
 export function EmergencyHelp({ tr = (en) => en }) {
   return (
     <p className="rs-emergency" role="note">
-      <strong>{tr("Emergency?", "आपत्कालीन स्थिती?")}</strong>{" "}
-      {tr("Contact the hospital's blood bank directly, call", "थेट रुग्णालयाच्या रक्तपेढीशी संपर्क साधा, कॉल करा")}{" "}
-      <a href={`tel:${HEALTH_HELPLINE}`}>{HEALTH_HELPLINE}</a>{" "}
-      {tr("(health helpline), or check live blood stock on", "(आरोग्य हेल्पलाइन), किंवा रक्तसाठा पहा")}{" "}
-      <a href={ERAKTKOSH_URL} target="_blank" rel="noreferrer">e-RaktKosh</a>
-      {tr(" (Government of India).", " (भारत सरकार).")}
+      <strong>{tr("Emergency in Udgir?", "उदगीरमध्ये आपत्कालीन स्थिती?")}</strong>{" "}
+      {tr("Call", "कॉल करा")} <a href="tel:108">108</a> {tr("(free ambulance) or", "(मोफत रुग्णवाहिका) किंवा")}{" "}
+      <a href={`tel:${HEALTH_HELPLINE}`}>{HEALTH_HELPLINE}</a> {tr("(health helpline), ask the hospital's blood bank directly, and check live blood stock for", "(आरोग्य हेल्पलाइन), थेट रुग्णालयाच्या रक्तपेढीशी बोला, आणि")}{" "}
+      <a href={ERAKTKOSH_URL} target="_blank" rel="noreferrer">{tr("Latur district on e-RaktKosh", "e-RaktKosh वर लातूर जिल्ह्याचा रक्तसाठा पहा")}</a>.
     </p>
   );
 }
