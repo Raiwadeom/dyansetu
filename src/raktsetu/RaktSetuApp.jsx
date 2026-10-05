@@ -118,19 +118,22 @@ function Header({ path, navigate, user, isAdmin, lang, setLang, tr }) {
         <Link to="/raktsetu" navigate={navigate} className="rs-brand" aria-label="RaktSetu home">
           <RaktSetuLockup size={46} />
         </Link>
-        <div className="rs-header-actions">
-          <div className="rs-lang" role="group" aria-label="Language / भाषा">
-            <button type="button" className={lang === "en" ? "is-active" : ""} aria-pressed={lang === "en"} onClick={() => setLang("en")}>EN</button>
-            <button type="button" lang="mr" className={lang === "mr" ? "is-active" : ""} aria-pressed={lang === "mr"} onClick={() => setLang("mr")}>मराठी</button>
-          </div>
+        <div className="rs-lang" role="group" aria-label="Language / भाषा">
+          <button type="button" className={lang === "en" ? "is-active" : ""} aria-pressed={lang === "en"} onClick={() => setLang("en")}>EN</button>
+          <button type="button" lang="mr" className={lang === "mr" ? "is-active" : ""} aria-pressed={lang === "mr"} onClick={() => setLang("mr")}>मराठी</button>
+        </div>
+      </div>
+      {/* Second row: the way back to DnyanSetu, and sign out. */}
+      <div className="rs-header-sub">
+        <div className="rs-header-sub-inner">
+          <a className="rs-back" href="/">
+            <ArrowLeft size={15} /> <span className="rs-back-long">{tr("Back to ", "परत ")}</span><span>DnyanSetu</span>
+          </a>
           {user && (
             <button type="button" className="rs-signout" onClick={doSignOut} disabled={leaving}>
-              <LogOut size={15} /> <span className="rs-back-long">{leaving ? tr("Signing out…", "बाहेर पडत आहे…") : tr("Sign out", "बाहेर पडा")}</span>
+              <LogOut size={15} /> <span>{leaving ? tr("Signing out…", "बाहेर पडत आहे…") : tr("Sign out", "बाहेर पडा")}</span>
             </button>
           )}
-          <a className="rs-back" href="/">
-            <ArrowLeft size={16} /> <span className="rs-back-long">{tr("Back to ", "परत ")}</span><span>DnyanSetu</span>
-          </a>
         </div>
       </div>
       {user && (
@@ -324,14 +327,18 @@ function HomePage({ navigate, user, tr }) {
       <section className="rs-hero">
         <div className="rs-hero-copy">
           <p className="rs-eyebrow"><HeartPulse size={14} /> {tr("DnyanSetu · Social Services", "DnyanSetu · सामाजिक सेवा")}</p>
-          <h1>{tr("Connect patients who need blood with student and staff volunteers nearby",
-            "रक्ताची गरज असलेल्या रुग्णांना जवळच्या विद्यार्थी आणि कर्मचारी स्वयंसेवकांशी जोडा")}</h1>
+          <h1>{tr("Connect patients with", "रुग्णांना जोडा")} <span className="rs-hero-accent">{tr("blood donors nearby", "जवळच्या रक्तदात्यांशी")}</span></h1>
           <p className="rs-hero-sub">
             {tr(
-              "Post a request when someone needs blood. Registered volunteers in the same city get an alert, and anyone who can help reaches the family directly. Donations always happen at a licensed blood bank or hospital.",
-              "एखाद्याला रक्ताची गरज असल्यास विनंती टाका. त्याच शहरातील नोंदणीकृत स्वयंसेवकांना सूचना जाते, आणि मदत करू शकणारे थेट कुटुंबाशी संपर्क साधतात. रक्तदान नेहमी परवानाधारक रक्तपेढी किंवा रुग्णालयातच होते.",
+              "Post a request and registered volunteers in your city are alerted at once. Donation always happens at a licensed blood bank or hospital.",
+              "विनंती टाका — तुमच्या शहरातील नोंदणीकृत स्वयंसेवकांना लगेच सूचना जाते. रक्तदान नेहमी परवानाधारक रक्तपेढी किंवा रुग्णालयातच होते.",
             )}
           </p>
+          <ul className="rs-hero-features">
+            <li><span><Shield size={18} /></span><strong>{tr("100% free", "पूर्ण मोफत")}</strong><small>{tr("Never pay anyone", "कोणालाही पैसे देऊ नका")}</small></li>
+            <li><span><Bell size={18} /></span><strong>{tr("City alerts", "शहरानुसार सूचना")}</strong><small>{tr("Donors near you", "जवळचे रक्तदाते")}</small></li>
+            <li><span><HeartHandshake size={18} /></span><strong>{tr("College network", "महाविद्यालय नेटवर्क")}</strong><small>{tr("Students & staff", "विद्यार्थी व कर्मचारी")}</small></li>
+          </ul>
           <div className="rs-hero-actions">
             {user ? (
               <>
