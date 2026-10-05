@@ -4463,7 +4463,9 @@ export default function App() {
   useEffect(() => {
     if (booting) return;
     try {
-      if (view === "auth" || view === "accept-terms") sessionStorage.removeItem(VIEW_KEY);
+      /* A 404 is never "where the reader was": remembering it made the home
+         page itself show "Page not found" after one wrong address. */
+      if (view === "auth" || view === "accept-terms" || view === "notfound") sessionStorage.removeItem(VIEW_KEY);
       else sessionStorage.setItem(VIEW_KEY, view);
     } catch { /* private mode or storage disabled — refresh just loses the spot */ }
   }, [view, booting]);
@@ -6454,8 +6456,8 @@ function Styles() {
       .site-footer-inner {
         position: relative; z-index: 1;
         max-width: 1180px; margin: 0 auto;
-        display: grid; grid-template-columns: minmax(280px, 1fr) minmax(0, 1.55fr);
-        gap: 56px; align-items: start;
+        display: grid; grid-template-columns: minmax(260px, 0.85fr) minmax(0, 2.15fr);
+        gap: 48px; align-items: start;
       }
 
       /* ------------------------------- identity ------------------------------- */
@@ -6494,7 +6496,16 @@ function Styles() {
 
       /* -------------------------------- columns -------------------------------- */
       .footer-columns {
-        display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 36px 28px;
+        /* Four equal columns in one row (Support, Quick links, Contact, Follow),
+           so no column drops onto a row of its own. */
+        display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 32px 24px;
+      }
+      .footer-col .footer-link { overflow-wrap: anywhere; }
+      @media (max-width: 1100px) and (min-width: 901px) {
+        .footer-columns { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      }
+      @media (max-width: 760px) {
+        .footer-columns { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       }
       .footer-col { display: flex; flex-direction: column; gap: 11px; font-style: normal; }
       .footer-col h4 {
