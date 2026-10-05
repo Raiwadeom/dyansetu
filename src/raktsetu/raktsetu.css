@@ -421,7 +421,6 @@
   .rs-lockup-text span { font-size: 13.5px; }
   .rs-back { padding: 8px 10px; font-size: 13px; }
   .rs-signout { padding: 8px 10px; font-size: 13px; }
-  .rs-back .rs-back-long { display: none; }
   .rs-nav-inner { padding: 0 6px; }
   .rs-nav-link { padding: 13px 12px; font-size: 14px; gap: 7px; }
   .rs-nav-cta { padding: 8px 14px; margin: 0 4px; }
@@ -532,8 +531,25 @@
   .rs-header-actions { gap: 6px; }
   .rs-lang button { padding: 7px 8px; font-size: 12px; }
 }
-@media (max-width: 360px) {
-  .rs-back > span:last-child { display: none; }
+/* Every phone gets the same header (it used to drop the "DnyanSetu" label
+   below 360px, so two phones showed two different headers): a slim top row
+   with "Back to DnyanSetu" (and Sign out), then the logo and language switch.
+   Nothing is hidden, and it fits from 320px up. */
+@media (max-width: 480px) {
+  .rs-header-top {
+    display: grid; grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: "back out" "brand lang"; gap: 10px 8px; padding: 8px 12px 12px;
+  }
+  .rs-header-actions { display: contents; }
+  .rs-brand { grid-area: brand; }
+  .rs-lang { grid-area: lang; justify-self: end; align-self: center; }
+  .rs-back, .rs-signout {
+    background: none; border: 0; padding: 4px 0; border-radius: 0;
+    color: #1e3a5f !important; font-size: 13.5px; font-weight: 700;
+  }
+  .rs-back { grid-area: back; justify-self: start; }
+  .rs-back:hover { background: none; text-decoration: underline; }
+  .rs-signout { grid-area: out; justify-self: end; }
 }
 
 /* ============================================================================
