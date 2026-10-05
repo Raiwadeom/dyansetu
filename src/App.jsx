@@ -35,6 +35,7 @@ import { SCHOLARSHIP_CATEGORIES } from "./data/resources";
 import { builtInSchemes, fetchSchemes, schemeStatus, fetchLiveAnnouncements } from "./lib/siteContent";
 import ContentAdminPage, { FacultyAnnouncementsCard } from "./admin/ContentAdminPage.jsx";
 import NotificationPrompt from "./lib/NotificationPrompt.jsx";
+import { GMAIL_ONLY_MESSAGE, isGmail } from "./lib/gmailOnly.js";
 import { ensureSiteWorker } from "./lib/sitePush";
 import ScholarshipResetPage from "./admin/ScholarshipResetPage.jsx";
 import { LANG_KEY, LangContext, useLang, makeTr } from "./lib/i18n";
@@ -1709,6 +1710,10 @@ function AuthScreen({ mode, setMode, onSubmit, notice = "", onClearNotice, goLan
         setError("Please enter a valid email address.");
         return;
       }
+      if (!isGmail(normalizedEmail)) {
+        setError(GMAIL_ONLY_MESSAGE);
+        return;
+      }
       setSubmitting(true);
       try {
         const result = await onSubmit({
@@ -1739,6 +1744,10 @@ function AuthScreen({ mode, setMode, onSubmit, notice = "", onClearNotice, goLan
     const normalizedEmail = normalizeEmail(email);
     if (!isValidEmail(normalizedEmail)) {
       setError("Please enter a valid email address.");
+      return;
+    }
+    if (!isGmail(normalizedEmail)) {
+      setError(GMAIL_ONLY_MESSAGE);
       return;
     }
     /* No fixed-address check here any more: the admin's email can be changed
@@ -1817,6 +1826,10 @@ function AuthScreen({ mode, setMode, onSubmit, notice = "", onClearNotice, goLan
       setResetError("Please enter a valid email address.");
       return;
     }
+    if (!isGmail(normalizedEmail)) {
+      setResetError(GMAIL_ONLY_MESSAGE);
+      return;
+    }
     setResetSubmitting(true);
     try {
       const result = await resetPassword({ email: normalizedEmail });
@@ -1893,7 +1906,7 @@ function AuthScreen({ mode, setMode, onSubmit, notice = "", onClearNotice, goLan
               </div>
             ) : (
               <form onSubmit={handleResetSubmit}>
-                <Field label="Registered Email" icon={Mail} type="email" autoComplete="off" placeholder="name@arcsas.edu" value={resetEmail} onChange={(e) => setResetEmail(e.target.value)} />
+                <Field label="Registered Email" icon={Mail} type="email" autoComplete="off" placeholder="yourname@gmail.com" value={resetEmail} onChange={(e) => setResetEmail(e.target.value)} />
                 <button type="submit" className="btn btn-primary btn-block btn-lg" style={{ marginTop: 16 }} disabled={resetSubmitting}>
                   {resetSubmitting ? (
                     <><Loader2 size={16} className="spin" /> Sending reset link…</>
@@ -1985,7 +1998,7 @@ function AuthScreen({ mode, setMode, onSubmit, notice = "", onClearNotice, goLan
               {mode === "signup" && selectedRole !== "admin" && (
                 <Field label="Full Name" icon={User} type="text" placeholder="Enter your full name" value={name} onChange={(e) => setName(e.target.value)} />
               )}
-              <Field label={mode === "signup" ? "Email" : "Registered Email"} icon={Mail} type="email" autoComplete="off" placeholder="name@arcsas.edu" value={email} onChange={(e) => setEmail(e.target.value)} />
+              <Field label={mode === "signup" ? "Email" : "Registered Email"} icon={Mail} type="email" autoComplete="off" placeholder="yourname@gmail.com" value={email} onChange={(e) => setEmail(e.target.value)} />
               <Field label="Password" icon={Lock} type={showPassword ? "text" : "password"} autoComplete={mode === "signup" ? "new-password" : "current-password"} placeholder={mode === "signup" ? "8+ characters, a letter and a number" : "••••••••"} value={password} onChange={(e) => setPassword(e.target.value)} />
               {mode === "signup" && (
                 <Field label="Confirm Password" icon={Lock} type={showPassword ? "text" : "password"} placeholder="Re-enter password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
@@ -4297,7 +4310,19 @@ export default function App() {
   const [users, setUsers] = useState([]);
   const [currentUser, setCurrentUser] = useState(null);
   const [booting, setBooting] = useState(true);
-  const [notice, setNotice] = useState("");
+  /* A Google sign-up the database refused (not a Gmail address) comes back
+     with ?error_description=… in the address; say why, then tidy the URL. */
+  const [notice, setNotice] = useState(() => {
+    try {
+      const params = new URLSearchParams(window.location.search + "&" + window.location.hash.replace(/^#/, ""));
+      const why = params.get("error_description") || "";
+      if (!why) return "";
+      window.history.replaceState(window.history.state, "", window.location.pathname);
+      return /gmail|database error saving new user/i.test(why) ? GMAIL_ONLY_MESSAGE : why;
+    } catch {
+      return "";
+    }
+  });
   /* The members-only page a signed-out visitor tried to open, so signing in
      takes them there instead of dumping them on their profile. */
   const [pendingPage, setPendingPage] = useState(null);
@@ -4458,6 +4483,17 @@ export default function App() {
     const intent = readOAuthIntent();
     clearOAuthIntent();
     const next = pendingNext || safeNext(intent?.next || "");
+
+    /* Gmail addresses only — a work or school Google account is turned away
+       (the database refuses new ones too, see migration 0020). */
+    if (!isGmail(current.email)) {
+      await auth.signOut();
+      setCurrentUser(null);
+      setAuthMode("login");
+      setNotice(GMAIL_ONLY_MESSAGE);
+      replaceView("auth");
+      return;
+    }
 
     /* The Admin tab's Google button is only for the one administrator
        address; any other Google account used there is signed straight out. */

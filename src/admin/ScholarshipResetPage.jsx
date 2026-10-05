@@ -4,6 +4,7 @@
 
 import React, { useEffect, useState } from "react";
 import { CheckCircle2, Coins, Loader2, Lock, Mail, Shield } from "lucide-react";
+import { GMAIL_ONLY_MESSAGE, isGmail } from "../lib/gmailOnly.js";
 
 async function call(body) {
   const response = await fetch("/api/scholarship-account", {
@@ -49,6 +50,7 @@ export default function ScholarshipResetPage({ onDone }) {
     setError("");
     if (!email.trim() || !password || !confirm) { setError("Fill in the new email, the new password and confirm it."); return; }
     if (password !== confirm) { setError("The two passwords do not match."); return; }
+    if (!isGmail(email)) { setError(GMAIL_ONLY_MESSAGE); return; }
     setBusy(true);
     try {
       const d = await call({ action: "complete", token, email: email.trim(), password });
@@ -98,7 +100,7 @@ export default function ScholarshipResetPage({ onDone }) {
               <span className="field-label">New email</span>
               <span className="field-input-wrap">
                 <Mail size={16} className="field-icon" />
-                <input className="field-input" type="email" autoComplete="off" placeholder="name@example.com" value={email} onChange={(e) => setEmail(e.target.value)} />
+                <input className="field-input" type="email" autoComplete="off" placeholder="yourname@gmail.com" value={email} onChange={(e) => setEmail(e.target.value)} />
               </span>
             </label>
             <label className="field">
