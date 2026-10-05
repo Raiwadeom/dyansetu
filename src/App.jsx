@@ -3059,10 +3059,13 @@ function FacultyPortal({ profile, onSaveProfile }) {
       {!isStaff && (
         <NotesManageList
           title="My Uploaded Notes"
+          subtitle="Notes you have shared with students, newest first."
+          onUpload={() => setShowNotesModal("notes")}
+          uploadLabel="Upload notes"
           notes={myNotes}
           loading={notesLoading}
           error={notesError}
-          emptyText={<>You have not uploaded any notes yet. Use <strong>Upload Notes</strong> above and they will appear for students straight away.</>}
+          emptyText={<><strong>No notes yet.</strong> Upload a PDF or photos of your notes and students in that branch see them straight away.</>}
           onDeleted={(id) => setMyNotes((prev) => prev.filter((n) => n.id !== id))}
         />
       )}
@@ -3070,19 +3073,23 @@ function FacultyPortal({ profile, onSaveProfile }) {
       {!isStaff && (
         <NotesManageList
           title="My Question Papers"
+          subtitle="Previous year papers you have shared on the Question Papers page."
+          tone="papers"
+          onUpload={() => setShowNotesModal("paper")}
+          uploadLabel="Upload paper"
           notes={myPapers.map((pp) => ({ ...pp, title: `${pp.subject} — ${pp.session} ${pp.year}`, description: "" }))}
           loading={papersLoading}
           error={papersError}
           noun="paper"
           icon={ScrollText}
           onDelete={deletePaper}
-          emptyText={<>No question papers yet. Use <strong>Upload Notes / Papers</strong> and pick <strong>Question Paper</strong>.</>}
+          emptyText={<><strong>No question papers yet.</strong> Add a previous year paper — pick the year and session, attach the PDF or photos.</>}
           onDeleted={(id) => setMyPapers((prev) => prev.filter((pp) => pp.id !== id))}
         />
       )}
 
       {showNotesModal && !isStaff && (
-        <NoteUploadModal author={profile} onClose={() => setShowNotesModal(false)} onUploaded={refreshMyNotes} onPaperUploaded={refreshMyPapers} />
+        <NoteUploadModal author={profile} initialKind={showNotesModal === "paper" ? "paper" : "notes"} onClose={() => setShowNotesModal(false)} onUploaded={refreshMyNotes} onPaperUploaded={refreshMyPapers} />
       )}
 
       <div style={{ gridColumn: "1 / -1" }}><DeleteAccountCard variant={isStaff ? "staff" : "faculty"} /></div>
@@ -3271,7 +3278,7 @@ function NoteUploadModal({ author, onClose, onUploaded, onPaperUploaded, initial
 
 /* Uploaded notes with a delete button on each. Deleting removes the row, so
    the note disappears from the student library as well. */
-function NotesManageList({ title, notes, loading, error, emptyText, onDeleted, onDelete = deleteNote, noun = "note", icon: Icon = NotebookPen }) {
+function NotesManageList({ title, subtitle = "", notes, loading, error, emptyText, onDeleted, onDelete = deleteNote, noun = "note", icon: Icon = NotebookPen, onUpload, uploadLabel = "Upload", tone = "notes" }) {
   const [deletingId, setDeletingId] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [deleteError, setDeleteError] = useState("");
@@ -3291,17 +3298,34 @@ function NotesManageList({ title, notes, loading, error, emptyText, onDeleted, o
   };
 
   return (
-    <div className="dash-modules">
-      <h3 className="dash-section-title">
-        <Icon size={20} /> {title} ({notes.length})
-      </h3>
+    <section className={`dash-modules upl-card upl-card--${tone}`}>
+      <header className="upl-head">
+        <span className="upl-icon" aria-hidden="true"><Icon size={20} /></span>
+        <div className="upl-head-copy">
+          <h3>{title} <span className="upl-count">{loading ? "…" : notes.length}</span></h3>
+          {subtitle && <p>{subtitle}</p>}
+        </div>
+        {onUpload && notes.length > 0 && (
+          <button type="button" className="btn btn-outline btn-sm upl-add" onClick={onUpload}>
+            <Plus size={15} /> {uploadLabel}
+          </button>
+        )}
+      </header>
 
       {(error || deleteError) && <p className="upload-error">{error || deleteError}</p>}
 
       {loading ? (
         <p className="notes-loading"><Loader2 size={18} className="spin" /> Loading…</p>
       ) : notes.length === 0 ? (
-        <p className="resource-empty">{emptyText}</p>
+        <div className="upl-empty">
+          <span className="upl-empty-icon" aria-hidden="true"><Icon size={26} /></span>
+          <p>{emptyText}</p>
+          {onUpload && (
+            <button type="button" className="btn btn-primary btn-sm" onClick={onUpload}>
+              <Plus size={15} /> {uploadLabel}
+            </button>
+          )}
+        </div>
       ) : (
         <div className="notes-list">
           {notes.map((note) => (
@@ -3362,7 +3386,7 @@ function NotesManageList({ title, notes, loading, error, emptyText, onDeleted, o
           ))}
         </div>
       )}
-    </div>
+    </section>
   );
 }
 
@@ -8350,6 +8374,78 @@ function Styles() {
 
       /* Toolbar: subject search + session filter */
       .resource-toolbar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 18px; }
+      /* Subject Notes page banner (src/notes/NotesPage.jsx). */
+      .notes-back { margin-bottom: 12px; }
+      .notes-hero {
+        position: relative; overflow: hidden;
+        padding: 28px 28px 22px; margin-bottom: 18px; border-radius: 18px;
+        background:
+          radial-gradient(420px 220px at 100% 0%, rgba(232, 174, 74, 0.28), transparent 70%),
+          radial-gradient(360px 200px at 0% 100%, rgba(255, 255, 255, 0.08), transparent 70%),
+          linear-gradient(135deg, #0B1E4F 0%, #16358C 100%);
+        color: #fff; box-shadow: 0 14px 34px rgba(11, 30, 79, 0.22);
+      }
+      .notes-hero::after {
+        content: ""; position: absolute; right: -40px; bottom: -60px; width: 220px; height: 220px;
+        border-radius: 50%; border: 28px solid rgba(255, 255, 255, 0.05); pointer-events: none;
+      }
+      .notes-hero-copy { position: relative; z-index: 1; max-width: 760px; }
+      .notes-hero-eyebrow {
+        display: inline-flex; align-items: center; gap: 6px; margin: 0 0 10px; padding: 4px 10px;
+        border-radius: 999px; background: rgba(232, 174, 74, 0.18); color: #FFD27A;
+        font-size: 11.5px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase;
+      }
+      .notes-hero-title { margin: 0; font-size: clamp(24px, 3.2vw, 34px); line-height: 1.15; font-weight: 800; color: #fff; letter-spacing: -0.02em; }
+      .notes-hero-sub { margin: 10px 0 0; font-size: 15px; line-height: 1.6; color: rgba(255, 255, 255, 0.82); }
+      .notes-hero-stats { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+      .notes-hero-stats span {
+        display: inline-flex; align-items: baseline; gap: 5px; padding: 5px 12px; border-radius: 999px;
+        background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.18);
+        font-size: 13px; color: rgba(255, 255, 255, 0.85);
+      }
+      .notes-hero-stats strong { font-size: 15px; color: #fff; }
+      .notes-hero .notes-admin-upload { margin: 14px 0 0; }
+      .resource-search.notes-hero-search {
+        position: relative; z-index: 1; margin-top: 18px; width: 100%; max-width: none;
+        background: #fff; border: 0; border-radius: 12px; padding: 4px 16px;
+        box-shadow: 0 8px 22px rgba(0, 0, 0, 0.18);
+      }
+      .notes-hero-search input { font-size: 15.5px; padding: 12px 0; }
+      .notes-hero-search svg { color: #E65100; }
+      .notes-toolbar:empty { display: none; }
+      /* Same banner for every study page header (Scholarships, Question
+         Papers, Practice Tests, legal pages) so they match Subject Notes. */
+      .resource-page .resource-head-copy, .quiz-page .quiz-head-copy {
+        position: relative; overflow: hidden; align-self: stretch; width: 100%; max-width: none;
+        margin: 0 0 16px; padding: 26px 28px 24px; border-radius: 18px; text-align: left;
+        background:
+          radial-gradient(420px 220px at 100% 0%, rgba(232, 174, 74, 0.28), transparent 70%),
+          linear-gradient(135deg, #0B1E4F 0%, #16358C 100%);
+        color: #fff; box-shadow: 0 14px 34px rgba(11, 30, 79, 0.22);
+      }
+      .resource-page .resource-head-copy::after, .quiz-page .quiz-head-copy::after {
+        content: ""; position: absolute; right: -40px; bottom: -60px; width: 220px; height: 220px;
+        border-radius: 50%; border: 28px solid rgba(255, 255, 255, 0.05); pointer-events: none;
+      }
+      .resource-page .resource-head-copy .section-eyebrow, .quiz-page .quiz-head-copy .section-eyebrow {
+        display: inline-flex; justify-content: flex-start; width: auto; margin: 0 0 10px; padding: 4px 10px;
+        border-radius: 999px; background: rgba(232, 174, 74, 0.18); color: #FFD27A;
+        font-family: inherit; font-size: 11.5px; font-weight: 800; letter-spacing: 0.08em;
+      }
+      .resource-page .resource-head-copy .resource-title, .quiz-page .quiz-head-copy .quiz-title {
+        position: relative; color: #fff; font-weight: 800;
+      }
+      .resource-page .resource-head-copy .resource-sub, .quiz-page .quiz-head-copy .quiz-sub {
+        position: relative; color: rgba(255, 255, 255, 0.82); max-width: 760px;
+      }
+      @media (max-width: 640px) {
+        .resource-page .resource-head-copy, .quiz-page .quiz-head-copy { padding: 20px 16px 18px; border-radius: 14px; }
+      }
+      @media (max-width: 640px) {
+        .notes-hero { padding: 20px 16px 16px; border-radius: 14px; }
+        .notes-hero-sub { font-size: 14px; }
+      }
+
       .resource-search {
         display: flex; align-items: center; gap: 8px;
         padding: 0 14px; height: 44px; min-width: 260px; flex: 1 1 260px;
@@ -8600,6 +8696,44 @@ function Styles() {
       }
 
       .notes-list { display: flex; flex-direction: column; gap: 12px; }
+      /* Faculty "My Uploaded Notes" / "My Question Papers" cards. */
+      .upl-card {
+        background: #fff; border: 1px solid var(--border-light); border-radius: 14px;
+        padding: 18px 20px 20px; box-shadow: 0 1px 2px rgba(11, 30, 46, 0.04);
+        border-top: 4px solid #0B3D91;
+      }
+      .upl-card--papers { border-top-color: #C62828; }
+      .upl-head { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; }
+      .upl-icon {
+        flex: none; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 12px;
+        background: #E8EEF9; color: #0B3D91;
+      }
+      .upl-card--papers .upl-icon { background: #FDECEC; color: #C62828; }
+      .upl-head-copy { flex: 1; min-width: 0; }
+      .upl-head-copy h3 { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 18px; color: var(--abc-navy); }
+      .upl-head-copy p { margin: 3px 0 0; font-size: 13px; color: var(--text-muted); }
+      .upl-count {
+        display: inline-grid; place-items: center; min-width: 26px; height: 22px; padding: 0 7px;
+        border-radius: 999px; background: #EEF2F7; color: #334155; font-size: 12px; font-weight: 800;
+      }
+      .upl-add { flex: none; }
+      .upl-empty {
+        display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center;
+        padding: 26px 16px; border: 1.5px dashed #CBD5E1; border-radius: 12px; background: #F8FAFC;
+      }
+      .upl-empty p { margin: 0; max-width: 460px; font-size: 14px; line-height: 1.55; color: var(--text-muted); }
+      .upl-empty p strong { display: block; margin-bottom: 2px; font-size: 15px; color: var(--abc-navy); }
+      .upl-empty-icon {
+        display: grid; place-items: center; width: 56px; height: 56px; border-radius: 50%;
+        background: #E8EEF9; color: #0B3D91;
+      }
+      .upl-card--papers .upl-empty-icon { background: #FDECEC; color: #C62828; }
+      @media (max-width: 560px) {
+        .upl-card { padding: 16px; }
+        .upl-head { flex-wrap: wrap; }
+        .upl-add { width: 100%; justify-content: center; }
+      }
+
       .note-card {
         padding: 18px 20px; border-radius: 14px;
         background: #FFFFFF; border: 1px solid var(--border-light);

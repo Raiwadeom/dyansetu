@@ -155,25 +155,42 @@ export default function NotesPage({ onBack, onRegisterBack, user, UploadModal = 
   const countFor = (id) => notes.filter((n) => n.streamId === id).length;
 
   return (
-    <main className="resource-page">
-      <div className="resource-head">
-        <button type="button" className="btn btn-ghost btn-sm" onClick={handleBackClick}>
-          <ArrowLeft size={16} /> Back
-        </button>
-        <div className="resource-head-copy">
-          <p className="section-eyebrow"><NotebookPen size={14} /> Subject-wise Notes</p>
-          <h1 className="resource-title">Notes uploaded by your faculty</h1>
-          <p className="resource-sub">
-            Choose your stream to see what your teachers have shared, or search across every
-            stream if you already know the subject or topic.
+    <main className="resource-page notes-page">
+      <button type="button" className="btn btn-ghost btn-sm notes-back" onClick={handleBackClick}>
+        <ArrowLeft size={16} /> Back
+      </button>
+
+      {/* Banner: what this page is, live counts, and the search box. */}
+      <section className="notes-hero">
+        <div className="notes-hero-copy">
+          <p className="notes-hero-eyebrow"><NotebookPen size={14} /> Subject-wise Notes</p>
+          <h1 className="notes-hero-title">Notes uploaded by your faculty</h1>
+          <p className="notes-hero-sub">
+            Pick your stream to see what your teachers have shared, or search every stream by
+            subject, topic or teacher.
           </p>
+          <div className="notes-hero-stats">
+            <span><strong>{loading ? "…" : notes.length}</strong> notes</span>
+            <span><strong>{loading ? "…" : NOTE_STREAMS.filter((st) => countFor(st.id) > 0).length}</strong> streams</span>
+            <span><strong>{new Set(notes.map((n) => n.author)).size || 0}</strong> teachers</span>
+          </div>
           {canManage && (
             <button type="button" className="btn btn-primary btn-sm notes-admin-upload" onClick={() => setShowUpload(true)}>
               <Upload size={15} /> Upload Notes
             </button>
           )}
         </div>
-      </div>
+        <div className="resource-search notes-hero-search">
+          <Search size={18} />
+          <input
+            type="text"
+            value={query}
+            placeholder="Search notes by subject, topic or teacher"
+            aria-label="Search notes"
+            onChange={(e) => setQuery(e.target.value)}
+          />
+        </div>
+      </section>
 
       {showUpload && UploadModal && (
         <UploadModal
@@ -183,18 +200,7 @@ export default function NotesPage({ onBack, onRegisterBack, user, UploadModal = 
         />
       )}
 
-      {/* Search is always available, even before a stream is chosen. */}
-      <div className="resource-toolbar">
-        <div className="resource-search">
-          <Search size={16} />
-          <input
-            type="text"
-            value={query}
-            placeholder="Search notes by subject, topic or teacher"
-            aria-label="Search notes"
-            onChange={(e) => setQuery(e.target.value)}
-          />
-        </div>
+      <div className="resource-toolbar notes-toolbar">
         {(searching || stream) && (
           <div className="chip-row" role="group" aria-label="Filter by semester">
             <button
