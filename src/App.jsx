@@ -1539,10 +1539,16 @@ function AuthScreen({ mode, setMode, onSubmit, notice = "", onClearNotice, goLan
   /* Picking another tab (Log in / Sign up, Faculty / Staff / Admin) closes
      the banner about the previous attempt, which otherwise sat over the form. */
   const firstPick = useRef(true);
+  const clearMessages = () => {
+    onClearNotice?.();
+    /* The form's own error belonged to the other tab too. */
+    setError("");
+    setSuccessMessage("");
+  };
   useEffect(() => {
     if (firstPick.current) { firstPick.current = false; return; }
-    onClearNotice?.();
-  }, [selectedRole, mode]); // eslint-disable-line react-hooks/exhaustive-deps
+    clearMessages();
+  }, [selectedRole]); // eslint-disable-line react-hooks/exhaustive-deps
   /* Switching between Student login and Staff Login keeps this screen
      mounted, so the picked role has to follow the scope — otherwise the
      Staff page could still sign in as "student". */
@@ -1832,8 +1838,8 @@ function AuthScreen({ mode, setMode, onSubmit, notice = "", onClearNotice, goLan
         ) : (
           <>
             <div className="auth-tabs">
-              <button className={`auth-tab ${mode === "login" ? "auth-tab-active" : ""}`} onClick={() => setMode("login")}>Log in</button>
-              <button className={`auth-tab ${mode === "signup" ? "auth-tab-active" : ""}`} onClick={() => { setMode("signup"); if (selectedRole === "admin") setSelectedRole(isStaffScope ? "faculty" : "student"); }}>Sign up</button>
+              <button className={`auth-tab ${mode === "login" ? "auth-tab-active" : ""}`} onClick={() => { clearMessages(); setMode("login"); }}>Log in</button>
+              <button className={`auth-tab ${mode === "signup" ? "auth-tab-active" : ""}`} onClick={() => { clearMessages(); setMode("signup"); if (selectedRole === "admin") setSelectedRole(isStaffScope ? "faculty" : "student"); }}>Sign up</button>
             </div>
 
             <div className="auth-heading">
