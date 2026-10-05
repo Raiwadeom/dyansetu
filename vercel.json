@@ -2,6 +2,9 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
+  "regions": [
+    "bom1"
+  ],
   "redirects": [
     {
       "source": "/:path*",
@@ -55,6 +58,9 @@
     },
     "api/raktsetu/notify.js": {
       "maxDuration": 30
+    },
+    "api/site-push.js": {
+      "maxDuration": 60
     }
   },
   "crons": [
@@ -107,6 +113,15 @@
         {
           "key": "Service-Worker-Allowed",
           "value": "/raktsetu/"
+        }
+      ]
+    },
+    {
+      "source": "/sw.js",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache"
         }
       ]
     }

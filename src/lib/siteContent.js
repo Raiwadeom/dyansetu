@@ -4,6 +4,7 @@
 
 import { supabase, isBackendConfigured } from "./supabase.js";
 import { builtInScholarshipRows } from "../data/resources.js";
+import { notifySite } from "./sitePush.js";
 
 const todayIso = () => {
   const d = new Date();
@@ -90,8 +91,24 @@ export async function fetchAllAnnouncements() {
   ) || [];
 }
 
+/* New announcements also go out as a phone notification (in the background). */
 export async function addAnnouncement(row) {
-  return check(await supabase.from("announcements").insert(row).select("*").single(), "Could not add the announcement.");
+  const saved = check(await supabase.from("announcements").insert(row).select("*").single(), "Could not add the announcement.");
+  notifySite("announcement", saved.id);
+  return saved;
+}
+
+export async function updateAnnouncement(id, row) {
+  check(await supabase.from("announcements").update(row).eq("id", id), "Could not save the announcement.");
+}
+
+/* One teacher's own announcements, newest first. */
+export async function fetchMyAnnouncements(userId) {
+  return check(
+    await supabase.from("announcements").select("*").eq("posted_by", userId)
+      .order("notice_date", { ascending: false }).order("created_at", { ascending: false }),
+    "Could not load your announcements.",
+  ) || [];
 }
 
 export async function deleteAnnouncement(id) {

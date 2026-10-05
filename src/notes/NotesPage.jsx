@@ -46,6 +46,8 @@ export default function NotesPage({ onBack, onRegisterBack, user, UploadModal = 
   const [error, setError] = useState("");
   const [query, setQuery] = useState("");
   const [semester, setSemester] = useState("All");
+  /* Set when the page was opened from a "new notes" notification. */
+  const [focusId, setFocusId] = useState("");
 
   const stream = streamId ? noteStreamById(streamId) : null;
 
@@ -53,7 +55,7 @@ export default function NotesPage({ onBack, onRegisterBack, user, UploadModal = 
      undo — true/false rather than calling onBack() itself, since this same
      function is also handed to the hardware-back handler. */
   const stepBack = () => {
-    if (streamId) { setStreamId(null); setQuery(""); setSemester("All"); return true; }
+    if (streamId) { setStreamId(null); setQuery(""); setSemester("All"); setFocusId(""); return true; }
     return false;
   };
   const handleBackClick = () => { if (!stepBack()) onBack(); };
@@ -71,7 +73,21 @@ export default function NotesPage({ onBack, onRegisterBack, user, UploadModal = 
       setLoading(true);
       try {
         const all = await fetchNotes();
-        if (active) setNotes(all);
+        if (active) {
+          setNotes(all);
+          let wanted = "";
+          try {
+            wanted = sessionStorage.getItem("dnyansetu:focus-note") || "";
+            sessionStorage.removeItem("dnyansetu:focus-note");
+          } catch { /* storage blocked */ }
+          const target = wanted && all.find((n) => n.id === wanted);
+          if (target) {
+            setStreamId(target.streamId);
+            setFocusId(target.id);
+          } else if (wanted) {
+            setError("That note is no longer available — it may have been removed by the teacher.");
+          }
+        }
       } catch (err) {
         rememberCrash(err);
         if (active) setError("Could not load the notes library. Please try again.");
@@ -97,8 +113,17 @@ export default function NotesPage({ onBack, onRegisterBack, user, UploadModal = 
   };
 
   useEffect(() => {
+    if (focusId) return;
     window.scrollTo({ top: 0, behavior: "smooth" });
-  }, [streamId]);
+  }, [streamId, focusId]);
+
+  useEffect(() => {
+    if (!focusId || loading) return undefined;
+    const timer = setTimeout(() => {
+      document.getElementById(`note-${focusId}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 120);
+    return () => clearTimeout(timer);
+  }, [focusId, loading, streamId]);
 
   const term = query.trim().toLowerCase();
 
@@ -197,7 +222,7 @@ export default function NotesPage({ onBack, onRegisterBack, user, UploadModal = 
         <button
           type="button"
           className={`crumb ${!stream || searching ? "is-current" : ""}`}
-          onClick={() => { setStreamId(null); setQuery(""); setSemester("All"); }}
+          onClick={() => { setStreamId(null); setQuery(""); setSemester("All"); setFocusId(""); }}
         >
           All streams
         </button>
@@ -274,7 +299,7 @@ export default function NotesPage({ onBack, onRegisterBack, user, UploadModal = 
 
                     <div className="notes-list">
                       {items.map((note) => (
-                        <article className="note-card" key={note.id}>
+                        <article className={`note-card ${focusId === note.id ? "is-focus" : ""}`} key={note.id} id={`note-${note.id}`}>
                           <div className="note-card-head">
                             <h3>{note.title}</h3>
                             <span className="note-sem">{note.semester}</span>

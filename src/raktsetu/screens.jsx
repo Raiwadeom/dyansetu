@@ -114,8 +114,13 @@ export function ProfileForm({ userId, defaultName = "", existing = null, onboard
         notify_push: form.notify,
         notify_email: form.notify,
       });
-      if (wantsPush && (await permissionAsk || Notification.permission) === "granted") {
-        await enablePush().catch((err) => console.error("[raktsetu] push on join failed", err));
+      /* Linking this browser for alerts runs in the background: the profile
+         is saved, so the person moves on at once instead of waiting on the
+         browser's push service and a second network round-trip. */
+      if (wantsPush) {
+        Promise.resolve(permissionAsk || Notification.permission).then((permission) => {
+          if (permission === "granted") enablePush().catch((err) => console.error("[raktsetu] push on join failed", err));
+        });
       }
       setSaved(true);
       onSaved?.(profile);

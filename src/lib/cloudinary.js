@@ -32,6 +32,7 @@ const ENDPOINT = `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/auto/upload`;
 const SIGN_URL = "/api/sign-upload";
 
 export const MAX_UPLOAD_BYTES = 15 * 1024 * 1024;
+const BIG_IMAGE_BYTES = 1.5 * 1024 * 1024;
 
 /* Formats checked here for a quick, clear error. The signature from
    /api/sign-upload carries allowed_formats, so Cloudinary enforces the same
@@ -39,6 +40,29 @@ export const MAX_UPLOAD_BYTES = 15 * 1024 * 1024;
 const ALLOWED_TYPES = new Set([
   "application/pdf", "image/png", "image/jpeg", "image/jpg", "image/webp",
 ]);
+
+/* A signature stays valid with Cloudinary for an hour and covers any number
+   of uploads to its folder, so one is fetched per folder and reused for 45
+   minutes instead of a server round-trip before every single file. */
+const SIGNATURE_TTL_MS = 45 * 60 * 1000;
+const signatureCache = new Map();
+
+function cachedSignature(folder) {
+  const hit = signatureCache.get(folder);
+  if (hit && Date.now() - hit.at < SIGNATURE_TTL_MS) return hit.promise;
+  const promise = requestSignature(folder);
+  signatureCache.set(folder, { at: Date.now(), promise });
+  promise.catch(() => signatureCache.delete(folder));
+  return promise;
+}
+
+/* Fetch the signature while the person is still filling in the form, so
+   pressing Upload starts sending bytes straight away. Errors are ignored
+   here; the real upload reports them. */
+export function warmUpload(folder) {
+  if (!isCloudinaryConfigured || !isBackendConfigured) return;
+  cachedSignature(folder).catch(() => {});
+}
 
 async function requestSignature(folder) {
   const accessToken = isBackendConfigured ? await getAccessToken() : "";
@@ -72,7 +96,13 @@ export async function uploadFile(file, { folder = "dnyansetu/notes", onProgress 
     throw new Error(`"${file.name}" is not a PDF or an image.`);
   }
 
-  const { signature, timestamp, apiKey, uploadPreset, allowedFormats } = await requestSignature(folder);
+  /* Phone photos of notes are often 4–8 MB; a 2400px JPEG stays sharp for
+     reading and uploads several times faster on college Wi-Fi. */
+  if (file.type && file.type.startsWith("image/") && file.size > BIG_IMAGE_BYTES) {
+    file = await shrinkPhoto(file, BIG_IMAGE_BYTES, 2400).catch(() => file);
+  }
+
+  const { signature, timestamp, apiKey, uploadPreset, allowedFormats } = await cachedSignature(folder);
 
   const form = new FormData();
   form.append("file", file);
@@ -115,16 +145,35 @@ export async function uploadFile(file, { folder = "dnyansetu/notes", onProgress 
   };
 }
 
+/* Up to three files at a time; progress is reported as the share of all
+   bytes sent so far, with "file n of total" counting finished files. */
 export async function uploadFiles(files, options = {}) {
-  const out = [];
-  for (let i = 0; i < files.length; i += 1) {
-    /* Sequential, so progress can report "file 2 of 5" and one failure does not
-       leave five half-finished uploads in flight. */
-    out.push(await uploadFile(files[i], {
-      ...options,
-      onProgress: (pct) => options.onProgress?.(pct, i + 1, files.length),
-    }));
-  }
+  const total = files.length;
+  const out = new Array(total);
+  const pcts = new Array(total).fill(0);
+  const weights = files.map((f) => Math.max(1, f.size || 1));
+  const weightSum = weights.reduce((a, b) => a + b, 0);
+  let done = 0;
+  const report = () => {
+    const pct = Math.round(pcts.reduce((sum, p, i) => sum + p * weights[i], 0) / weightSum);
+    options.onProgress?.(pct, Math.min(total, done + 1), total);
+  };
+
+  let next = 0;
+  const worker = async () => {
+    while (next < total) {
+      const i = next;
+      next += 1;
+      out[i] = await uploadFile(files[i], {
+        ...options,
+        onProgress: (pct) => { pcts[i] = pct; report(); },
+      });
+      pcts[i] = 100;
+      done += 1;
+      report();
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(3, total) }, worker));
   return out;
 }
 
@@ -150,14 +199,14 @@ function loadImage(file) {
 /* Phone cameras produce multi-megabyte photos; profile and ID-card photos are
    capped at 300 KB, so shrink them here (JPEG, stepping down size and quality)
    instead of rejecting them. */
-export async function shrinkPhoto(file, maxBytes = MAX_PHOTO_BYTES) {
+export async function shrinkPhoto(file, maxBytes = MAX_PHOTO_BYTES, startSide = 1600) {
   if (!file?.type?.startsWith("image/")) throw new Error("Choose an image — a JPG, PNG or WebP.");
   if (file.size <= maxBytes) return file;
 
   const img = await loadImage(file);
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d");
-  let side = 1600;
+  let side = startSide;
   for (let attempt = 0; attempt < 8; attempt += 1) {
     const scale = Math.min(1, side / Math.max(img.naturalWidth, img.naturalHeight));
     canvas.width = Math.max(1, Math.round(img.naturalWidth * scale));

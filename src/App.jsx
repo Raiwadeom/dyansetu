@@ -23,7 +23,7 @@ import {
   markNotesOpened, submitIdProof, listPendingApprovals, adminReviewPending,
 } from "./lib/profiles";
 import { fetchMyNotes, uploadNote, deleteNote } from "./lib/notes";
-import { uploadFile, shrinkPhoto } from "./lib/cloudinary";
+import { uploadFile, shrinkPhoto, warmUpload } from "./lib/cloudinary";
 import { fetchAllAttempts } from "./lib/quizProgress";
 import { streamById, subjectOf } from "./data/quiz/curriculum.js";
 import {
@@ -33,7 +33,9 @@ import {
 import { NOTE_STREAMS, SEMESTERS, ACCEPTED_NOTE_TYPES, formatBytes } from "./data/notes";
 import { SCHOLARSHIP_CATEGORIES } from "./data/resources";
 import { builtInSchemes, fetchSchemes, schemeStatus, fetchLiveAnnouncements } from "./lib/siteContent";
-import ContentAdminPage from "./admin/ContentAdminPage.jsx";
+import ContentAdminPage, { FacultyAnnouncementsCard } from "./admin/ContentAdminPage.jsx";
+import SiteAlertsButton from "./lib/SiteAlertsButton.jsx";
+import { ensureSiteWorker } from "./lib/sitePush";
 import ScholarshipResetPage from "./admin/ScholarshipResetPage.jsx";
 import { LANG_KEY, LangContext, useLang, makeTr } from "./lib/i18n";
 import { markIosStepsSeen, useInstallApp } from "./lib/installPrompt";
@@ -105,6 +107,7 @@ const MEMBERS_ONLY_PAGES = new Set(["notes", "quiz"]);
    the landing page and looked like being signed out. Per-tab (sessionStorage)
    rather than shared, so two tabs do not fight over one another's position. */
 const VIEW_KEY = "dnyansetu:view";
+const FOCUS_NOTE_KEY = "dnyansetu:focus-note";
 const HOME_KEY = "dnyansetu:browsing-home";
 
 /* Real addresses for the pages people link to or bookmark directly. Everything
@@ -122,6 +125,7 @@ function pathForView(view, authMode, scope, next) {
   if (view === "scholarships") return "/scholarships";
   if (view === "notfound") return window.location.pathname;
   if (view === "scholarship-reset") return "/scholarship-reset";
+  if (view === "notes") return "/notes";
   return "/";
 }
 
@@ -134,6 +138,15 @@ function initialRoute() {
   if (path === "/privacy") return { view: "privacy", direct: true };
   if (path === "/scholarships") return { view: "scholarships", direct: true };
   if (path === "/scholarship-reset") return { view: "scholarship-reset", direct: true };
+  /* A "new notes" notification opens /notes?note=<id>: that note is shown
+     once the reader is signed in (signed out, the login screen comes first). */
+  if (path === "/notes") {
+    const note = new URLSearchParams(window.location.search).get("note");
+    if (note) {
+      try { sessionStorage.setItem(FOCUS_NOTE_KEY, note.slice(0, 120)); } catch { /* storage blocked */ }
+    }
+    return { view: "notes", direct: true };
+  }
   if (path === "/" || path === "/index.html") return { view: "landing", direct: false };
   /* Anything else is a wrong address: show the 404 page instead of quietly
      landing on the home page. */
@@ -615,6 +628,14 @@ function InstitutionLockup({ size = 34, tone = "light", showMeta = true, classNa
 
 /* =============================== VIEW: Landing Page ============================== */
 
+const NOTICE_CATEGORY = {
+  event: { en: "Event", mr: "कार्यक्रम" },
+  competition: { en: "Competition", mr: "स्पर्धा" },
+  exam: { en: "Exam", mr: "परीक्षा" },
+  holiday: { en: "Holiday", mr: "सुट्टी" },
+  workshop: { en: "Workshop", mr: "कार्यशाळा" },
+};
+
 function Landing({ goAuth, onOpenAbout, onOpenPage, user, onOpenDashboard }) {
   /* Announcements come from the administrator's Scholarships & Notices page;
      the built-in notices show until they load or if the database is unreachable. */
@@ -631,6 +652,8 @@ function Landing({ goAuth, onOpenAbout, onOpenPage, user, onOpenDashboard }) {
         date: new Date(`${r.notice_date}T00:00:00`).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }),
         status: new Date(`${r.notice_date}T00:00:00`).getTime() >= recent ? "live" : "",
         href: r.href || undefined,
+        category: r.category && r.category !== "notice" ? r.category : "",
+        author: r.author_name || "",
       })));
     });
     return () => { alive = false; };
@@ -1005,10 +1028,11 @@ function Landing({ goAuth, onOpenAbout, onOpenPage, user, onOpenDashboard }) {
       </header>
 
       {/* Notice Board — government/college-site style announcements */}
-      <section className="section section-notice-board anim-fade-up">
+      <section className="section section-notice-board anim-fade-up" id="announcements">
         <div className="notice-board">
           <div className="notice-board-head">
             <h2>{tr("Announcements", "घोषणा")}</h2>
+            <SiteAlertsButton tr={tr} />
           </div>
           <ul className="notice-board-list">
             {notices.length === 0 && (
@@ -1033,7 +1057,9 @@ function Landing({ goAuth, onOpenAbout, onOpenPage, user, onOpenDashboard }) {
                       <span className="notice-item-title">{tr(item.title, item.titleMr || item.title)}</span>
                       <span className="notice-item-meta">
                         {item.status === "live" && <span className="notice-new">{tr("New", "नवीन")}</span>}
+                        {item.category && <span className={`notice-cat notice-cat--${item.category}`}>{tr(NOTICE_CATEGORY[item.category]?.en || item.category, NOTICE_CATEGORY[item.category]?.mr || item.category)}</span>}
                         {year}
+                        {item.author && <span className="notice-author">· {item.author}</span>}
                       </span>
                     </span>
                     {item.href && (item.href.startsWith("/")
@@ -2027,6 +2053,7 @@ function PendingApprovalScreen({ user, onRefresh, onSignOut }) {
     if (!chosen) return;
     setError("");
     try {
+      warmUpload("dnyansetu/id-proofs");
       const small = await shrinkPhoto(chosen);
       if (preview) URL.revokeObjectURL(preview);
       setFile(small);
@@ -2527,6 +2554,7 @@ function StudentProfile({ profile, onSaveProfile }) {
 
   return (
     <main className="profile-page">
+      <div className="profile-site-alerts"><SiteAlertsButton variant="card" /></div>
       <section className="profile-header-card">
         <div className="profile-cover">
           <div className="profile-cover-grid" />
@@ -2853,6 +2881,12 @@ function FacultyPortal({ profile, onSaveProfile }) {
       )}
 
       {!isStaff && (
+        <div style={{ gridColumn: "1 / -1" }}><FacultyAnnouncementsCard profile={profile} /></div>
+      )}
+
+      <div style={{ gridColumn: "1 / -1" }}><SiteAlertsButton variant="card" /></div>
+
+      {!isStaff && (
         <NotesManageList
           title="My Uploaded Notes"
           notes={myNotes}
@@ -2883,6 +2917,8 @@ function NoteUploadModal({ author, onClose, onUploaded }) {
   const [nFiles, setNFiles] = useState([]);
   const [publishing, setPublishing] = useState(false);
   const [progress, setProgress] = useState(null);
+  /* Get the upload signature while the form is being filled in. */
+  useEffect(() => { warmUpload("dnyansetu/notes"); }, []);
 
   const handleNoteSubmit = async (e) => {
     e.preventDefault();
@@ -4132,6 +4168,9 @@ function TopNavApp({ view, go, onHome, onLogout, user, pendingCount = 0 }) {
 /* ===================================== App Root ===================================== */
 
 export default function App() {
+  /* College notifications' worker, registered quietly (no prompt) so a tap
+     on "Get notifications" is quick and tapped notifications open a page. */
+  useEffect(() => { ensureSiteWorker(); }, []);
   const auth = useAuth();
   /* The address the page was opened on: /login, /signup, /staff, /terms and
      /privacy open straight onto that page. */
@@ -4612,7 +4651,9 @@ export default function App() {
     if (MEMBERS_ONLY_PAGES.has(view) && !currentUser) {
       setPendingPage(view);
       setAuthMode("login");
-      setNotice("Please sign in with your registered email and password to open this.");
+      setNotice(view === "notes"
+        ? "Please log in to download these notes. You will be taken straight to them after logging in."
+        : "Please sign in with your registered email and password to open this.");
       replaceView("auth");
     }
   }, [view, currentUser, booting]);
@@ -6031,6 +6072,32 @@ function Styles() {
       .notice-item-body { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; text-align: left; }
       .notice-item-title { font-size: 16.5px; line-height: 1.5; color: var(--abc-navy); font-weight: 600; transition: color 0.2s ease; }
       .notice-item-meta { display: inline-flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--text-muted); font-weight: 600; }
+      .notice-cat { padding: 2px 8px; border-radius: 999px; background: #E0E7FF; color: #3730A3; font-size: 11px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; }
+      .notice-cat--competition { background: #FEF3C7; color: #92400E; }
+      .notice-cat--exam { background: #FEE2E2; color: #991B1B; }
+      .notice-cat--holiday { background: #DCFCE7; color: #166534; }
+      .notice-author { font-weight: 600; color: var(--text-muted); }
+      .site-alerts { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+      .site-alerts--card { flex-direction: row; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 14px 16px; border: 1px solid var(--border, #D9E0E8); border-left: 4px solid var(--abc-saffron, #E65100); border-radius: 6px; background: #fff; }
+      .site-alerts--card.is-on { border-left-color: #15803D; }
+      .site-alerts-copy { display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 220px; }
+      .site-alerts-copy strong { display: inline-flex; align-items: center; gap: 6px; color: var(--abc-navy, #1E3A5F); font-size: 15px; }
+      .site-alerts-copy span { font-size: 13.5px; color: var(--text-muted); line-height: 1.45; }
+      .site-alerts-btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 4px; border: 1px solid var(--abc-navy, #1E3A5F); background: var(--abc-navy, #1E3A5F); color: #fff; font: inherit; font-size: 13.5px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+      .site-alerts-btn.is-on { background: #fff; color: var(--abc-navy, #1E3A5F); }
+      .site-alerts-btn:disabled { opacity: .6; cursor: default; }
+      .site-alerts-msg { margin: 0; font-size: 12.5px; color: #15803D; font-weight: 600; max-width: 340px; text-align: right; }
+      .site-alerts--card .site-alerts-msg { flex-basis: 100%; text-align: left; max-width: none; }
+      .site-alerts-msg.is-err { color: #B42318; }
+      @media (max-width: 560px) {
+        .notice-board-head { flex-wrap: wrap; }
+        .site-alerts--inline { align-items: flex-start; width: 100%; }
+        .site-alerts--inline .site-alerts-msg { text-align: left; }
+      }
+      .note-card.is-focus { outline: 3px solid var(--abc-saffron, #E65100); outline-offset: 2px; animation: noteFocus 1.6s ease-out 2; }
+      @keyframes noteFocus { 0% { box-shadow: 0 0 0 0 rgba(230,81,0,.45); } 100% { box-shadow: 0 0 0 14px rgba(230,81,0,0); } }
+      .profile-site-alerts { margin-bottom: 16px; }
+      .profile-site-alerts:empty { display: none; }
       .notice-new { padding: 2px 8px; border-radius: 999px; background: #DCFCE7; color: #15803D; font-size: 11px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; }
       .notice-item-arrow { flex: 0 0 auto; color: #C62828; }
 

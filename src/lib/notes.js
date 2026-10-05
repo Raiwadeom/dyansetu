@@ -9,6 +9,7 @@
 
 import { friendlyError, isBackendConfigured, supabase } from "./supabase.js";
 import { uploadFiles } from "./cloudinary.js";
+import { notifySite } from "./sitePush.js";
 import { MAX_NOTE_FILES } from "../data/notes.js";
 
 const TABLE = "notes";
@@ -74,6 +75,8 @@ export async function uploadNote({ streamId, subject, semester, title, descripti
     .single();
 
   if (error) throw new Error(friendlyError(error, "The files uploaded, but the note could not be saved."));
+  /* Everyone who turned on notifications hears about it (in the background). */
+  notifySite("note", data.id);
   return toNote(data);
 }
 

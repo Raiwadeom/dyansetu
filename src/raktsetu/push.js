@@ -47,6 +47,41 @@ async function registration() {
   return navigator.serviceWorker.register(SW_URL, { scope: SW_SCOPE });
 }
 
+/* Resolves once this registration has an active worker (needed before
+   pushManager.subscribe). Deliberately NOT navigator.serviceWorker.ready:
+   that waits for a worker covering the URL the page was first loaded at, so
+   when RaktSetu is opened from the home page ("/", outside /raktsetu/) it
+   never resolves and "Turn on alerts" spun forever until a refresh. */
+async function activeRegistration() {
+  const reg = await registration();
+  if (reg.active) return reg;
+  const worker = reg.installing || reg.waiting;
+  if (worker) {
+    await new Promise((resolve) => {
+      const timer = setTimeout(resolve, 10000);
+      const check = () => {
+        if (worker.state === "activated" || worker.state === "redundant") {
+          clearTimeout(timer);
+          resolve();
+        }
+      };
+      worker.addEventListener("statechange", check);
+      check();
+    });
+  }
+  if (!reg.active) throw new Error("Alerts could not start in this browser. Refresh the page and try again.");
+  return reg;
+}
+
+/* Network calls here must never leave a button spinning for ever. */
+function withTimeout(promise, ms, message) {
+  let timer;
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => { timer = setTimeout(() => reject(new Error(message)), ms); }),
+  ]).finally(() => clearTimeout(timer));
+}
+
 /* Registers the worker as soon as RaktSetu opens (no prompt), so a later
    "turn on" is quick and notification clicks always have a handler. */
 export async function ensureServiceWorker() {
@@ -71,11 +106,21 @@ export async function currentSubscription() {
 
 async function callApi(method, body) {
   const token = await getAccessToken();
-  const response = await fetch("/api/raktsetu/push-subscription", {
-    method,
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-    body: JSON.stringify(body),
-  });
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15000);
+  let response;
+  try {
+    response = await fetch("/api/raktsetu/push-subscription", {
+      method,
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+  } catch {
+    throw new Error("Could not reach the server. Check your connection and try again.");
+  } finally {
+    clearTimeout(timer);
+  }
   const json = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(json.error || "Could not update alerts for this browser.");
 }
@@ -94,14 +139,13 @@ export async function enablePush() {
     throw new Error("Notifications are blocked. Allow them for this site in your browser settings, then try again.");
   }
 
-  const reg = await registration();
-  await navigator.serviceWorker.ready;
+  const reg = await activeRegistration();
   let sub = await reg.pushManager.getSubscription();
   if (!sub) {
-    sub = await reg.pushManager.subscribe({
+    sub = await withTimeout(reg.pushManager.subscribe({
       userVisibleOnly: true,
       applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
-    });
+    }), 20000, "The browser took too long to turn on alerts. Please try again.");
   }
   await callApi("POST", { subscription: sub.toJSON() });
   return sub;
@@ -113,9 +157,8 @@ export async function syncPush() {
   const support = pushSupport();
   if (!support.supported || !isPushConfigured || support.permission !== "granted") return;
   try {
-    const reg = await registration();
-    await navigator.serviceWorker.ready;
-    const sub = await reg.pushManager.getSubscription();
+    const reg = await navigator.serviceWorker.getRegistration(SW_SCOPE);
+    const sub = reg && await reg.pushManager.getSubscription();
     if (!sub) return;
     await callApi("POST", { subscription: sub.toJSON(), sync: true });
   } catch (error) {
