@@ -18,7 +18,7 @@ async function allTargets() {
   const out = [];
   for (let from = 0; ; from += PAGE) {
     const { data, error } = await admin.from("site_push_subscriptions")
-      .select("id, endpoint, keys").order("id").range(from, from + PAGE - 1);
+      .select("id, endpoint, keys, user_id").order("id").range(from, from + PAGE - 1);
     if (error) throw new Error(`Could not load subscriptions: ${error.message}`);
     out.push(...(data || []));
     if (!data || data.length < PAGE) break;
@@ -26,16 +26,17 @@ async function allTargets() {
   return out;
 }
 
-/* Sends one payload to every DnyanSetu subscriber; dead subscriptions are
-   deleted, live ones stamped. */
-export async function broadcast(payload) {
+/* Sends one payload to every DnyanSetu subscriber (minus skipUsers' browsers);
+   dead subscriptions are deleted, live ones stamped. */
+export async function broadcast(payload, { skipUsers = [] } = {}) {
   const publicKey = env("VAPID_PUBLIC_KEY");
   const privateKey = env("VAPID_PRIVATE_KEY");
   const subject = env("VAPID_SUBJECT", "mailto:smuiqac@gmail.com");
   if (!publicKey || !privateKey) return { sent: 0, skipped: "VAPID keys are not configured." };
   webpush.setVapidDetails(subject, publicKey, privateKey);
 
-  const list = await allTargets();
+  const skip = new Set(skipUsers);
+  const list = (await allTargets()).filter((t) => !t.user_id || !skip.has(t.user_id));
   const body = JSON.stringify(payload);
   let sent = 0;
   const gone = [];

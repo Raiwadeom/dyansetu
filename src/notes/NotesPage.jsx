@@ -17,6 +17,10 @@ import { CampusCover } from "../lib/ProfileArt.jsx";
    Students pick their stream, then browse what faculty have uploaded, grouped
    by subject. The search box works across every stream at once, so a student
    who only knows the topic name does not have to guess where it lives.
+
+   A student is locked to the stream saved in their profile (B.Sc., BCA …):
+   they never see another stream's notes, and search stays inside it too.
+   Faculty and the administrator still browse every stream.
    ========================================================================== */
 
 function fileIcon(type) {
@@ -37,11 +41,12 @@ function timeAgo(ts) {
    deletes notes right here in the library (faculty use their own studio). */
 export default function NotesPage({ onBack, onRegisterBack, user, UploadModal = null }) {
   const canManage = Boolean(UploadModal);
+  const lockedStream = user?.role === "student" && noteStreamById(user.stream) ? user.stream : null;
   const [showUpload, setShowUpload] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState("");
   const [deletingId, setDeletingId] = useState("");
   const [reloadKey, setReloadKey] = useState(0);
-  const [streamId, setStreamId] = useState(null);
+  const [streamId, setStreamId] = useState(lockedStream);
   const [notes, setNotes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -56,7 +61,7 @@ export default function NotesPage({ onBack, onRegisterBack, user, UploadModal = 
      undo — true/false rather than calling onBack() itself, since this same
      function is also handed to the hardware-back handler. */
   const stepBack = () => {
-    if (streamId) { setStreamId(null); setQuery(""); setSemester("All"); setFocusId(""); return true; }
+    if (streamId && !lockedStream) { setStreamId(null); setQuery(""); setSemester("All"); setFocusId(""); return true; }
     return false;
   };
   const handleBackClick = () => { if (!stepBack()) onBack(); };
@@ -73,7 +78,8 @@ export default function NotesPage({ onBack, onRegisterBack, user, UploadModal = 
     (async () => {
       setLoading(true);
       try {
-        const all = await fetchNotes();
+        const fetched = await fetchNotes();
+        const all = lockedStream ? fetched.filter((n) => n.streamId === lockedStream) : fetched;
         if (active) {
           setNotes(all);
           let wanted = "";
@@ -85,6 +91,8 @@ export default function NotesPage({ onBack, onRegisterBack, user, UploadModal = 
           if (target) {
             setStreamId(target.streamId);
             setFocusId(target.id);
+          } else if (wanted && lockedStream && fetched.some((n) => n.id === wanted)) {
+            setError(`That note is for another stream. You see ${noteStreamById(lockedStream).name} notes only — change your stream in Edit Profile if it is wrong.`);
           } else if (wanted) {
             setError("That note is no longer available — it may have been removed by the teacher.");
           }
@@ -97,7 +105,7 @@ export default function NotesPage({ onBack, onRegisterBack, user, UploadModal = 
       }
     })();
     return () => { active = false; };
-  }, [reloadKey]);
+  }, [reloadKey, lockedStream]);
 
   const removeNote = async (note) => {
     setDeletingId(note.id);
@@ -169,8 +177,9 @@ export default function NotesPage({ onBack, onRegisterBack, user, UploadModal = 
             <p className="notes-hero-eyebrow"><NotebookPen size={14} /> Subject-wise Notes</p>
             <h1 className="notes-hero-title">Notes uploaded by <span>your faculty</span></h1>
             <p className="notes-hero-sub">
-              Pick your stream to see what your teachers have shared, or search every stream by
-              subject, topic or teacher.
+              {lockedStream
+                ? <>Showing notes for your stream, <strong>{noteStreamById(lockedStream).full}</strong>. Search by subject, topic or teacher.</>
+                : "Pick your stream to see what your teachers have shared, or search every stream by subject, topic or teacher."}
             </p>
             {canManage && (
               <button type="button" className="btn btn-primary btn-sm notes-admin-upload" onClick={() => setShowUpload(true)}>
@@ -186,8 +195,8 @@ export default function NotesPage({ onBack, onRegisterBack, user, UploadModal = 
             </div>
             <div className="notes-stat">
               <span className="notes-stat-icon"><Layers size={18} /></span>
-              <strong>{loading ? "…" : NOTE_STREAMS.filter((st) => countFor(st.id) > 0).length}</strong>
-              <small>Streams</small>
+              <strong>{loading ? "…" : lockedStream ? new Set(notes.map((n) => n.subject)).size : NOTE_STREAMS.filter((st) => countFor(st.id) > 0).length}</strong>
+              <small>{lockedStream ? "Subjects" : "Streams"}</small>
             </div>
             <div className="notes-stat">
               <span className="notes-stat-icon"><Users size={18} /></span>
@@ -242,14 +251,24 @@ export default function NotesPage({ onBack, onRegisterBack, user, UploadModal = 
       </div>
 
       <nav className="crumbs" aria-label="Breadcrumb">
-        <button
-          type="button"
-          className={`crumb ${!stream || searching ? "is-current" : ""}`}
-          onClick={() => { setStreamId(null); setQuery(""); setSemester("All"); setFocusId(""); }}
-        >
-          All streams
-        </button>
-        {stream && !searching && (
+        {lockedStream ? (
+          <button
+            type="button"
+            className={`crumb ${!searching ? "is-current" : ""}`}
+            onClick={() => { setQuery(""); setFocusId(""); }}
+          >
+            {stream.name} notes
+          </button>
+        ) : (
+          <button
+            type="button"
+            className={`crumb ${!stream || searching ? "is-current" : ""}`}
+            onClick={() => { setStreamId(null); setQuery(""); setSemester("All"); setFocusId(""); }}
+          >
+            All streams
+          </button>
+        )}
+        {stream && !searching && !lockedStream && (
           <>
             <ChevronRight size={14} className="crumb-sep" />
             <span className="crumb is-current">{stream.name}</span>
@@ -308,7 +327,7 @@ export default function NotesPage({ onBack, onRegisterBack, user, UploadModal = 
             grouped.length === 0 ? (
               <p className="resource-empty">
                 {searching
-                  ? `No notes match “${query.trim()}”.`
+                  ? `No ${lockedStream ? `${stream.name} ` : ""}notes match “${query.trim()}”.`
                   : "Your faculty have not uploaded notes for this stream yet."}
               </p>
             ) : (
@@ -333,7 +352,7 @@ export default function NotesPage({ onBack, onRegisterBack, user, UploadModal = 
                           <div className="note-meta">
                             <span><User size={13} /> {note.author}</span>
                             <span><Calendar size={13} /> {timeAgo(note.createdAt)}</span>
-                            {searching && <span className="note-stream-tag">{noteStreamById(note.streamId)?.name}</span>}
+                            {searching && !lockedStream && <span className="note-stream-tag">{noteStreamById(note.streamId)?.name}</span>}
                           </div>
 
                           <div className="note-files">

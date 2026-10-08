@@ -172,9 +172,17 @@ function homeViewFor(u) {
   if (isAwaitingApproval(u)) return "pending-approval";
   if (u.role === "scholarship") return "admin-content";
   if (isStaffRole(u.role)) return u.qualification && u.gender ? "faculty-portal" : "faculty-setup";
-  /* Asked once after signing in; it also picks the profile avatar. */
-  return u.gender ? "profile" : "student-setup";
+  /* Asked once after signing in; it also picks the profile avatar and the
+     stream whose notes the student sees. */
+  return u.gender && u.stream ? "profile" : "student-setup";
 }
+
+/* Students pick one stream; the notes library then shows only that stream. */
+const STREAM_OPTIONS = [
+  { value: "", label: "Select your stream" },
+  ...NOTE_STREAMS.map((st) => ({ value: st.id, label: `${st.name} — ${st.full}` })),
+];
+const streamDegree = (id, fallback = "") => NOTE_STREAMS.find((st) => st.id === id)?.name || fallback;
 
 const GENDER_OPTIONS = [
   { value: "", label: "Select gender" },
@@ -2272,7 +2280,7 @@ function StudentProfileSetup({ profile, onComplete, onHome, onSignOut }) {
     name: profile.name || "",
     gender: profile.gender || "",
     studentIdNum: profile.studentIdNum || "",
-    degree: profile.degree || "",
+    stream: profile.stream || "",
     branch: profile.branch || "",
     gradYear: profile.gradYear || "",
     college: profile.college || INSTITUTION.short,
@@ -2282,15 +2290,15 @@ function StudentProfileSetup({ profile, onComplete, onHome, onSignOut }) {
     <div className="wizard-screen">
       <div className="card wizard-card">
         <h2 className="wizard-title"><GraduationCap size={24} /> Complete your profile</h2>
-        <p className="wizard-sub">A few details for your student profile. You can change them later in Edit Profile.</p>
-        <form onSubmit={(e) => { e.preventDefault(); onComplete(form); }}>
+        <p className="wizard-sub">A few details for your student profile. Your stream decides which subject-wise notes you see. You can change these later in Edit Profile.</p>
+        <form onSubmit={(e) => { e.preventDefault(); onComplete({ ...form, degree: streamDegree(form.stream, profile.degree) }); }}>
           <div className="two-col">
             <Field label="Full Name" icon={User} value={form.name} onChange={set("name")} required />
             <SelectField label="Gender" value={form.gender} onChange={set("gender")} options={GENDER_OPTIONS} required />
           </div>
           <div className="two-col">
-            <Field label="Degree" icon={GraduationCap} value={form.degree} onChange={set("degree")} placeholder="e.g. B.Sc." required />
-            <Field label="Branch" icon={Code2} value={form.branch} onChange={set("branch")} placeholder="e.g. Computer Science" required />
+            <SelectField label="Your stream" icon={GraduationCap} value={form.stream} onChange={set("stream")} options={STREAM_OPTIONS} required />
+            <Field label="Branch / Main subject" icon={Code2} value={form.branch} onChange={set("branch")} placeholder="e.g. Physics" required />
           </div>
           <div className="two-col">
             <Field label="Student ID / Roll Number (optional)" icon={FileText} value={form.studentIdNum} onChange={set("studentIdNum")} />
@@ -2735,7 +2743,7 @@ function StudentProfile({ profile, onSaveProfile }) {
   const [draft, setDraft] = useState({
     name: profile.name || "",
     gender: profile.gender || "",
-    degree: profile.degree || "B.Tech",
+    stream: profile.stream || "",
     branch: profile.branch || "Computer Science & Engineering",
     college: profile.college || "",
     university: profile.university || "SRTM University, Nanded",
@@ -2749,7 +2757,7 @@ function StudentProfile({ profile, onSaveProfile }) {
     setDraft({
       name: profile.name || "",
       gender: profile.gender || "",
-      degree: profile.degree || "B.Tech",
+      stream: profile.stream || "",
       branch: profile.branch || "Computer Science & Engineering",
       college: profile.college || "",
       university: profile.university || "SRTM University, Nanded",
@@ -2791,7 +2799,7 @@ function StudentProfile({ profile, onSaveProfile }) {
                   <span className="verified-badge"><CheckCircle2 size={14} /> Verified Student</span>
                 </div>
                 <p className="profile-headline">
-                  {profile.degree || "Student"} · {profile.branch || "Computer Science"}
+                  {streamDegree(profile.stream, profile.degree || "Student")} · {profile.branch || "Branch not added"}
                 </p>
                 <p className="profile-institution">
                   <GraduationCap size={15} /> {profile.college || "College not added"}
@@ -2838,6 +2846,7 @@ function StudentProfile({ profile, onSaveProfile }) {
                 onSaveProfile({
                   ...profile,
                   ...draft,
+                  degree: streamDegree(draft.stream, profile.degree),
                   skills: normalizedSkills.length ? normalizedSkills : []
                 });
                 setIsEditing(false);
@@ -2848,7 +2857,7 @@ function StudentProfile({ profile, onSaveProfile }) {
                 </div>
                 <Field label="Student ID / Roll Number" icon={FileText} value={draft.studentIdNum} onChange={(e) => setDraft({ ...draft, studentIdNum: e.target.value })} />
                 <div className="two-col">
-                  <Field label="Degree" icon={GraduationCap} value={draft.degree} onChange={(e) => setDraft({ ...draft, degree: e.target.value })} />
+                  <SelectField label="Your stream" icon={GraduationCap} value={draft.stream} onChange={(e) => setDraft({ ...draft, stream: e.target.value })} options={STREAM_OPTIONS} required />
                   <Field label="Branch" icon={Code2} value={draft.branch} onChange={(e) => setDraft({ ...draft, branch: e.target.value })} />
                 </div>
                 <div className="two-col">
@@ -2891,7 +2900,7 @@ function StudentProfile({ profile, onSaveProfile }) {
               <div className="education-logo"><GraduationCap size={22} /></div>
               <div className="education-copy">
                 <h3>{profile.college || "College not added"}</h3>
-                <p>{profile.degree || "Degree"} · {profile.branch || "Major not added"}</p>
+                <p>{streamDegree(profile.stream, profile.degree || "Degree")} · {profile.branch || "Major not added"}</p>
                 <span>{profile.university || "SRTM University, Nanded"}</span>
                 {profile.gradYear && <small>Expected graduation · {profile.gradYear}</small>}
               </div>
@@ -5259,7 +5268,15 @@ export default function App() {
             <LegalPage kind={view} onBack={goBack} />
           </Suspense>
         )}
-        {view === "notes" && currentUser && (
+        {view === "notes" && currentUser?.role === "student" && !currentUser.stream && (
+          <StudentProfileSetup
+            profile={currentUser}
+            onComplete={async (data) => { await handleProfileEdit({ ...currentUser, ...data }); }}
+            onHome={() => { setBrowsingHome(true); navigateTo("landing"); }}
+            onSignOut={logout}
+          />
+        )}
+        {view === "notes" && currentUser && !(currentUser.role === "student" && !currentUser.stream) && (
           <Suspense fallback={<div className="boot-screen"><Loader2 size={20} className="spin" /> Loading notes…</div>}>
             <NotesPage
               onBack={goBack}

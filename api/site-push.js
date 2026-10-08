@@ -74,10 +74,15 @@ async function notify(caller, kind, id) {
     const { data } = await admin.from("notes")
       .update({ push_sent_at: now })
       .eq("id", id).is("push_sent_at", null).gte("created_at", recent)
-      .select("id, title, subject, semester, author_name");
+      .select("id, title, subject, semester, author_name, stream_id");
     const n = data?.[0];
     if (!n) return null;
+    /* Students see only their own stream's notes, so students of every other
+       stream are left out of this push. */
+    const { data: others } = await admin.from("profiles").select("id")
+      .eq("role", "student").not("details->>stream", "is", null).neq("details->>stream", n.stream_id);
     return {
+      skipUsers: (others || []).map((o) => o.id),
       title: `New notes: ${clip(n.subject, 60)}`,
       body: clip(`${n.title}${n.semester ? ` (${n.semester})` : ""} — uploaded by ${n.author_name || "Faculty"}. Tap to download.`, 180),
       url: `/notes?note=${encodeURIComponent(n.id)}`,
@@ -158,7 +163,8 @@ export default async function handler(req, res) {
       }
       const payload = await notify(caller, body.notify, id);
       if (!payload) { res.status(200).json({ ok: true, sent: 0 }); return; }
-      const result = await broadcast(payload);
+      const { skipUsers, ...message } = payload;
+      const result = await broadcast(message, { skipUsers });
       res.status(200).json({ ok: true, sent: result.sent || 0 });
       return;
     }
