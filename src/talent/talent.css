@@ -410,7 +410,7 @@ body .arcsas .tc-float--shayari p { font-style: italic !important; }
     radial-gradient(380px 260px at 5% 95%, rgba(124, 58, 237, 0.42), transparent 70%);
 }
 .tc-sc-inner { position: relative; max-width: 1180px; margin: 0 auto; }
-.tc-sc-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
+.tc-sc-head { display: flex; align-items: center; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
 .tc-showcase .tc-eyebrow { margin-bottom: 14px; }
 .arcsas .tc-showcase .tc-sc-title { margin: 0; font-size: clamp(26px, 4vw, 38px); font-weight: 600; line-height: 1.15; color: #fff; }
 .arcsas .tc-sc-sub { margin: 10px 0 0; color: #D6D9F2; max-width: 560px; line-height: 1.6; font-size: 15px; }
@@ -479,6 +479,7 @@ body .arcsas .tc-float--shayari p { font-style: italic !important; }
   .tc-cat { padding: 10px 4px; font-size: 12.5px; }
   .arcsas .tc-showcase { padding: 36px 16px; }
   .tc-sc-head { gap: 16px; }
+  .tc-sc-actions { width: 100%; }
   .tc-sc-actions .tc-btn { flex: 1 1 100%; }
   .tc-author-bar { flex-wrap: wrap; }
   .tc-fab { right: 16px; bottom: 18px; }
@@ -495,3 +496,4 @@ body .arcsas .tc-float--shayari p { font-style: italic !important; }
 }
 .tc-glang button.is-on { background: #101828; color: #fff; }
 .tc-modal-head .tc-glang { margin-top: 10px; }
+.tc-sc-actions { flex: 0 0 auto; }
