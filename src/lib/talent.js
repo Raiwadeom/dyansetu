@@ -7,7 +7,7 @@
    Cloudinary folder dnyansetu/talent (photos only).
    ========================================================================== */
 
-import { friendlyError, getAccessToken, isBackendConfigured, supabase } from "./supabase.js";
+import { friendlyError, isBackendConfigured, supabase } from "./supabase.js";
 import { uploadFiles } from "./cloudinary.js";
 
 export const TALENT_CATEGORIES = [
@@ -27,18 +27,24 @@ export const TALENT_GUIDELINES = [
   "No violence, self-harm, drugs or anything illegal.",
   "No politics, spam, ads or links to unsafe sites.",
   "No one else's photos or personal details without their consent.",
-  "Every post and comment is checked automatically by AI before it goes live; anything against these rules is not posted.",
   "I understand the administrator may remove my post and block or delete my account if I break these rules.",
 ];
 
-/* A very small first line of defence; the administrator is the real filter. */
+/* First line of defence (the administrator is the real filter): adult and
+   abusive words, plus romantic / girlfriend-boyfriend words, which the
+   Talent Corner does not allow at all. Whole words only, so "bf" never
+   matches inside another word. */
 const BLOCKED_WORDS = [
-  "porn", "xxx", "nude", "nudes", "sex video", "onlyfans", "18+",
+  "porn", "xxx", "nude", "nudes", "sex", "sexy", "onlyfans", "18+",
   "chutiya", "madarchod", "behenchod", "bhenchod", "bhosdi", "randi", "gaand", "lund",
+  "girlfriend", "boyfriend", "gf", "bf", "crush", "dating", "kiss", "kisses",
+  "jaanu", "janu", "babu", "shona", "sanam", "mehbooba", "mehboob", "dilbar", "premika", "premi",
+  "प्रेयसी", "प्रेमिका", "गर्लफ्रेंड", "बॉयफ्रेंड", "मेहबूबा", "सनम",
 ];
+const escapeRe = (w) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const BLOCKED_RE = new RegExp(`(^|[^\\p{L}\\p{M}\\p{N}])(${BLOCKED_WORDS.map(escapeRe).join("|")})(?=$|[^\\p{L}\\p{M}\\p{N}])`, "iu");
 export function looksUnsafe(...texts) {
-  const all = texts.join(" ").toLowerCase();
-  return BLOCKED_WORDS.some((w) => all.includes(w));
+  return BLOCKED_RE.test(texts.join(" \n "));
 }
 
 function toPost(row) {
@@ -80,14 +86,25 @@ export async function createTalentPost({ author, category, title, body, language
   const images = files?.length
     ? (await uploadFiles(files, { folder: "dnyansetu/talent", onProgress })).map((f) => ({ url: f.url, name: f.name }))
     : [];
-  const { post } = await callTalentApi({
-    action: "post",
-    category, title, body, language, credit, link,
-    images,
-    authorGender: author.gender || "",
-    guidelinesAccepted: true,
-  });
-  return toPost(post);
+  const { data, error } = await supabase
+    .from("talent_posts")
+    .insert({
+      author_id: author.id,
+      author_name: (author.name || "Student").trim().slice(0, 60),
+      author_gender: author.gender || "",
+      category,
+      title: title.trim(),
+      body: body.trim(),
+      language,
+      credit: credit.trim().slice(0, 60),
+      link_url: link.trim(),
+      images,
+      guidelines_accepted_at: new Date().toISOString(),
+    })
+    .select("*")
+    .single();
+  if (error) throw new Error(friendlyError(error, "Could not share your post."));
+  return toPost(data);
 }
 
 export async function deleteTalentPost(id) {
@@ -120,32 +137,12 @@ export async function fetchComments(postId) {
 }
 
 export async function addComment(postId, user, body) {
-  const { comment: data } = await callTalentApi({ action: "comment", postId, body: body.trim() });
+  const { data, error } = await supabase
+    .from("talent_comments")
+    .insert({ post_id: postId, user_id: user.id, user_name: (user.name || "Member").slice(0, 60), body: body.trim() })
+    .select("*").single();
+  if (error) throw new Error(friendlyError(error, "Could not post your comment."));
   return { id: data.id, userId: data.user_id, name: data.user_name, body: data.body, createdAt: Date.parse(data.created_at) };
-}
-
-/* Posts and comments go through /api/talent, which has AI check them against
-   the guidelines before saving. A rejected one throws with the reason. */
-async function callTalentApi(payload) {
-  const token = await getAccessToken();
-  if (!token) throw new Error("Please log in again.");
-  let response;
-  try {
-    response = await fetch("/api/talent", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-      body: JSON.stringify(payload),
-    });
-  } catch {
-    throw new Error("Could not reach the server. Check your connection.");
-  }
-  const json = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    const err = new Error(json.error || "Something went wrong. Please try again.");
-    err.blocked = Boolean(json.blocked);
-    throw err;
-  }
-  return json;
 }
 
 export async function deleteComment(id) {

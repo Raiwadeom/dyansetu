@@ -15,7 +15,6 @@
     "audit": "npm audit"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.133.0",
     "@supabase/supabase-js": "^2.117.2",
     "lucide-react": "^0.468.0",
     "react": "^18.3.1",

@@ -59,9 +59,6 @@
     "api/raktsetu/notify.js": {
       "maxDuration": 30
     },
-    "api/talent.js": {
-      "maxDuration": 60
-    },
     "api/site-push.js": {
       "maxDuration": 60
     }

@@ -485,16 +485,3 @@ body .arcsas .tc-float--shayari p { font-style: italic !important; }
 }
 @keyframes tc-fade { from { opacity: 0; } to { opacity: 1; } }
 
-/* AI check: rejected post / checking note */
-.tc-blocked {
-  display: flex; gap: 12px; align-items: flex-start; padding: 12px 14px; border-radius: 14px;
-  background: #FEF3F2; border: 1px solid #FECDCA; color: #912018;
-}
-.tc-blocked svg { flex: 0 0 auto; margin-top: 2px; }
-.tc-blocked strong { display: block; font-size: 14px; }
-.arcsas .tc-blocked p { margin: 3px 0 4px; font-size: 14px; line-height: 1.5; color: #7A271A; }
-.tc-blocked small { font-size: 12.5px; color: #B42318; }
-.arcsas .tc-checking {
-  margin: 0; display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-radius: 12px;
-  background: #F3EEFF; color: #5B21B6; font-size: 13.5px; font-weight: 600;
-}

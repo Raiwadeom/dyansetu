@@ -523,7 +523,7 @@ function Comments({ post, user, isAdmin, onCount, needSignIn, say }) {
     if (!user) return needSignIn("comment");
     const body = text.trim();
     if (!body) return;
-    if (looksUnsafe(body)) { say("Please keep comments respectful — no abusive or adult words."); return; }
+    if (looksUnsafe(body)) { say("Please keep comments respectful — no romantic, abusive or adult words."); return; }
     setBusy(true);
     try {
       const c = await addComment(post.id, user, body);
@@ -592,7 +592,6 @@ function ComposeModal({ user, onClose, onPosted }) {
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState(0);
   const [err, setErr] = useState("");
-  const [blocked, setBlocked] = useState(false);
   const isWords = category !== "content";
 
   const previews = useMemo(() => files.map((f) => URL.createObjectURL(f)), [files]);
@@ -615,12 +614,11 @@ function ComposeModal({ user, onClose, onPosted }) {
   const submit = async (e) => {
     e.preventDefault();
     setErr("");
-    setBlocked(false);
     const cleanLink = link.trim();
     if (isWords && body.trim().length < 2) return setErr("Paste or write your lines first.");
     if (!isWords && !cleanLink && !files.length) return setErr("Add a link to your video/reel or at least one photo.");
     if (cleanLink && !/^https:\/\/\S{4,}$/i.test(cleanLink)) return setErr("The link must start with https://");
-    if (looksUnsafe(title, body, credit, cleanLink)) return setErr("This looks like it breaks the guidelines (adult or abusive words). Please change it.");
+    if (looksUnsafe(title, body, credit, cleanLink)) return setErr("This breaks the guidelines (romantic, adult or abusive words are not allowed). Please change it.");
     if (!agreed) return setErr("Please tick the guidelines box to continue.");
     setBusy(true);
     try {
@@ -633,7 +631,6 @@ function ComposeModal({ user, onClose, onPosted }) {
       onPosted(post);
     } catch (e2) {
       setErr(e2.message);
-      setBlocked(Boolean(e2.blocked));
       setBusy(false);
       setProgress(0);
     }
@@ -737,7 +734,7 @@ function ComposeModal({ user, onClose, onPosted }) {
           )}
 
           <div className={`tc-guide-box ${agreed ? "is-ok" : ""}`}>
-            <p className="tc-guide-head"><ShieldCheck size={16} /> Community guidelines · checked by AI</p>
+            <p className="tc-guide-head"><ShieldCheck size={16} /> Community guidelines</p>
             <ul>{TALENT_GUIDELINES.map((g) => <li key={g}>{g}</li>)}</ul>
             <label className="tc-check">
               <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} />
@@ -745,21 +742,13 @@ function ComposeModal({ user, onClose, onPosted }) {
             </label>
           </div>
 
-          {err && (blocked ? (
-            <div className="tc-blocked" role="alert">
-              <ShieldCheck size={20} />
-              <div><strong>Not posted — AI guideline check</strong><p>{err}</p><small>Change your post so it follows the guidelines, then try again.</small></div>
-            </div>
-          ) : <p className="tc-error">{err}</p>)}
-          {busy && progress >= 100 || (busy && !files.length) ? (
-            <p className="tc-checking"><Sparkles size={15} /> Our AI is reading your post against the guidelines — this takes a few seconds.</p>
-          ) : null}
+          {err && <p className="tc-error">{err}</p>}
         </div>
 
         <div className="tc-modal-foot">
           <button type="button" className="tc-btn tc-btn-ghost-dark" onClick={onClose} disabled={busy}>Cancel</button>
           <button type="submit" className="tc-btn tc-btn-primary" disabled={busy || !agreed}>
-            {busy ? <><Loader2 size={16} className="tc-spin" /> {progress > 0 && progress < 100 ? `Uploading ${progress}%` : "AI is checking…"}</> : <><Send size={16} /> Post</>}
+            {busy ? <><Loader2 size={16} className="tc-spin" /> {progress > 0 && progress < 100 ? `Uploading ${progress}%` : "Posting…"}</> : <><Send size={16} /> Post</>}
           </button>
         </div>
       </form>
