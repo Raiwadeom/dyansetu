@@ -34,6 +34,11 @@ function validSub(sub) {
     && typeof sub.keys?.auth === "string" && sub.keys.auth.length < 100;
 }
 
+/* Like clip, but keeps line breaks (poem / shayari lines). */
+const clipLines = (text, n) => {
+  const s = String(text || "").split("\n").map((l) => l.replace(/\s+/g, " ").trim()).filter(Boolean).join("\n");
+  return s.length > n ? `${s.slice(0, n - 1)}…` : s;
+};
 const clip = (text, n) => {
   const s = String(text || "").replace(/\s+/g, " ").trim();
   return s.length > n ? `${s.slice(0, n - 1)}…` : s;
@@ -65,6 +70,8 @@ async function notify(caller, kind, id) {
       body: clip(a.author_name ? `${a.title} — ${a.author_name}` : a.title, 180),
       url: a.href && a.href.startsWith("/") ? a.href : "/#announcements",
       tag: `ann-${a.id}`,
+      image: "/push/announcement.jpg",
+      action: "Read notice",
     };
   }
 
@@ -87,6 +94,8 @@ async function notify(caller, kind, id) {
       body: clip(`${n.title}${n.semester ? ` (${n.semester})` : ""} — uploaded by ${n.author_name || "Faculty"}. Tap to download.`, 180),
       url: `/notes?note=${encodeURIComponent(n.id)}`,
       tag: `note-${n.id}`,
+      image: "/push/note.jpg",
+      action: "Open notes",
     };
   }
 
@@ -101,18 +110,25 @@ async function notify(caller, kind, id) {
     const { data } = await admin.from("talent_posts")
       .update({ push_sent_at: now })
       .eq("id", id).is("push_sent_at", null).gte("created_at", recent)
-      .select("id, category, title, body, author_name");
+      .select("id, category, title, body, author_name, images");
     const t = data?.[0];
     if (!t) return null;
     const kindLabel = { poem: "poem", shayari: "shayari", content: "creation" }[t.category] || "post";
-    const firstLines = (t.body || "").split("
-").map((l) => l.trim()).filter(Boolean).slice(0, 2).join(" / ");
+    const lines = (t.body || "").split("\n").map((l) => l.trim()).filter(Boolean).slice(0, 2);
+    const preview = [t.title ? `“${t.title}”` : "", ...lines].filter(Boolean).join("\n");
+    /* A content post with a photo shows that photo (cropped 2:1); everything
+       else shows the Talent Corner banner for its category. */
+    const photo = t.category === "content" && Array.isArray(t.images) && t.images[0]?.url
+      ? String(t.images[0].url).replace("/image/upload/", "/image/upload/c_fill,g_auto,w_1024,h_512,q_auto,f_jpg/")
+      : "";
     return {
       skipUsers: [me],
-      title: `New ${kindLabel} by ${clip(t.author_name || "a student", 40)} ✨`,
-      body: clip(t.title ? `${t.title} — ${firstLines}` : firstLines || "Tap to see it in the Talent Corner.", 160),
+      title: `✨ New ${kindLabel} by ${clip(t.author_name || "a student", 40)}`,
+      body: clipLines(preview || "Tap to see it in the Talent Corner.", 180),
       url: `/talent?post=${encodeURIComponent(t.id)}`,
       tag: `talent-${t.id}`,
+      image: photo || `/push/talent-${t.category}.jpg`,
+      action: t.category === "content" ? "Watch now" : "Read now",
     };
   }
 
@@ -134,6 +150,8 @@ async function notify(caller, kind, id) {
       body: clip(`${s.name} — details updated on DnyanSetu.${last}`, 180),
       url: "/scholarships",
       tag: `sch-${s.id}`,
+      image: "/push/scholarship.jpg",
+      action: "View scheme",
     };
   }
   return null;
