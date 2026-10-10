@@ -190,3 +190,12 @@ export async function adminReviewPending(userId, approve, note = "") {
   const { error } = await supabase.rpc("admin_review_pending", { p_user_id: userId, p_approve: approve, p_note: note });
   if (error) throw new Error(friendlyError(error, "Could not save that decision."));
 }
+
+/* Block or unblock one account by id (Talent Corner moderation). */
+export async function adminSetRestricted(userId, restricted) {
+  if (!isBackendConfigured) return;
+  await run(
+    supabase.from("profiles").update({ restricted }).eq("id", userId),
+    restricted ? "Could not block that account." : "Could not unblock that account.",
+  );
+}

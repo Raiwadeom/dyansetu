@@ -35,10 +35,13 @@ const FOLDER_ROLES = {
   "dnyansetu/avatars": ["faculty", "admin"],
   "dnyansetu/id-proofs": ["faculty", "staff", "scholarship"],
   "dnyansetu/announcements": ["faculty", "admin", "scholarship"],
+  /* Talent Corner: students' artwork, posters and thumbnails (photos only). */
+  "dnyansetu/talent": ["student"],
 };
 
 /* The only file types anyone may upload: PDFs and photos. */
 const ALLOWED_FORMATS = "pdf,jpg,jpeg,png,webp";
+const PHOTO_FORMATS = "jpg,jpeg,png,webp";
 
 /* ------------------------------- the handler ------------------------------ */
 
@@ -105,7 +108,8 @@ export async function handleSignUpload(body) {
   const timestamp = Math.floor(Date.now() / 1000);
   /* Signed, so Cloudinary itself refuses any other file type (the browser's
      own check can be skipped by anyone calling the API directly). */
-  const params = { allowed_formats: ALLOWED_FORMATS, folder, timestamp };
+  const allowedFormats = folder === "dnyansetu/talent" ? PHOTO_FORMATS : ALLOWED_FORMATS;
+  const params = { allowed_formats: allowedFormats, folder, timestamp };
   if (CLOUDINARY_UPLOAD_PRESET) params.upload_preset = CLOUDINARY_UPLOAD_PRESET;
 
   const toSign = Object.keys(params)
@@ -120,7 +124,7 @@ export async function handleSignUpload(body) {
 
   return {
     status: 200,
-    json: { signature, timestamp, apiKey: CLOUDINARY_API_KEY, folder, allowedFormats: ALLOWED_FORMATS, uploadPreset: CLOUDINARY_UPLOAD_PRESET || null },
+    json: { signature, timestamp, apiKey: CLOUDINARY_API_KEY, folder, allowedFormats, uploadPreset: CLOUDINARY_UPLOAD_PRESET || null },
   };
 }
 

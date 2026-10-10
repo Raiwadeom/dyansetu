@@ -10,6 +10,8 @@ import heroFive from "../media/slideshow 5.jpeg";
    bundle and fetched only when a student actually opens it. */
 const QuizPage = lazy(() => import("./quiz/QuizPage"));
 const NotesPage = lazy(() => import("./notes/NotesPage"));
+const TalentPage = lazy(() => import("./talent/TalentPage"));
+const TalentShowcase = lazy(() => import("./talent/TalentShowcase"));
 const LegalPage = lazy(() => import("./legal/LegalPage"));
 import { generateTrackingId } from "./utils/identity";
 import { downloadCsv, timestampedName } from "./utils/exportSheet";
@@ -19,7 +21,7 @@ import {
   useAuth, acceptTerms, readOAuthIntent, clearOAuthIntent, safeNext, deleteMyAccount,
 } from "./lib/auth";
 import {
-  fetchProfile, updateProfile, listProfiles, adminUpdateProfile, adminDeleteProfile, fetchSignIns,
+  fetchProfile, updateProfile, listProfiles, adminUpdateProfile, adminDeleteProfile, adminSetRestricted, fetchSignIns,
   markNotesOpened, submitIdProof, listPendingApprovals, adminReviewPending,
 } from "./lib/profiles";
 import { fetchMyNotes, uploadNote, deleteNote } from "./lib/notes";
@@ -107,6 +109,11 @@ const MEMBERS_ONLY_PAGES = new Set(["notes", "quiz"]);
    rather than shared, so two tabs do not fight over one another's position. */
 const VIEW_KEY = "dnyansetu:view";
 const FOCUS_NOTE_KEY = "dnyansetu:focus-note";
+/* What the Talent Corner should open on (a tab, a shared post, the composer);
+   set just before navigating there and read once by the page. */
+let talentIntent = null;
+const readTalentIntent = () => talentIntent;
+const clearTalentIntent = () => { talentIntent = null; };
 const HOME_KEY = "dnyansetu:browsing-home";
 
 /* Real addresses for the pages people link to or bookmark directly. Everything
@@ -125,6 +132,7 @@ function pathForView(view, authMode, scope, next) {
   if (view === "notfound") return window.location.pathname;
   if (view === "scholarship-reset") return "/scholarship-reset";
   if (view === "notes") return "/notes";
+  if (view === "talent") return "/talent";
   return "/";
 }
 
@@ -145,6 +153,12 @@ function initialRoute() {
       try { sessionStorage.setItem(FOCUS_NOTE_KEY, note.slice(0, 120)); } catch { /* storage blocked */ }
     }
     return { view: "notes", direct: true };
+  }
+  /* /talent?post=<id> — a shared Talent Corner post. */
+  if (path === "/talent") {
+    const post = new URLSearchParams(window.location.search).get("post");
+    if (post) talentIntent = { post: post.slice(0, 64) };
+    return { view: "talent", direct: true };
   }
   if (path === "/" || path === "/index.html") return { view: "landing", direct: false };
   /* Anything else is a wrong address: show the 404 page instead of quietly
@@ -703,7 +717,7 @@ function NoticeTicker({ items, renderItem, tr }) {
   );
 }
 
-function Landing({ goAuth, onOpenAbout, onOpenPage, user, onOpenDashboard }) {
+function Landing({ goAuth, onOpenAbout, onOpenPage, onOpenTalent, user, onOpenDashboard }) {
   /* Announcements come from the administrator's Scholarships & Notices page;
      the built-in notices show until they load or if the database is unreachable. */
   const [notices, setNotices] = useState(NOTICE_BOARD);
@@ -766,6 +780,7 @@ function Landing({ goAuth, onOpenAbout, onOpenPage, user, onOpenDashboard }) {
   const siteLinks = [
     { key: "home", icon: Home, label: tr("Home", "मुख्यपृष्ठ"), run: () => window.scrollTo({ top: 0, behavior: "smooth" }) },
     { key: "about", icon: Info, label: tr("About DnyanSetu", "डायनसेतू विषयी"), run: onOpenAbout },
+    { key: "talent", icon: Sparkles, label: tr("Talent Corner", "कला मंच"), run: () => onOpenTalent() },
     { key: "raktsetu", icon: Droplet, label: tr("RaktSetu", "रक्तसेतू"), href: "/raktsetu" },
     { key: "csmnews", icon: Newspaper, label: tr("CSM News Desk", "सीएसएम न्यूज डेस्क"), href: CSM_NEWS_DESK_URL, external: true },
     { key: "terms", icon: ScrollText, label: tr("Terms & Conditions", "अटी व शर्ती"), run: () => onOpenPage("terms") },
@@ -1240,6 +1255,15 @@ function Landing({ goAuth, onOpenAbout, onOpenPage, user, onOpenDashboard }) {
           </section>
         );
       })}
+
+      <Suspense fallback={null}>
+        <TalentShowcase
+          tr={tr}
+          canShare={user?.role === "student"}
+          onOpen={(tab, post) => onOpenTalent({ tab, post })}
+          onShare={() => onOpenTalent({ compose: true })}
+        />
+      </Suspense>
 
       <section className="section section-story">
         <div className="story-shell">
@@ -4419,6 +4443,12 @@ function TopNavApp({ view, go, onHome, onLogout, user, pendingCount = 0 }) {
             </button>
           )}
 
+          {!isScholarshipAdmin && (
+            <button type="button" className={`app-nav-item ${view === "talent" ? "active" : ""}`} onClick={() => go("talent")}>
+              Talent Corner
+            </button>
+          )}
+
           {/* A separate app on the same domain and session, so a plain link
               opens it already signed in. */}
           {!isScholarshipAdmin && (
@@ -5172,6 +5202,22 @@ export default function App() {
   /* Members-only pages bounce to the login tab instead of opening. Checked here
      rather than only on the card, so a deep link or a back-button jump lands in
      the same place. */
+  const openTalent = (intent = null) => {
+    talentIntent = intent;
+    navigateTo("talent");
+  };
+
+  /* From a Talent Corner card: the administrator blocks or deletes the
+     account behind a post. Same effect as the Admin Control Desk buttons. */
+  const handleTalentBlock = async (userId) => {
+    await adminSetRestricted(userId, true);
+    setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, restricted: true } : u)));
+  };
+  const handleTalentDeleteAccount = async (userId) => {
+    await adminDeleteProfile(userId);
+    setUsers((prev) => prev.filter((u) => u.id !== userId));
+  };
+
   const openPage = (page) => {
     if (MEMBERS_ONLY_PAGES.has(page) && !currentUser) {
       setPendingPage(page);
@@ -5196,7 +5242,7 @@ export default function App() {
      along on every page reached from it — not just the three portals. It needs
      a user to render, so a signed-out visitor on an open page still sees none. */
   const isAppView = Boolean(currentUser)
-    && (["profile", "faculty-portal", "notes", "quiz", "pyq", "scholarships"].includes(view) || ADMIN_VIEWS.has(view));
+    && (["profile", "faculty-portal", "notes", "quiz", "pyq", "scholarships", "talent"].includes(view) || ADMIN_VIEWS.has(view));
 
   return (
     <LangContext.Provider value={{ lang, setLang }}>
@@ -5257,6 +5303,7 @@ export default function App() {
             }}
             onOpenAbout={() => navigateTo("about")}
             onOpenPage={openPage}
+            onOpenTalent={openTalent}
             user={currentUser}
             onOpenDashboard={() => navigateTo(homeViewFor(currentUser))}
           />
@@ -5292,6 +5339,22 @@ export default function App() {
           </Suspense>
         )}
         {view === "scholarships" && <ScholarshipsPage onBack={goBack} onRegisterBack={registerPageBack} />}
+        {view === "talent" && (
+          <Suspense fallback={<div className="boot-screen"><Loader2 size={20} className="spin" /> Loading Talent Corner…</div>}>
+            <TalentPage
+              user={currentUser}
+              readIntent={readTalentIntent}
+              clearIntent={clearTalentIntent}
+              onBack={goBack}
+              onSignIn={() => {
+                setPendingPage("talent");
+                setAuthMode("login"); setAuthRoleScope("student"); navigateTo("auth");
+              }}
+              onBlockUser={handleTalentBlock}
+              onDeleteUser={handleTalentDeleteAccount}
+            />
+          </Suspense>
+        )}
         {view === "auth" && (
           <AuthScreen
             mode={authMode}
