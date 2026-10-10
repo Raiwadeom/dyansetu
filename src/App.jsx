@@ -8394,6 +8394,27 @@ function Styles() {
         .hub-card-link { margin-top: 4px; }
         .hub-card:hover { border-left-color: var(--abc-saffron); }
 
+        /* Study Hub on phones: a bento grid instead of a long list — the
+           first tile spans the row with its blurb, the rest sit two-up as
+           compact tiles (icon, name, Open). Same on every phone width. */
+        .section-hub--study .hub-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+        .section-hub--study .hub-card {
+          flex-direction: column; align-items: flex-start; gap: 10px; padding: 14px;
+          border: 1px solid rgba(15, 23, 42, 0.14); border-top: 3px solid var(--abc-navy); border-radius: 8px;
+        }
+        .section-hub--study .hub-card:first-child {
+          grid-column: 1 / -1; flex-direction: row; align-items: center; gap: 14px;
+          background: linear-gradient(135deg, #102A4C, #1E3A5F); border-top-color: var(--abc-saffron);
+        }
+        .section-hub--study .hub-card:first-child h3 { color: #fff; }
+        .section-hub--study .hub-card:first-child p { color: #C9D5E6; }
+        .section-hub--study .hub-card:first-child .hub-card-icon { background: var(--abc-saffron); }
+        .section-hub--study .hub-card:first-child .hub-card-link { color: #FFD08A; }
+        .section-hub--study .hub-card:not(:first-child) p { display: none; }
+        .section-hub--study .hub-card:not(:first-child) h3 { font-size: 14px; line-height: 1.3; }
+        .section-hub--study .hub-card:not(:first-child) .hub-card-body { gap: 6px; }
+        .section-hub--study .hub-card:hover { border-left-color: inherit; }
+
         .notice-item { gap: 14px; padding: 16px 4px; }
         .notice-date { flex-basis: 52px; padding-right: 12px; }
         .notice-date strong { font-size: 19px; }
