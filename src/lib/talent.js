@@ -19,15 +19,40 @@ export const TALENT_LANGUAGES = ["Marathi", "Hindi", "English", "Urdu", "Other"]
 export const MAX_TALENT_IMAGES = 3;
 export const TALENT_BODY_MAX = 4000;
 
+/* Shown in English or Marathi (toggle on the guidelines box and dialog). */
 export const TALENT_GUIDELINES = [
-  "Strictly no romantic content — no girlfriend / boyfriend, crush, dating, proposals, breakup or love-for-a-partner poems and shayari. Love for family, friends, country, nature and God is welcome.",
-  "Only my own original work, or I clearly credit the real author.",
-  "No adult, sexual or vulgar content of any kind.",
-  "No hate, abuse, bullying or insults about any person, caste, religion or gender.",
-  "No violence, self-harm, drugs or anything illegal.",
-  "No politics, spam, ads or links to unsafe sites.",
-  "No one else's photos or personal details without their consent.",
-  "I understand the administrator may remove my post and block or delete my account if I break these rules.",
+  {
+    en: "Strictly no romantic content — no girlfriend / boyfriend, crush, dating, proposals, breakup or love-for-a-partner poems and shayari. Love for family, friends, country, nature and God is welcome.",
+    mr: "प्रेमसंबंधाविषयी मजकूर पूर्णपणे बंद — गर्लफ्रेंड / बॉयफ्रेंड, क्रश, डेटिंग, प्रपोज, ब्रेकअप किंवा प्रियकर-प्रेयसीवरील कविता व शायरी नको. आई-वडील, कुटुंब, मित्र, देश, निसर्ग व देवाविषयीचे प्रेम चालेल.",
+  },
+  {
+    en: "Only my own original work, or I clearly credit the real author.",
+    mr: "फक्त माझे स्वतःचे लेखन, किंवा मूळ लेखकाचे नाव स्पष्टपणे दिलेले.",
+  },
+  {
+    en: "No adult, sexual or vulgar content of any kind.",
+    mr: "कोणत्याही प्रकारचा अश्लील, लैंगिक किंवा असभ्य मजकूर नको.",
+  },
+  {
+    en: "No hate, abuse, bullying or insults about any person, caste, religion or gender.",
+    mr: "कोणतीही व्यक्ती, जात, धर्म किंवा लिंग यांबद्दल द्वेष, शिवीगाळ, छळ किंवा अपमान नको.",
+  },
+  {
+    en: "No violence, self-harm, drugs or anything illegal.",
+    mr: "हिंसा, स्वतःला इजा, अमली पदार्थ किंवा कोणतीही बेकायदेशीर गोष्ट नको.",
+  },
+  {
+    en: "No politics, spam, ads or links to unsafe sites.",
+    mr: "राजकारण, स्पॅम, जाहिराती किंवा असुरक्षित वेबसाइटच्या लिंक नकोत.",
+  },
+  {
+    en: "No one else's photos or personal details without their consent.",
+    mr: "दुसऱ्यांचे फोटो किंवा वैयक्तिक माहिती त्यांच्या परवानगीशिवाय नको.",
+  },
+  {
+    en: "I understand the administrator may remove my post and block or delete my account if I break these rules.",
+    mr: "हे नियम मोडल्यास ॲडमिन माझी पोस्ट काढू शकतो आणि माझे खाते ब्लॉक किंवा डिलीट करू शकतो, हे मला मान्य आहे.",
+  },
 ];
 
 /* First line of defence (the administrator is the real filter): adult and

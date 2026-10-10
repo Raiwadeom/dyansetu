@@ -12,6 +12,8 @@ import {
 } from "../lib/talent.js";
 import { isBackendConfigured } from "../lib/supabase.js";
 import { AvatarCycle } from "../lib/ProfileArt.jsx";
+import { useLang } from "../lib/i18n.js";
+import { notifySite } from "../lib/sitePush.js";
 import "./talent.css";
 
 /* ============================================================================
@@ -169,6 +171,8 @@ export default function TalentPage({ user, onBack, onSignIn, onBlockUser, onDele
   };
 
   const onPosted = (post) => {
+    /* Every phone with DnyanSetu notifications on hears about the new post. */
+    notifySite("talent", post.id);
     setComposeOpen(false);
     setAuthor(null);
     setTab("all");
@@ -578,6 +582,23 @@ function Comments({ post, user, isAdmin, onCount, needSignIn, say }) {
   );
 }
 
+/* ---------------------------------------------------- guidelines language */
+
+/* English / मराठी switch for the guidelines; starts in the site language. */
+function useGuideLang() {
+  const { lang } = useLang();
+  return useState(lang === "mr" ? "mr" : "en");
+}
+
+function GuideLangSwitch({ value, onChange }) {
+  return (
+    <div className="tc-glang" role="group" aria-label="Guidelines language">
+      <button type="button" className={value === "en" ? "is-on" : ""} aria-pressed={value === "en"} onClick={() => onChange("en")}>English</button>
+      <button type="button" lang="mr" className={value === "mr" ? "is-on" : ""} aria-pressed={value === "mr"} onClick={() => onChange("mr")}>मराठी</button>
+    </div>
+  );
+}
+
 /* --------------------------------------------------------------- compose */
 
 function ComposeModal({ user, onClose, onPosted }) {
@@ -589,6 +610,7 @@ function ComposeModal({ user, onClose, onPosted }) {
   const [link, setLink] = useState("");
   const [files, setFiles] = useState([]);
   const [agreed, setAgreed] = useState(false);
+  const [gLang, setGLang] = useGuideLang();
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState(0);
   const [err, setErr] = useState("");
@@ -734,11 +756,14 @@ function ComposeModal({ user, onClose, onPosted }) {
           )}
 
           <div className={`tc-guide-box ${agreed ? "is-ok" : ""}`}>
-            <p className="tc-guide-head"><ShieldCheck size={16} /> Community guidelines</p>
-            <ul>{TALENT_GUIDELINES.map((g) => <li key={g}>{g}</li>)}</ul>
+            <div className="tc-guide-top">
+              <p className="tc-guide-head"><ShieldCheck size={16} /> {gLang === "mr" ? "समुदाय नियम" : "Community guidelines"}</p>
+              <GuideLangSwitch value={gLang} onChange={setGLang} />
+            </div>
+            <ul lang={gLang}>{TALENT_GUIDELINES.map((g) => <li key={g.en}>{g[gLang]}</li>)}</ul>
             <label className="tc-check">
               <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} />
-              <span>I have read the guidelines and my post follows them.</span>
+              <span>{gLang === "mr" ? "मी नियम वाचले आहेत आणि माझी पोस्ट त्यांचे पालन करते." : "I have read the guidelines and my post follows them."}</span>
             </label>
           </div>
 
@@ -757,6 +782,8 @@ function ComposeModal({ user, onClose, onPosted }) {
 }
 
 function GuidelinesModal({ onClose }) {
+  const [gLang, setGLang] = useGuideLang();
+  const mr = gLang === "mr";
   useEffect(() => {
     const onKey = (e) => { if (e.key === "Escape") onClose(); };
     window.addEventListener("keydown", onKey);
@@ -766,18 +793,23 @@ function GuidelinesModal({ onClose }) {
     <div className="tc-modal-backdrop" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="tc-modal tc-modal--sm" role="dialog" aria-modal="true" aria-label="Community guidelines">
         <div className="tc-modal-head">
-          <div><h2>Community guidelines</h2><p>Keep the Talent Corner safe and kind for everyone.</p></div>
+          <div>
+            <h2>{mr ? "समुदाय नियम" : "Community guidelines"}</h2>
+            <p>{mr ? "कला मंच सर्वांसाठी सुरक्षित व आदरयुक्त ठेवा." : "Keep the Talent Corner safe and kind for everyone."}</p>
+            <GuideLangSwitch value={gLang} onChange={setGLang} />
+          </div>
           <button type="button" className="tc-icon-btn" onClick={onClose} aria-label="Close"><X size={20} /></button>
         </div>
         <div className="tc-modal-body">
-          <ul className="tc-guide-list">{TALENT_GUIDELINES.map((g) => <li key={g}><Check size={15} /> {g}</li>)}</ul>
-          <p className="tc-guide-note">
-            Only students of the college can post. The administrator reviews the Talent Corner and removes anything
-            that breaks these rules; serious or repeated misuse leads to the account being blocked or deleted.
+          <ul className="tc-guide-list" lang={gLang}>{TALENT_GUIDELINES.map((g) => <li key={g.en}><Check size={15} /> {g[gLang]}</li>)}</ul>
+          <p className="tc-guide-note" lang={gLang}>
+            {mr
+              ? "फक्त महाविद्यालयाचे विद्यार्थी पोस्ट करू शकतात. ॲडमिन कला मंच तपासतो आणि नियम मोडणारा मजकूर काढून टाकतो; गंभीर किंवा वारंवार गैरवापर केल्यास खाते ब्लॉक किंवा डिलीट केले जाते."
+              : "Only students of the college can post. The administrator reviews the Talent Corner and removes anything that breaks these rules; serious or repeated misuse leads to the account being blocked or deleted."}
           </p>
         </div>
         <div className="tc-modal-foot">
-          <button type="button" className="tc-btn tc-btn-primary" onClick={onClose}>Got it</button>
+          <button type="button" className="tc-btn tc-btn-primary" onClick={onClose}>{mr ? "समजले" : "Got it"}</button>
         </div>
       </div>
     </div>

@@ -485,3 +485,13 @@ body .arcsas .tc-float--shayari p { font-style: italic !important; }
 }
 @keyframes tc-fade { from { opacity: 0; } to { opacity: 1; } }
 
+
+/* Guidelines language switch (English / मराठी) */
+.tc-guide-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+.arcsas .tc-guide-top .tc-guide-head { margin: 0; }
+.tc-glang { display: inline-flex; padding: 3px; border-radius: 999px; background: #fff; border: 1px solid #E4E7EE; flex: 0 0 auto; }
+.tc-glang button {
+  border: 0; background: transparent; color: #5B6476; font-size: 12.5px; font-weight: 700; padding: 5px 12px; border-radius: 999px;
+}
+.tc-glang button.is-on { background: #101828; color: #fff; }
+.tc-modal-head .tc-glang { margin-top: 10px; }
