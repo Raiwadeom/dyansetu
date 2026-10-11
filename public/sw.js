@@ -21,11 +21,11 @@ self.addEventListener("push", (event) => {
   /* A branded banner (or the post's own photo) shows when the notification
      is expanded on Android / desktop Chrome; iPhone shows icon + text only. */
   const image = typeof data.image === "string" && data.image ? new URL(data.image, self.location.origin).href : undefined;
-  event.waitUntil(self.registration.showNotification(data.title || "DnyanSetu", {
+  const title = data.title || "DnyanSetu";
+  const options = {
     body: data.body || "Something new on DnyanSetu.",
     icon: "/icon-192.png",
     badge: "/badge-96.png",
-    ...(image ? { image } : {}),
     actions: [{ action: "open", title: data.action || "Open" }],
     requireInteraction: false,
     silent: false,
@@ -34,7 +34,12 @@ self.addEventListener("push", (event) => {
     vibrate: [200, 100, 200],
     timestamp: Date.now(),
     data: { url: data.url || "/" },
-  }));
+  };
+  /* If the banner picture cannot be loaded, still show the notification. */
+  event.waitUntil(
+    self.registration.showNotification(title, image ? { ...options, image } : options)
+      .catch(() => self.registration.showNotification(title, options)),
+  );
 });
 
 self.addEventListener("notificationclick", (event) => {
