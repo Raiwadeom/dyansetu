@@ -195,6 +195,8 @@ export async function sendEmailAlerts(request, site) {
   const apiKey = env("RESEND_API_KEY");
   const from = env("RESEND_FROM");
   if (!apiKey || !from) return { sent: 0, skipped: "Resend is not configured.", limitHit: false };
+  /* Replies reach a real college inbox, which also helps keep alerts out of spam. */
+  const replyTo = env("RESEND_REPLY_TO", "smuiqac@gmail.com");
 
   const dailyLimit = Number(env("RESEND_DAILY_LIMIT", "90")) || 90;
   const monthlyLimit = Number(env("RESEND_MONTHLY_LIMIT", "2900")) || 2900;
@@ -230,6 +232,7 @@ export async function sendEmailAlerts(request, site) {
       const unsubscribeUrl = `${site}/api/raktsetu/unsubscribe?token=${encodeURIComponent(makeUnsubscribeToken(t.user_id))}`;
       return {
         from,
+        reply_to: replyTo,
         to: [t.email],
         subject: `Blood needed: ${request.blood_group} — ${request.units} unit(s) at ${request.hospital}, ${request.city}`,
         html: emailHtml(request, { name: t.name, openUrl, unsubscribeUrl }),
