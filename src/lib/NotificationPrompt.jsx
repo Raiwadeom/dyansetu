@@ -37,13 +37,16 @@ export default function NotificationPrompt({ tr = (en) => en, signedIn = false }
       if (!alive) return;
       if (Notification.permission === "granted") {
         /* Said yes before (or allowed in browser settings): keep it on. */
-        enableSitePush().catch(() => {});
+        enableSitePush().catch((error) => console.error("[dnyansetu] notifications could not start", error));
         return;
       }
       const sub = await siteSubscription().catch(() => null);
       if (!alive || sub) return;
       const asked = readAsked();
-      const ask = signedIn ? asked !== "no-user" && asked !== "yes" : !asked;
+      /* "yes" with the permission no longer granted means it was reset (app
+         reinstalled, site data or notifications cleared): ask again, or the
+         phone would silently stay without notifications for good. */
+      const ask = signedIn ? asked !== "no-user" : !asked || asked === "yes";
       if (ask) setShow(true);
     }, 2500);
     return () => { alive = false; clearTimeout(timer); };
