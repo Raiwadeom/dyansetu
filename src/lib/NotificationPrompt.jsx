@@ -11,7 +11,7 @@
        subscription is linked to the account. */
 
 import React, { useEffect, useState } from "react";
-import { BellRing, Loader2, X } from "lucide-react";
+import { BatteryCharging, BellRing, Loader2, X } from "lucide-react";
 import { enableSitePush, isSitePushConfigured, siteSubscription, sitePushSupport } from "./sitePush.js";
 
 const ASKED_KEY = "ds-push-asked";
@@ -27,6 +27,10 @@ export default function NotificationPrompt({ tr = (en) => en, signedIn = false }
   const [show, setShow] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  /* Android only: after Allow, one more card about Chrome's battery setting.
+     Many phones (Vivo, Oppo, Realme, Xiaomi, Samsung) put Chrome to sleep
+     when it is closed, so notifications wait until the app is opened. */
+  const [batteryTip, setBatteryTip] = useState(false);
 
   useEffect(() => {
     if (!isSitePushConfigured) return undefined;
@@ -57,7 +61,8 @@ export default function NotificationPrompt({ tr = (en) => en, signedIn = false }
     try {
       await enableSitePush();
       saveAsked("yes");
-      setShow(false);
+      if (/Android/i.test(navigator.userAgent)) setBatteryTip(true);
+      else setShow(false);
     } catch (e) {
       /* Blocked in the browser's own prompt counts as an answer too. */
       if (Notification.permission === "denied") { saveAsked("no-user"); setShow(false); return; }
@@ -67,6 +72,25 @@ export default function NotificationPrompt({ tr = (en) => en, signedIn = false }
     }
   };
   const later = () => { saveAsked(signedIn ? "no-user" : "no-guest"); setShow(false); };
+
+  if (batteryTip) {
+    return (
+      <div className="np-card" role="dialog" aria-labelledby="np-title" aria-describedby="np-text">
+        <button type="button" className="np-close" onClick={() => setShow(false)} aria-label={tr("Close", "बंद करा")}><X size={16} /></button>
+        <span className="np-icon" aria-hidden="true"><BatteryCharging size={20} /></span>
+        <div className="np-body">
+          <strong id="np-title">{tr("One more step", "अजून एक पायरी")}</strong>
+          <p id="np-text">{tr(
+            "To get notifications even when the app is closed, open phone Settings → Apps → Chrome → Battery and choose \"Unrestricted\" (or \"Allow background activity\").",
+            "ॲप बंद असतानाही सूचना मिळण्यासाठी फोनच्या Settings → Apps → Chrome → Battery मध्ये \"Unrestricted\" (किंवा \"Allow background activity\") निवडा.",
+          )}</p>
+          <div className="np-actions">
+            <button type="button" className="np-btn np-btn--primary" onClick={() => setShow(false)}>{tr("Got it", "समजले")}</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="np-card" role="dialog" aria-labelledby="np-title" aria-describedby="np-text">
