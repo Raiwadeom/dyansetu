@@ -196,7 +196,7 @@ export async function sendEmailAlerts(request, site) {
   const from = env("RESEND_FROM");
   if (!apiKey || !from) return { sent: 0, skipped: "Resend is not configured.", limitHit: false };
   /* Replies reach a real college inbox, which also helps keep alerts out of spam. */
-  const replyTo = env("RESEND_REPLY_TO", "smuiqac@gmail.com");
+  const replyTo = env("RESEND_REPLY_TO", "orium.03@gmail.com");
 
   const dailyLimit = Number(env("RESEND_DAILY_LIMIT", "90")) || 90;
   const monthlyLimit = Number(env("RESEND_MONTHLY_LIMIT", "2900")) || 2900;
