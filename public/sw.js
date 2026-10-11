@@ -46,7 +46,7 @@ self.addEventListener("push", (event) => {
     tag: data.tag || "dnyansetu",
     renotify: true,
     vibrate: [200, 100, 200],
-    timestamp: Date.now(),
+    timestamp: Number.isFinite(data.sentAt) ? data.sentAt : Date.now(),
     data: { url: data.url || "/" },
   };
   /* If the banner picture cannot be loaded, still show the notification. */

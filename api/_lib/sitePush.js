@@ -42,7 +42,9 @@ async function deliver(devices, payload, { kind, refId = "" }) {
   const admin = supabaseAdmin();
   if (!configure()) return { sent: 0, failed: 0, removed: 0, targets: devices.length, skipped: "VAPID keys are not configured." };
 
-  const body = JSON.stringify(payload);
+  /* The phone shows this as the notification's time, so one that arrives
+     late still says when it was really sent. */
+  const body = JSON.stringify({ ...payload, sentAt: Date.now() });
   const delivered = [];
   const gone = [];
   let failed = 0;
