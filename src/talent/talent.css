@@ -399,46 +399,57 @@ body .arcsas .tc-float--shayari p { font-style: italic !important; }
 .arcsas .tc-guide-note { margin: 4px 0 0; font-size: 13.5px; color: #5B6476; line-height: 1.6; background: #F5F5FA; border-radius: 12px; padding: 10px 12px; }
 
 /* --------------------------------------------------------------- landing showcase */
+/* Same official look as the rest of the home page (GIGW/UX4G): white
+   section, navy text, saffron rule, flat bordered cards, small radius. No
+   gradients, glows or glass. */
 .tc-showcase {
-  position: relative; overflow: hidden; padding: 56px 16px; color: #fff;
-  background: linear-gradient(135deg, #0B1640 0%, #1E1B4B 50%, #3B0F3F 100%);
-}
-.tc-showcase::before {
-  content: ""; position: absolute; inset: 0; pointer-events: none;
-  background:
-    radial-gradient(420px 260px at 90% 10%, rgba(249, 115, 22, 0.32), transparent 70%),
-    radial-gradient(380px 260px at 5% 95%, rgba(124, 58, 237, 0.42), transparent 70%);
+  position: relative; padding: 52px 16px; color: var(--text-dark, #0F172A);
+  background: var(--bg-canvas, #F8FAFC);
+  border-top: 1px solid var(--border-light, #E2E8F0); border-bottom: 1px solid var(--border-light, #E2E8F0);
 }
 .tc-sc-inner { position: relative; max-width: 1180px; margin: 0 auto; }
-.tc-sc-head { display: flex; align-items: center; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
-.tc-showcase .tc-eyebrow { margin-bottom: 14px; }
-.arcsas .tc-showcase .tc-sc-title { margin: 0; font-size: clamp(26px, 4vw, 38px); font-weight: 600; line-height: 1.15; color: #fff; }
-.arcsas .tc-sc-sub { margin: 10px 0 0; color: #D6D9F2; max-width: 560px; line-height: 1.6; font-size: 15px; }
-.tc-sc-cats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 28px; }
+.tc-sc-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
+.tc-showcase .tc-eyebrow {
+  margin: 0 0 10px; padding: 0 0 0 10px; border: 0; border-left: 3px solid var(--abc-saffron, #E65100); border-radius: 0;
+  background: none; color: var(--abc-saffron, #E65100); font-size: 12px; letter-spacing: 0.08em;
+}
+.tc-showcase .tc-eyebrow svg { display: none; }
+.arcsas .tc-showcase .tc-sc-title { margin: 0; font-size: clamp(24px, 3.4vw, 32px); font-weight: 700; line-height: 1.2; color: var(--abc-navy, #0B1E2E); }
+.arcsas .tc-sc-sub { margin: 8px 0 0; color: var(--text-muted, #64748B); max-width: 600px; line-height: 1.6; font-size: 15px; }
+.tc-showcase .tc-btn-primary {
+  background: var(--abc-saffron, #E65100); box-shadow: none; border-radius: 6px;
+}
+.tc-showcase .tc-btn-primary:not(:disabled):hover { background: var(--abc-saffron-hover, #D84315); box-shadow: none; transform: none; }
+.tc-sc-cats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 24px; }
 .tc-sc-cat {
-  text-align: left; border: 1px solid rgba(255,255,255,0.14); background: rgba(255,255,255,0.06); border-radius: 20px; padding: 18px;
-  color: #fff; display: flex; flex-direction: column; gap: 8px; transition: background .2s, border-color .2s, transform .2s;
+  text-align: left; border: 1px solid var(--border-light, #E2E8F0); border-top: 3px solid var(--tc-accent); background: #fff; border-radius: 8px; padding: 18px;
+  color: var(--text-dark, #0F172A); display: flex; flex-direction: column; gap: 8px; transition: border-color .15s, box-shadow .15s;
 }
-.tc-sc-cat:hover { background: rgba(255,255,255,0.11); border-color: rgba(255,255,255,0.3); transform: translateY(-2px); }
-.tc-sc-cat-icon { width: 42px; height: 42px; border-radius: 14px; display: grid; place-items: center; color: #fff; }
-.tc-sc-cat--poem .tc-sc-cat-icon { background: #7C3AED; }
-.tc-sc-cat--shayari .tc-sc-cat-icon { background: #E11D48; }
-.tc-sc-cat--content .tc-sc-cat-icon { background: #0D9488; }
-.tc-sc-cat strong { font-size: 17px; }
-.tc-sc-cat small { color: #C9CDEA; font-size: 13.5px; line-height: 1.5; }
-.tc-sc-cat em { font-style: normal; font-size: 13px; font-weight: 700; color: #FDBA74; display: inline-flex; align-items: center; gap: 4px; margin-top: auto; }
-.tc-sc-latest { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 18px; }
+.tc-sc-cat:hover { border-color: var(--border-strong, #CBD5E1); border-top-color: var(--tc-accent); box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06); }
+.tc-sc-cat:focus-visible { outline: 2px solid var(--abc-navy, #0B1E2E); outline-offset: 2px; }
+.tc-sc-cat--poem { --tc-accent: #1E3A5F; --tc-tint: #EEF2F7; }
+.tc-sc-cat--shayari { --tc-accent: #E65100; --tc-tint: #FFF7ED; }
+.tc-sc-cat--content { --tc-accent: #138808; --tc-tint: #EEF7EC; }
+.tc-sc-cat-icon { width: 40px; height: 40px; border-radius: 6px; display: grid; place-items: center; color: var(--tc-accent); background: var(--tc-tint); }
+.tc-sc-cat strong { font-size: 17px; color: var(--abc-navy, #0B1E2E); }
+.tc-sc-cat small { color: var(--text-muted, #64748B); font-size: 13.5px; line-height: 1.5; }
+.tc-sc-cat em { font-style: normal; font-size: 13px; font-weight: 700; color: var(--abc-saffron, #E65100); display: inline-flex; align-items: center; gap: 4px; margin-top: auto; }
+.tc-sc-latest { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 14px; }
 .tc-sc-post {
-  text-align: left; border: 0; background: #fff; color: #101828; border-radius: 18px; padding: 16px; display: flex; flex-direction: column; gap: 10px;
-  box-shadow: 0 10px 30px rgba(0,0,0,.18); transition: transform .2s;
+  text-align: left; border: 1px solid var(--border-light, #E2E8F0); background: #fff; color: var(--text-dark, #0F172A); border-radius: 8px; padding: 16px;
+  display: flex; flex-direction: column; gap: 10px; box-shadow: none; transition: border-color .15s, box-shadow .15s;
 }
-.tc-sc-post:hover { transform: translateY(-2px); }
-.tc-sc-post .tc-verse { margin: 0; max-height: 150px; overflow: hidden; }
+.tc-sc-post:hover { border-color: var(--border-strong, #CBD5E1); box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06); }
+.tc-sc-post:focus-visible { outline: 2px solid var(--abc-navy, #0B1E2E); outline-offset: 2px; }
+.tc-showcase .tc-card--poem { --tc-accent: #1E3A5F; --tc-soft: #F3F6FA; }
+.tc-showcase .tc-card--shayari { --tc-accent: #E65100; --tc-soft: #FFF8F1; }
+.tc-showcase .tc-card--content { --tc-accent: #138808; --tc-soft: #F2F8F0; }
+.tc-sc-post .tc-verse { margin: 0; max-height: 150px; overflow: hidden; border-radius: 6px; }
 .tc-sc-post .tc-verse p { font-size: 15px; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
-.tc-sc-post .tc-sc-thumb { border-radius: 12px; overflow: hidden; aspect-ratio: 16 / 9; background: #E8FAF7; display: grid; place-items: center; color: #0D9488; }
+.tc-sc-post .tc-sc-thumb { border-radius: 6px; overflow: hidden; aspect-ratio: 16 / 9; background: #EEF7EC; display: grid; place-items: center; color: #138808; }
 .tc-sc-post .tc-sc-thumb img { width: 100%; height: 100%; object-fit: cover; }
-.tc-sc-meta { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; color: #5B6476; }
-.tc-sc-meta strong { color: #101828; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tc-sc-meta { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; color: var(--text-muted, #64748B); }
+.tc-sc-meta strong { color: var(--abc-navy, #0B1E2E); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tc-sc-meta span { display: inline-flex; align-items: center; gap: 4px; flex: 0 0 auto; }
 .tc-sc-actions { display: flex; gap: 10px; flex-wrap: wrap; }
 
@@ -447,7 +458,7 @@ body .arcsas .tc-float--shayari p { font-style: italic !important; }
   /* Phones: three compact category tiles in one row, newest posts as a
      swipeable strip — instead of one long stacked list. */
   .tc-sc-cats { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 20px; }
-  .tc-sc-cat { align-items: center; text-align: center; padding: 14px 6px; gap: 8px; border-radius: 16px; }
+  .tc-sc-cat { align-items: center; text-align: center; padding: 14px 6px; gap: 8px; border-radius: 8px; }
   .tc-sc-cat small, .tc-sc-cat em { display: none; }
   .tc-sc-cat strong { font-size: 13px; line-height: 1.25; }
   .tc-sc-cat-icon { width: 40px; height: 40px; }
