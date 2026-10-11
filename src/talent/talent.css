@@ -497,3 +497,8 @@ body .arcsas .tc-float--shayari p { font-style: italic !important; }
 .tc-glang button.is-on { background: #101828; color: #fff; }
 .tc-modal-head .tc-glang { margin-top: 10px; }
 .tc-sc-actions { flex: 0 0 auto; }
+
+/* ID card picker in the "Ask to post" request (approval before posting). */
+.tc-id-pick { display: grid; place-items: center; min-height: 150px; border: 2px dashed rgba(148, 163, 184, .6); border-radius: 14px; cursor: pointer; overflow: hidden; background: rgba(148, 163, 184, .08); }
+.tc-id-pick span { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; opacity: .85; }
+.tc-id-pick img { width: 100%; max-height: 240px; object-fit: contain; display: block; }

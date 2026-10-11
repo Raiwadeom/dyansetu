@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft, Ban, Check, ExternalLink, Feather, Heart, ImagePlus, Link2, Loader2, MessageCircle,
-  MoreVertical, PenLine, Play, Plus, Quote, Send, Share2, ShieldCheck, Sparkles, Trash2, UserCheck,
+  IdCard, MoreVertical, PenLine, Play, Plus, Quote, Send, Share2, ShieldCheck, Sparkles, Trash2, UserCheck,
   UserMinus, UserPlus, Users, Video, X,
 } from "lucide-react";
 
@@ -9,6 +9,7 @@ import {
   TALENT_CATEGORIES, TALENT_GUIDELINES, TALENT_LANGUAGES, MAX_TALENT_IMAGES, TALENT_BODY_MAX,
   fetchTalentPosts, createTalentPost, deleteTalentPost, fetchMyLikes, setLike, fetchComments, addComment,
   deleteComment, fetchFollowing, setFollow, fetchFollowerCount, youTubeId, linkHost, timeAgo, looksUnsafe,
+  fetchTalentAccess, requestTalentAccess,
 } from "../lib/talent.js";
 import { isBackendConfigured } from "../lib/supabase.js";
 import { AvatarCycle } from "../lib/ProfileArt.jsx";
@@ -43,7 +44,23 @@ export default function TalentPage({ user, onBack, onSignIn, onBlockUser, onDele
   const [liked, setLiked] = useState(new Set());
   const [following, setFollowing] = useState(new Set());
   const [author, setAuthor] = useState(null); // { id, name, gender }
-  const [composeOpen, setComposeOpen] = useState(() => Boolean(intent.compose) && user?.role === "student");
+  const [composeOpen, setComposeOpen] = useState(false);
+  /* Posting needs the administrator's approval (migration 0025): ID card +
+     guidelines first, then "approved". Everything else is open as before. */
+  const [access, setAccess] = useState({ status: "loading", note: "" });
+  const [accessOpen, setAccessOpen] = useState(false);
+  const loadAccess = async () => {
+    if (!canPost) return;
+    try { setAccess(await fetchTalentAccess(user.id)); } catch { setAccess({ status: "none", note: "" }); }
+  };
+  useEffect(() => { loadAccess(); }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const openCompose = () => {
+    if (access.status === "approved") setComposeOpen(true);
+    else setAccessOpen(true);
+  };
+  useEffect(() => {
+    if (intent.compose && canPost && access.status !== "loading") openCompose();
+  }, [access.status]); // eslint-disable-line react-hooks/exhaustive-deps
   const [guideOpen, setGuideOpen] = useState(false);
   const [focusId, setFocusId] = useState(() => intent.post || "");
   const [toast, setToast] = useState("");
@@ -205,7 +222,7 @@ export default function TalentPage({ user, onBack, onSignIn, onBlockUser, onDele
               </p>
               <div className="tc-hero-actions">
                 {canPost && (
-                  <button type="button" className="tc-btn tc-btn-primary" onClick={() => setComposeOpen(true)}>
+                  <button type="button" className="tc-btn tc-btn-primary" onClick={openCompose}>
                     <Plus size={17} /> Share your talent
                   </button>
                 )}
@@ -303,7 +320,7 @@ export default function TalentPage({ user, onBack, onSignIn, onBlockUser, onDele
                 : canPost ? "Be the first — share a poem, a shayari or your latest reel." : "Check back soon for new work from our students."}
             </p>
             {canPost && !author && tab !== "following" && (
-              <button type="button" className="tc-btn tc-btn-primary" onClick={() => setComposeOpen(true)}><Plus size={16} /> Share your talent</button>
+              <button type="button" className="tc-btn tc-btn-primary" onClick={openCompose}><Plus size={16} /> Share your talent</button>
             )}
           </div>
         ) : (
@@ -333,12 +350,20 @@ export default function TalentPage({ user, onBack, onSignIn, onBlockUser, onDele
       </div>
 
       {canPost && !composeOpen && (
-        <button type="button" className="tc-fab" onClick={() => setComposeOpen(true)} aria-label="Share your talent">
+        <button type="button" className="tc-fab" onClick={openCompose} aria-label="Share your talent">
           <Plus size={24} />
         </button>
       )}
 
       {composeOpen && <ComposeModal user={user} onClose={() => setComposeOpen(false)} onPosted={onPosted} />}
+      {accessOpen && (
+        <AccessModal
+          access={access}
+          onClose={() => setAccessOpen(false)}
+          onSent={() => setAccess({ status: "pending", note: "" })}
+          onRefresh={loadAccess}
+        />
+      )}
       {guideOpen && <GuidelinesModal onClose={() => setGuideOpen(false)} />}
       {toast && <div className="tc-toast" role="status">{toast}</div>}
     </div>
@@ -775,6 +800,105 @@ function ComposeModal({ user, onClose, onPosted }) {
           <button type="submit" className="tc-btn tc-btn-primary" disabled={busy || !agreed}>
             {busy ? <><Loader2 size={16} className="tc-spin" /> {progress > 0 && progress < 100 ? `Uploading ${progress}%` : "Posting…"}</> : <><Send size={16} /> Post</>}
           </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+/* ------------------------------------------------- ask to post (approval) */
+
+function AccessModal({ access, onClose, onSent, onRefresh }) {
+  const [file, setFile] = useState(null);
+  const [agreed, setAgreed] = useState(false);
+  const [gLang, setGLang] = useGuideLang();
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const mr = gLang === "mr";
+  const preview = useMemo(() => (file ? URL.createObjectURL(file) : ""), [file]);
+  useEffect(() => () => { if (preview) URL.revokeObjectURL(preview); }, [preview]);
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === "Escape" && !busy) onClose(); };
+    window.addEventListener("keydown", onKey);
+    document.body.style.overflow = "hidden";
+    return () => { window.removeEventListener("keydown", onKey); document.body.style.overflow = ""; };
+  }, [busy, onClose]);
+  useEffect(() => { if (access.status === "pending") onRefresh(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const pick = (e) => {
+    const chosen = e.target.files?.[0];
+    e.target.value = "";
+    if (!chosen) return;
+    if (!/^image\/(jpeg|png|webp)$/.test(chosen.type)) return setErr(mr ? "फक्त JPG, PNG किंवा WEBP फोटो." : "Please choose a JPG, PNG or WEBP photo.");
+    setErr("");
+    setFile(chosen);
+  };
+  const send = async (e) => {
+    e.preventDefault();
+    if (!file) return setErr(mr ? "तुमच्या कॉलेज ओळखपत्राचा फोटो जोडा." : "Add a photo of your college ID card.");
+    if (!agreed) return setErr(mr ? "कृपया नियमांच्या चौकटीत खूण करा." : "Please tick the guidelines box.");
+    setBusy(true);
+    setErr("");
+    try {
+      await requestTalentAccess(file);
+      onSent();
+    } catch (e2) {
+      setErr(e2.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const pending = access.status === "pending";
+  return (
+    <div className="tc-modal-backdrop" onMouseDown={(e) => { if (e.target === e.currentTarget && !busy) onClose(); }}>
+      <form className="tc-modal tc-modal--sm" onSubmit={send} role="dialog" aria-modal="true" aria-label="Ask to post in the Talent Corner">
+        <div className="tc-modal-head">
+          <div>
+            <h2>{pending ? (mr ? "विनंती पाठवली" : "Request sent") : (mr ? "पोस्ट करण्याची परवानगी" : "Ask to post")}</h2>
+            <p>{pending
+              ? (mr ? "ॲडमिन तुमचे ओळखपत्र तपासून मंजुरी देईल. मंजुरीनंतर तुम्ही पोस्ट करू शकाल." : "The administrator will check your ID card. Once approved, you can post.")
+              : (mr ? "कॉलेज ओळखपत्र जोडा, नियम मान्य करा आणि पाठवा. ॲडमिनच्या मंजुरीनंतर पोस्ट करता येईल." : "Add your college ID card, accept the guidelines and send. You can post once the administrator approves.")}</p>
+            <GuideLangSwitch value={gLang} onChange={setGLang} />
+          </div>
+          <button type="button" className="tc-icon-btn" onClick={onClose} disabled={busy} aria-label="Close"><X size={20} /></button>
+        </div>
+
+        {!pending && (
+          <div className="tc-modal-body">
+            {access.status === "rejected" && (
+              <p className="tc-error">{mr ? "मागील विनंती नाकारली." : "Your last request was not approved."}{access.note ? ` ${access.note}` : ""}</p>
+            )}
+            <div className="tc-field">
+              <span>{mr ? "कॉलेज ओळखपत्र (फोटो)" : "College ID card (photo)"}</span>
+              <label className="tc-id-pick">
+                {preview ? <img src={preview} alt={mr ? "तुमचे ओळखपत्र" : "Your ID card"} /> : <span><IdCard size={26} /> {mr ? "फोटो निवडा" : "Choose photo"}</span>}
+                <input type="file" accept="image/jpeg,image/png,image/webp" onChange={pick} hidden />
+              </label>
+            </div>
+            <div className={`tc-guide-box ${agreed ? "is-ok" : ""}`}>
+              <p className="tc-guide-head"><ShieldCheck size={16} /> {mr ? "समुदाय नियम" : "Community guidelines"}</p>
+              <ul lang={gLang}>{TALENT_GUIDELINES.map((g) => <li key={g.en}>{g[gLang]}</li>)}</ul>
+              <label className="tc-check">
+                <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} />
+                <span>{mr ? "मी नियम वाचले आहेत आणि त्यांचे पालन करेन." : "I have read the guidelines and will follow them."}</span>
+              </label>
+            </div>
+            {err && <p className="tc-error">{err}</p>}
+          </div>
+        )}
+
+        <div className="tc-modal-foot">
+          {pending ? (
+            <button type="button" className="tc-btn tc-btn-primary" onClick={onClose}>{mr ? "ठीक आहे" : "OK"}</button>
+          ) : (
+            <>
+              <button type="button" className="tc-btn tc-btn-ghost-dark" onClick={onClose} disabled={busy}>{mr ? "रद्द करा" : "Cancel"}</button>
+              <button type="submit" className="tc-btn tc-btn-primary" disabled={busy || !agreed || !file}>
+                {busy ? <><Loader2 size={16} className="tc-spin" /> {mr ? "पाठवत आहे…" : "Sending…"}</> : <><Send size={16} /> {mr ? "पाठवा" : "Submit"}</>}
+              </button>
+            </>
+          )}
         </div>
       </form>
     </div>

@@ -37,6 +37,8 @@ const FOLDER_ROLES = {
   "dnyansetu/announcements": ["faculty", "admin", "scholarship"],
   /* Talent Corner: students' artwork, posters and thumbnails (photos only). */
   "dnyansetu/talent": ["student"],
+  /* Talent Corner posting request: a photo of the student's college ID card. */
+  "dnyansetu/talent-ids": ["student"],
 };
 
 /* The only file types anyone may upload: PDFs and photos. */
@@ -108,7 +110,7 @@ export async function handleSignUpload(body) {
   const timestamp = Math.floor(Date.now() / 1000);
   /* Signed, so Cloudinary itself refuses any other file type (the browser's
      own check can be skipped by anyone calling the API directly). */
-  const allowedFormats = folder === "dnyansetu/talent" ? PHOTO_FORMATS : ALLOWED_FORMATS;
+  const allowedFormats = folder === "dnyansetu/talent" || folder === "dnyansetu/talent-ids" ? PHOTO_FORMATS : ALLOWED_FORMATS;
   const params = { allowed_formats: allowedFormats, folder, timestamp };
   if (CLOUDINARY_UPLOAD_PRESET) params.upload_preset = CLOUDINARY_UPLOAD_PRESET;
 

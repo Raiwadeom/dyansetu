@@ -8,7 +8,7 @@
    ========================================================================== */
 
 import { friendlyError, isBackendConfigured, supabase } from "./supabase.js";
-import { uploadFiles } from "./cloudinary.js";
+import { shrinkPhoto, uploadFile, uploadFiles } from "./cloudinary.js";
 
 export const TALENT_CATEGORIES = [
   { id: "poem", label: "Poems", labelMr: "कविता", one: "Poem" },
@@ -130,6 +130,39 @@ export async function createTalentPost({ author, category, title, body, language
     .single();
   if (error) throw new Error(friendlyError(error, "Could not share your post."));
   return toPost(data);
+}
+
+/* ------------------------------------------------ posting approval (0025) */
+
+/** This student's request: { status: "none" | "pending" | "approved" | "rejected", note }. */
+export async function fetchTalentAccess(userId) {
+  if (!isBackendConfigured || !userId) return { status: "none", note: "" };
+  const { data, error } = await supabase
+    .from("talent_access").select("status, note").eq("user_id", userId).maybeSingle();
+  if (error) throw new Error(friendlyError(error, "Could not check your Talent Corner access."));
+  return data ? { status: data.status, note: data.note || "" } : { status: "none", note: "" };
+}
+
+/** Uploads the ID card photo and sends the request for the administrator. */
+export async function requestTalentAccess(file) {
+  const small = await shrinkPhoto(file);
+  const uploaded = await uploadFile(small, { folder: "dnyansetu/talent-ids" });
+  const { error } = await supabase.rpc("talent_request_access", { p_id_card_url: uploaded.url });
+  if (error) throw new Error(friendlyError(error, "Could not send your request."));
+}
+
+export async function listTalentRequests() {
+  const { data, error } = await supabase.rpc("list_talent_requests");
+  if (error) throw new Error(friendlyError(error, "Could not load Talent Corner requests."));
+  return (data || []).map((r) => ({
+    userId: r.user_id, name: r.name, email: r.email, stream: r.stream,
+    idCardUrl: r.id_card_url, createdAt: r.created_at ? Date.parse(r.created_at) : Date.now(),
+  }));
+}
+
+export async function reviewTalentRequest(userId, approve, note = "") {
+  const { error } = await supabase.rpc("talent_review_access", { p_user_id: userId, p_approve: approve, p_note: note });
+  if (error) throw new Error(friendlyError(error, "Could not save the decision."));
 }
 
 export async function deleteTalentPost(id) {

@@ -38,6 +38,7 @@ import { builtInSchemes, fetchSchemes, schemeStatus, fetchLiveAnnouncements } fr
 import ContentAdminPage, { FacultyAnnouncementsCard } from "./admin/ContentAdminPage.jsx";
 import NotificationPrompt from "./lib/NotificationPrompt.jsx";
 import CookieConsent, { readConsent } from "./lib/cookieConsent.jsx";
+import { listTalentRequests, reviewTalentRequest } from "./lib/talent.js";
 import { GMAIL_ONLY_MESSAGE, isGmail } from "./lib/gmailOnly.js";
 import { AvatarCycle, CampusCover, ProfileCover } from "./lib/ProfileArt.jsx";
 import PageHero from "./lib/PageHero.jsx";
@@ -1083,6 +1084,9 @@ function Landing({ goAuth, onOpenAbout, onOpenPage, onOpenTalent, user, onOpenDa
               {tr("Explore services", "सेवा पहा")}
             </button>
           </div>
+          <a href={BROCHURE_URL} download="DnyanSetu-Brochure.pdf" className="hero-full-brochure">
+            <FileDown size={16} /> {tr("Download brochure (PDF)", "माहितीपत्रक डाउनलोड करा (PDF)")}
+          </a>
         </div>
 
         <div className="hero-full-controls">
@@ -3620,6 +3624,110 @@ function PendingApprovalsPanel({ onChanged }) {
   );
 }
 
+/* Students asking to post in the Talent Corner (ID card + guidelines tick).
+   Approve lets them post; Reject sends a short reason they see next time. */
+function TalentRequestsPanel() {
+  const [rows, setRows] = useState(null);
+  const [error, setError] = useState("");
+  const [busyId, setBusyId] = useState("");
+  const [rejecting, setRejecting] = useState(null);
+  const [reason, setReason] = useState("");
+  const [zoom, setZoom] = useState("");
+
+  const load = useCallback(async () => {
+    try {
+      setRows(await listTalentRequests());
+      setError("");
+    } catch (err) {
+      setError(err.message);
+      setRows([]);
+    }
+  }, []);
+  useEffect(() => { load(); }, [load]);
+
+  const decide = async (row, approve) => {
+    setBusyId(row.userId);
+    setError("");
+    try {
+      await reviewTalentRequest(row.userId, approve, approve ? "" : reason.trim());
+      setRejecting(null);
+      setReason("");
+      await load();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusyId("");
+    }
+  };
+
+  return (
+    <div className="card pending-panel" style={{ gridColumn: "1 / -1" }}>
+      <div className="pending-panel-head">
+        <div>
+          <h3><Sparkles size={20} /> Talent Corner posting requests</h3>
+          <p className="dash-meta">Students who want to post. Check the college ID card, then approve.</p>
+        </div>
+        <button type="button" className="btn btn-outline btn-sm" onClick={load}><RefreshCw size={14} /> Refresh</button>
+      </div>
+
+      {error && <p className="upload-error">{error}</p>}
+      {rows === null ? (
+        <p className="notes-loading"><Loader2 size={18} className="spin" /> Loading…</p>
+      ) : rows.length === 0 ? (
+        <p className="resource-empty">No Talent Corner requests waiting.</p>
+      ) : (
+        <div className="pending-list">
+          {rows.map((row) => (
+            <article className="pending-card" key={row.userId}>
+              <button type="button" className="pending-card-proof" onClick={() => row.idCardUrl && setZoom(row.idCardUrl)} disabled={!row.idCardUrl} aria-label={`View ID card of ${row.name}`}>
+                {row.idCardUrl ? <img src={row.idCardUrl} alt={`ID card of ${row.name}`} /> : <span><IdCard size={22} /> No ID card</span>}
+              </button>
+              <div className="pending-card-body">
+                <div className="pending-card-name">
+                  <strong>{row.name || "Unnamed"}</strong>
+                  {row.stream && <span className="dash-meta">{streamDegree(row.stream, row.stream)}</span>}
+                </div>
+                <p className="pending-card-email"><Mail size={13} /> {row.email}</p>
+                <p className="pending-card-date">Asked {new Date(row.createdAt).toLocaleDateString("en-IN")}</p>
+                {rejecting === row.userId ? (
+                  <div className="pending-reject">
+                    <input className="field-input" value={reason} maxLength={300} onChange={(e) => setReason(e.target.value)} placeholder="Reason (shown to the student), e.g. ID card not readable" />
+                    <div className="pending-actions">
+                      <button type="button" className="btn btn-xs btn-outline" onClick={() => { setRejecting(null); setReason(""); }} disabled={busyId === row.userId}>Cancel</button>
+                      <button type="button" className="btn btn-xs btn-danger" onClick={() => decide(row, false)} disabled={busyId === row.userId}>
+                        {busyId === row.userId ? <Loader2 size={13} className="spin" /> : <X size={13} />} Reject
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="pending-actions">
+                    <button type="button" className="btn btn-sm btn-primary" onClick={() => decide(row, true)} disabled={busyId === row.userId}>
+                      {busyId === row.userId ? <Loader2 size={14} className="spin" /> : <CheckCircle2 size={14} />} Approve
+                    </button>
+                    <button type="button" className="btn btn-sm btn-outline" onClick={() => setRejecting(row.userId)} disabled={busyId === row.userId}>Reject</button>
+                  </div>
+                )}
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
+
+      {zoom && (
+        <div className="modal-overlay" onClick={() => setZoom("")} role="dialog" aria-label="ID card">
+          <div className="modal-card pending-zoom" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-head">
+              <h3>ID card</h3>
+              <button type="button" className="btn btn-ghost" onClick={() => setZoom("")}><X size={18} /></button>
+            </div>
+            <img src={zoom} alt="ID card, full size" />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* Blocked accounts in one place, each with an Unblock button. A restricted
    account cannot sign in or use anything until it is unblocked here. */
 function RestrictedAccountsPanel({ users, onUpdateUser }) {
@@ -3821,6 +3929,7 @@ function AdminApprovalsPage({ users, onRefreshUsers }) {
   return (
     <div className="dash-grid">
       <PendingApprovalsPanel onChanged={onRefreshUsers} />
+      <TalentRequestsPanel />
 
       {error && <p className="upload-error" style={{ gridColumn: "1 / -1" }}>{error}</p>}
 
@@ -6298,6 +6407,12 @@ function Styles() {
       }
       .hero-full .hero-full-tagline { margin: 4px 0 0; max-width: 620px; font-size: 17px; line-height: 1.6; color: rgba(255,255,255,0.88); }
       .hero-full-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 12px; }
+      .hero-full-brochure {
+        display: inline-flex; align-items: center; gap: 8px; margin-top: 16px;
+        color: #fff; font-size: 15px; font-weight: 600; text-decoration: underline; text-underline-offset: 4px;
+        text-decoration-color: rgba(255,255,255,.55);
+      }
+      .hero-full-brochure:hover { text-decoration-color: var(--abc-saffron); color: #FFE0C7; }
       .hero-full-secondary { background: #FFFFFF; color: var(--abc-navy); border: 1px solid #FFFFFF; }
       .hero-full-secondary:hover { background: #F1F5F9; color: var(--abc-navy); }
 
