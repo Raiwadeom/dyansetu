@@ -1088,7 +1088,6 @@ function Landing({ goAuth, onOpenAbout, onOpenPage, onOpenTalent, user, onOpenDa
             <span className="hero-full-brochure-icon" aria-hidden="true"><FileDown size={18} /></span>
             <span className="hero-full-brochure-text">
               <strong>{tr("Download brochure", "माहितीपत्रक डाउनलोड करा")}</strong>
-              <small>{tr("PDF · 10 pages · 3 MB", "PDF · १० पाने · ३ MB")}</small>
             </span>
           </a>
         </div>
