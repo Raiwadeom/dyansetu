@@ -43,8 +43,25 @@ function formatClock(seconds) {
   return `${m}:${s}`;
 }
 
-function streamsOfferingYear(year) {
-  return QUIZ_STREAMS.filter((s) => s.duration >= year);
+/* Which quiz branches a student sees, by the stream on their profile:
+   B.Sc. gets Physics/Chemistry plus Computer Science; every other stream only
+   its own. Faculty, staff, admins (and students who haven't picked a stream)
+   see every branch. */
+const QUIZ_ACCESS = {
+  bsc: ["bsc", "bsc-cs"],
+  "bsc-cs": ["bsc-cs"],
+  bca: ["bca"],
+  bcom: ["bcom"],
+  ba: [],
+};
+
+function allowedQuizStreams(user) {
+  if (user?.role !== "student" || !user.stream) return null;
+  return QUIZ_ACCESS[user.stream] ?? null;
+}
+
+function streamsOfferingYear(year, allowed = null) {
+  return QUIZ_STREAMS.filter((s) => s.duration >= year && (!allowed || allowed.includes(s.id)));
 }
 
 /* ============================== The page ============================== */
@@ -61,6 +78,7 @@ export default function QuizPage({ onBack, onRegisterBack, user }) {
   const [syncing, setSyncing] = useState(true);
 
   const userId = user?.id || null;
+  const allowed = allowedQuizStreams(user);
 
   const stream = streamId ? streamById(streamId) : null;
   const yearBlock = stream && year ? yearOf(streamId, year) : null;
@@ -254,10 +272,13 @@ export default function QuizPage({ onBack, onRegisterBack, user }) {
       />
 
       {/* Stage 1 — year */}
-      {!year && <YearPicker onPick={setYear} />}
+      {allowed && allowed.length === 0 && (
+        <p className="resource-empty">Practice tests for your stream are not available yet.</p>
+      )}
+      {!year && !(allowed && allowed.length === 0) && <YearPicker onPick={setYear} allowed={allowed} />}
 
       {/* Stage 2 — branch */}
-      {year && !stream && <StreamPicker year={year} onPick={setStreamId} progress={progress} />}
+      {year && !stream && <StreamPicker year={year} onPick={setStreamId} progress={progress} allowed={allowed} />}
 
       {/* Stage 3 — subject */}
       {year && stream && !subject && (
@@ -354,13 +375,13 @@ function QuizCrumbs({ year, stream, subject, stage, sitting, onYear, onStream, o
 
 /* ------------------------------ Stage 1: year ------------------------------ */
 
-function YearPicker({ onPick }) {
+function YearPicker({ onPick, allowed }) {
   return (
     <>
       <h2 className="quiz-stage-title">Which year are you in?</h2>
       <div className="quiz-grid quiz-grid--years">
         {YEAR_OPTIONS.map((y) => {
-          const streams = streamsOfferingYear(y);
+          const streams = streamsOfferingYear(y, allowed);
           return (
             <button type="button" className="quiz-card quiz-card--year" key={y} onClick={() => onPick(y)}>
               <span className="quiz-year-num">{y}</span>
@@ -379,8 +400,8 @@ function YearPicker({ onPick }) {
 
 /* ----------------------------- Stage 2: branch ----------------------------- */
 
-function StreamPicker({ year, onPick, progress }) {
-  const streams = streamsOfferingYear(year);
+function StreamPicker({ year, onPick, progress, allowed }) {
+  const streams = streamsOfferingYear(year, allowed);
   return (
     <>
       <h2 className="quiz-stage-title">Choose your branch</h2>

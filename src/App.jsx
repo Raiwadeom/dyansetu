@@ -262,6 +262,8 @@ const linkTarget = (href) => (href?.startsWith("/") ? {} : { target: "_blank", r
 
 /* CSM News Desk. Paste the published site link here once it's live and the
    card turns into a live link automatically, same as RaktSetu above. */
+/* The printed DnyanSetu user-guide brochure (public/DnyanSetu-Brochure.pdf). */
+const BROCHURE_URL = "/DnyanSetu-Brochure.pdf";
 const CSM_NEWS_DESK_URL = "https://csmnewsdesk.com/";
 
 /* ---------------------------- Notice Board -----------------------------------
@@ -784,16 +786,17 @@ function Landing({ goAuth, onOpenAbout, onOpenPage, onOpenTalent, user, onOpenDa
     { key: "talent", icon: Sparkles, label: tr("Talent Corner", "कला मंच"), run: () => onOpenTalent() },
     { key: "raktsetu", icon: Droplet, label: tr("RaktSetu", "रक्तसेतू"), href: "/raktsetu" },
     { key: "csmnews", icon: Newspaper, label: tr("CSM News Desk", "सीएसएम न्यूज डेस्क"), href: CSM_NEWS_DESK_URL, external: true },
+    { key: "brochure", icon: FileDown, label: tr("Download brochure", "माहितीपत्रक डाउनलोड करा"), href: BROCHURE_URL, download: "DnyanSetu-Brochure.pdf" },
     { key: "terms", icon: ScrollText, label: tr("Terms & Conditions", "अटी व शर्ती"), run: () => onOpenPage("terms") },
     { key: "privacy", icon: Shield, label: tr("Privacy Policy", "गोपनीयता धोरण"), run: () => onOpenPage("privacy") },
     { key: "contact", icon: Phone, label: tr("Contact", "संपर्क"), run: () => document.getElementById("contact")?.scrollIntoView({ behavior: "smooth", block: "center" }) },
   ];
   const siteLinkList = (className) => (
     <ul className={className}>
-      {siteLinks.map(({ key, icon: Icon, label, run, href, external }) => (
+      {siteLinks.map(({ key, icon: Icon, label, run, href, external, download }) => (
         <li key={key}>
           {href ? (
-            <a href={href} className="site-link" onClick={closeMenus} {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}><Icon size={17} /> <span>{label}</span></a>
+            <a href={href} className="site-link" onClick={closeMenus} {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})} {...(download ? { download } : {})}><Icon size={17} /> <span>{label}</span></a>
           ) : (
             <button type="button" className="site-link" onClick={() => { closeMenus(); run(); }}><Icon size={17} /> <span>{label}</span></button>
           )}
@@ -1329,6 +1332,7 @@ function Landing({ goAuth, onOpenAbout, onOpenPage, onOpenTalent, user, onOpenDa
               <button type="button" className="footer-link" onClick={onOpenAbout}>{tr("About DnyanSetu", "डायनसेतू विषयी")}</button>
               <a href="/privacy" className="footer-link" onClick={(e) => { e.preventDefault(); onOpenPage("privacy"); }}>{tr("Privacy Policy", "गोपनीयता धोरण")}</a>
               <a href="/terms" className="footer-link" onClick={(e) => { e.preventDefault(); onOpenPage("terms"); }}>{tr("Terms of Service", "सेवा अटी")}</a>
+              <a href={BROCHURE_URL} className="footer-link" download="DnyanSetu-Brochure.pdf">{tr("Download brochure (PDF)", "माहितीपत्रक डाउनलोड करा (PDF)")}</a>
             </nav>
 
             <nav className="footer-col" aria-label="Quick links">
