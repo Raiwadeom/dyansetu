@@ -11,12 +11,14 @@
 import { useEffect, useState } from "react";
 import { Users } from "lucide-react";
 import { isBackendConfigured, supabase } from "./supabase.js";
+import { allowsVisitCount } from "./cookieConsent.jsx";
 
 const pending = {};
 
 /** Adds this page load to the site's total (once) and resolves to the new total. */
 export function registerVisit(site) {
-  if (!isBackendConfigured) return Promise.resolve(null);
+  /* "Reject" on the cookie notice: this device is never counted. */
+  if (!isBackendConfigured || !allowsVisitCount()) return Promise.resolve(null);
   if (!pending[site]) {
     pending[site] = supabase
       .rpc("register_visit", { p_site: site })

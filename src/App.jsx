@@ -37,6 +37,7 @@ import { SCHOLARSHIP_CATEGORIES } from "./data/resources";
 import { builtInSchemes, fetchSchemes, schemeStatus, fetchLiveAnnouncements } from "./lib/siteContent";
 import ContentAdminPage, { FacultyAnnouncementsCard } from "./admin/ContentAdminPage.jsx";
 import NotificationPrompt from "./lib/NotificationPrompt.jsx";
+import CookieConsent, { readConsent } from "./lib/cookieConsent.jsx";
 import { GMAIL_ONLY_MESSAGE, isGmail } from "./lib/gmailOnly.js";
 import { AvatarCycle, CampusCover, ProfileCover } from "./lib/ProfileArt.jsx";
 import PageHero from "./lib/PageHero.jsx";
@@ -4595,6 +4596,7 @@ export default function App() {
   });
   /* Asked once per visit: a refresh or moving between pages does not ask
      again, but closing the tab and opening the site afresh does. */
+  const [cookieAnswered, setCookieAnswered] = useState(() => Boolean(readConsent()));
   const [askLang, setAskLang] = useState(() => {
     try { return sessionStorage.getItem(LANG_ASKED_KEY) !== "1"; } catch { return true; }
   });
@@ -5251,7 +5253,11 @@ export default function App() {
 
       {askLang && <LanguagePicker onChoose={setLang} current={savedLang} />}
       {/* Asked once per device, after signing in or when opened as the installed app. */}
-      {!askLang && (currentUser || isStandalone()) && <NotificationPrompt tr={makeTr(lang)} signedIn={Boolean(currentUser)} />}
+      {/* Cookie / storage notice: once per device, after the language is chosen. */}
+      {!askLang && !cookieAnswered && (
+        <CookieConsent tr={makeTr(lang)} onAnswer={() => setCookieAnswered(true)} onOpenPrivacy={() => openPage("privacy")} />
+      )}
+      {!askLang && cookieAnswered && (currentUser || isStandalone()) && <NotificationPrompt tr={makeTr(lang)} signedIn={Boolean(currentUser)} />}
       {/* The install strip belongs to the landing page only; the header's
           download icon covers every other page. */}
       {!askLang && view === "landing" && <InstallAppButton variant="banner" />}

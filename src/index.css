@@ -184,6 +184,38 @@ body .landing-brand-tag, body .footer-brand-slogan, body .rs-lockup-text span {
 .np-close { position: absolute; top: 10px; right: 10px; display: grid; place-items: center; width: 28px; height: 28px; border: 0; border-radius: 50%; background: transparent; color: #64748B; }
 .np-close:hover { background: #F1F5F9; }
 @keyframes np-in { from { opacity: 0; transform: translateY(14px); } }
+
+/* Cookie / storage notice (src/lib/cookieConsent.jsx): flat bottom bar in the
+   site's navy + saffron, rectangular buttons. */
+.cc-bar {
+  position: fixed; z-index: 9100; left: 50%; bottom: 16px; transform: translateX(-50%);
+  width: min(960px, calc(100% - 24px));
+  display: flex; align-items: center; gap: 14px;
+  padding: 14px 16px; border-radius: 6px;
+  background: #fff; border: 1px solid #CBD5E1; border-left: 4px solid #E65100;
+  box-shadow: 0 10px 30px rgba(11, 30, 46, 0.18);
+  animation: cc-in 0.35s ease-out both;
+  text-align: left;
+}
+.cc-icon { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: #FFF1E6; color: #E65100; }
+.cc-body { flex: 1; min-width: 0; }
+.cc-body strong { display: block; font-size: 15px; color: #0B1E3F; margin: 0 0 2px; }
+.cc-body p { margin: 0; font-size: 13.5px; line-height: 1.5; color: #475569; }
+.cc-body a { color: #0B3D91; font-weight: 600; text-decoration: underline; }
+.cc-actions { flex: none; display: flex; gap: 8px; }
+.cc-btn { padding: 9px 20px; border-radius: 4px; font-size: 14px; font-weight: 700; border: 1px solid transparent; cursor: pointer; }
+.cc-btn--ghost { background: #fff; border-color: #94A3B8; color: #0B1E3F; }
+.cc-btn--ghost:hover { background: #F1F5F9; }
+.cc-btn--primary { background: #0B1E2E; color: #fff; }
+.cc-btn--primary:hover { background: #1B3550; }
+.cc-btn:focus-visible { outline: 3px solid #E65100; outline-offset: 2px; }
+@keyframes cc-in { from { opacity: 0; transform: translate(-50%, 14px); } }
+@media (max-width: 640px) {
+  .cc-bar { flex-wrap: wrap; bottom: calc(10px + env(safe-area-inset-bottom)); gap: 10px 12px; padding: 12px; }
+  .cc-icon { display: none; }
+  .cc-actions { width: 100%; }
+  .cc-btn { flex: 1; padding: 10px 12px; }
+}
 @media (max-width: 560px) {
   .np-card { right: 12px; left: 12px; width: auto; bottom: calc(12px + env(safe-area-inset-bottom)); }
 }

@@ -33,6 +33,7 @@ import {
 } from "./ui.jsx";
 import "./raktsetu.css";
 import { VisitorCounter } from "../lib/visitCounter.jsx";
+import CookieConsent from "../lib/cookieConsent.jsx";
 
 /* ------------------------------------------------------------------ router */
 
@@ -553,6 +554,8 @@ export default function RaktSetuApp() {
         <ErrorBoundary resetKey={path} inline>{body}</ErrorBoundary>
       </main>
       <Footer tr={tr} />
+      {/* Same once-per-device cookie notice as the main site (shared answer). */}
+      <CookieConsent tr={tr} />
     </div>
   );
 }
