@@ -1085,7 +1085,11 @@ function Landing({ goAuth, onOpenAbout, onOpenPage, onOpenTalent, user, onOpenDa
             </button>
           </div>
           <a href={BROCHURE_URL} download="DnyanSetu-Brochure.pdf" className="hero-full-brochure">
-            <FileDown size={16} /> {tr("Download brochure (PDF)", "माहितीपत्रक डाउनलोड करा (PDF)")}
+            <span className="hero-full-brochure-icon" aria-hidden="true"><FileDown size={18} /></span>
+            <span className="hero-full-brochure-text">
+              <strong>{tr("Download brochure", "माहितीपत्रक डाउनलोड करा")}</strong>
+              <small>{tr("PDF · 10 pages · 3 MB", "PDF · १० पाने · ३ MB")}</small>
+            </span>
           </a>
         </div>
 
@@ -6408,11 +6412,20 @@ function Styles() {
       .hero-full .hero-full-tagline { margin: 4px 0 0; max-width: 620px; font-size: 17px; line-height: 1.6; color: rgba(255,255,255,0.88); }
       .hero-full-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 12px; }
       .hero-full-brochure {
-        display: inline-flex; align-items: center; gap: 8px; margin-top: 16px;
-        color: #fff; font-size: 15px; font-weight: 600; text-decoration: underline; text-underline-offset: 4px;
-        text-decoration-color: rgba(255,255,255,.55);
+        display: inline-flex; align-items: center; gap: 12px; margin-top: 18px;
+        padding: 8px 18px 8px 8px; border-radius: 6px;
+        background: rgba(11, 30, 46, .55); border: 1px solid rgba(255,255,255,.28);
+        color: #fff; text-decoration: none; backdrop-filter: blur(6px);
+        transition: background .2s, border-color .2s;
       }
-      .hero-full-brochure:hover { text-decoration-color: var(--abc-saffron); color: #FFE0C7; }
+      .hero-full-brochure:hover { background: rgba(11, 30, 46, .8); border-color: var(--abc-saffron); }
+      .hero-full-brochure-icon {
+        display: grid; place-items: center; width: 38px; height: 38px; border-radius: 4px;
+        background: var(--abc-saffron); color: #fff; flex: none;
+      }
+      .hero-full-brochure-text { display: flex; flex-direction: column; line-height: 1.2; text-align: left; }
+      .hero-full-brochure-text strong { font-size: 15px; font-weight: 700; }
+      .hero-full-brochure-text small { font-size: 12px; color: rgba(255,255,255,.75); margin-top: 2px; }
       .hero-full-secondary { background: #FFFFFF; color: var(--abc-navy); border: 1px solid #FFFFFF; }
       .hero-full-secondary:hover { background: #F1F5F9; color: var(--abc-navy); }
 
