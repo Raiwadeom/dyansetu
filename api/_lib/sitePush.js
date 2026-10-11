@@ -23,14 +23,12 @@ function configure() {
   return true;
 }
 
-async function liveDevices(filter) {
+async function liveDevices() {
   const admin = supabaseAdmin();
   const out = [];
   for (let from = 0; ; from += PAGE) {
-    let query = admin.from("push_devices").select("id, endpoint, p256dh, auth, user_id")
+    const { data, error } = await admin.from("push_devices").select("id, endpoint, p256dh, auth, user_id")
       .is("dead_at", null).order("id").range(from, from + PAGE - 1);
-    if (filter) query = filter(query);
-    const { data, error } = await query;
     if (error) throw new Error(`Could not load devices: ${error.message}`);
     out.push(...(data || []));
     if (!data || data.length < PAGE) break;
@@ -78,10 +76,4 @@ export async function broadcast(payload, { skipUsers = [], kind = "other", refId
   const skip = new Set(skipUsers);
   const devices = (await liveDevices()).filter((d) => !d.user_id || !skip.has(d.user_id));
   return deliver(devices, payload, { kind, refId });
-}
-
-/* Only the devices signed in to this account (admin "send test"). */
-export async function sendToUser(userId, payload) {
-  const devices = await liveDevices((q) => q.eq("user_id", userId));
-  return deliver(devices, payload, { kind: "test", refId: userId });
 }

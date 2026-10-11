@@ -8,7 +8,6 @@
                                         renewed subscription
    POST   { notify: kind, id }          something new was published; signed in.
           kind = "announcement" | "note" | "scholarship" | "talent"
-   POST   { test: true }                admin: test notification to own devices
 
    For notify the browser only names *what* was published. The row is re-read
    here, the caller must be its author (or an administrator), and a one-time
@@ -19,7 +18,7 @@
 import {
   authenticate, bearerToken, missingEnv, readBody, supabaseAdmin,
 } from "./_lib/supabaseAdmin.js";
-import { broadcast, sendToUser } from "./_lib/sitePush.js";
+import { broadcast } from "./_lib/sitePush.js";
 
 function isPushEndpoint(value) {
   try {
@@ -205,26 +204,6 @@ export default async function handler(req, res) {
       }
       await admin.from("push_devices").delete().eq("endpoint", body.endpoint);
       res.status(200).json({ ok: true });
-      return;
-    }
-
-    /* Admin: send a test notification to this account's own devices. */
-    if (body.test) {
-      const caller = await authenticate(bearerToken(req));
-      if (!caller || !["admin", "scholarship"].includes(caller.profile.role)) {
-        res.status(403).json({ error: "Only the administrator can send a test notification." });
-        return;
-      }
-      const time = new Date().toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata", hour: "numeric", minute: "2-digit" });
-      const result = await sendToUser(caller.user.id, {
-        title: "DnyanSetu · Test notification",
-        body: `Sent at ${time}. If you can read this, notifications work on this device.`,
-        url: "/",
-        tag: `test-${Date.now()}`,
-        image: "/push/announcement.jpg",
-        action: "Open DnyanSetu",
-      });
-      res.status(200).json({ ok: true, ...result });
       return;
     }
 

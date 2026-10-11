@@ -11,7 +11,7 @@
 
 import React, { useCallback, useEffect, useState } from "react";
 import {
-  ArrowDown, ArrowUp, BellRing, CalendarDays, CheckCircle2, Coins, Eye, EyeOff, FileText, Loader2, Megaphone,
+  ArrowDown, ArrowUp, CalendarDays, CheckCircle2, Coins, Eye, EyeOff, FileText, Loader2, Megaphone,
   Pencil, Plus, Save, Trash2, X,
 } from "lucide-react";
 import { MAX_UPLOAD_BYTES, uploadFile, warmUpload } from "../lib/cloudinary";
@@ -21,7 +21,7 @@ import {
   formatNoticeDate, importBuiltInSchemes, saveSchemeRow, syncSchemeAnnouncement, todayIso, toScheme, schemeStatus,
   updateAnnouncement,
 } from "../lib/siteContent";
-import { notifySite, sendTestNotification, syncSitePush } from "../lib/sitePush";
+import { notifySite } from "../lib/sitePush";
 
 const slug = (text) => (text || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60) || "scheme";
 
@@ -611,42 +611,6 @@ function ScholarshipsCard({ onAnnouncementsChanged }) {
   );
 }
 
-/* Sends a test notification to every phone / browser signed in to this
-   admin account, so delivery can be checked without posting anything. */
-function NotificationTestCard() {
-  const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState(null);
-  const send = async () => {
-    setBusy(true);
-    setMsg(null);
-    try {
-      await syncSitePush().catch(() => {});
-      const r = await sendTestNotification();
-      if (!r.targets) {
-        setMsg({ ok: false, text: "No device is signed in to this account with notifications allowed. Open DnyanSetu on your phone, sign in with this account and tap Allow, then try again." });
-      } else {
-        setMsg({ ok: r.sent > 0, text: `Sent to ${r.sent} of ${r.targets} device(s)${r.removed ? ` (${r.removed} old device(s) removed)` : ""}. Check your phone now.` });
-      }
-    } catch (e) {
-      setMsg({ ok: false, text: e.message || "Could not send the test." });
-    } finally {
-      setBusy(false);
-    }
-  };
-  return (
-    <div className="card ca-card">
-      <div className="admin-section-head">
-        <h3><BellRing size={18} /> Phone notifications</h3>
-        <button type="button" className="btn btn-primary btn-sm" onClick={send} disabled={busy}>
-          {busy ? <Loader2 size={14} className="spin" /> : <BellRing size={14} />} Send test notification
-        </button>
-      </div>
-      <p className="ca-help">Sends a test notification only to the phones and browsers signed in to <b>your</b> account. Use it to check that notifications arrive, even with the app closed.</p>
-      {msg && <p className={msg.ok ? "ca-saved" : "upload-error"} role="status">{msg.ok && <CheckCircle2 size={15} />} {msg.text}</p>}
-    </div>
-  );
-}
-
 export default function ContentAdminPage() {
   /* Saving scholarship dates changes the announcements list too. */
   const [annKey, setAnnKey] = useState(0);
@@ -657,7 +621,6 @@ export default function ContentAdminPage() {
         <h2>Scholarships &amp; Notices</h2>
         <p>Everything here is live: what you save shows on the website for every student straight away. No code needed.</p>
       </div>
-      <div style={{ gridColumn: "1 / -1" }}><NotificationTestCard /></div>
       <div style={{ gridColumn: "1 / -1" }}><AnnouncementsCard key={annKey} /></div>
       <div style={{ gridColumn: "1 / -1" }}><ScholarshipsCard onAnnouncementsChanged={() => setAnnKey((k) => k + 1)} /></div>
     </div>

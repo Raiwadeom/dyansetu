@@ -149,12 +149,6 @@ export async function disableSitePush() {
   }
 }
 
-/* Admin: sends a test notification to every device signed in to this
-   account. Resolves to { targets, sent, failed, removed }. */
-export function sendTestNotification() {
-  return call("POST", { test: true }, { auth: true });
-}
-
 /* Tells the server something was just published so it can notify every
    device. Fire-and-forget: the person never waits on it. */
 export function notifySite(kind, id) {
