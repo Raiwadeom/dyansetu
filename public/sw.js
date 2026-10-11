@@ -12,6 +12,19 @@ const VAPID_PUBLIC_KEY = "BH0AzvO_mnYfJ4-kukMUCyUkgpcyrtN1V_1WMIV3GTsyehlLrS3r-Y
 self.addEventListener("install", () => self.skipWaiting());
 self.addEventListener("activate", (event) => event.waitUntil(self.clients.claim()));
 
+/* Pictures only from this site or the college's Cloudinary uploads; tapped
+   notifications only open pages on this site. */
+const IMAGE_HOSTS = [self.location.host, "res.cloudinary.com"];
+function safeUrl(value, hosts) {
+  try {
+    const url = new URL(value, self.location.origin);
+    const secure = url.protocol === "https:" || url.origin === self.location.origin;
+    return secure && hosts.includes(url.host) ? url.href : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 self.addEventListener("push", (event) => {
   let data = {};
   try {
@@ -21,7 +34,7 @@ self.addEventListener("push", (event) => {
   }
   /* A branded banner (or the post's own photo) shows when the notification
      is expanded on Android / desktop Chrome; iPhone shows icon + text only. */
-  const image = typeof data.image === "string" && data.image ? new URL(data.image, self.location.origin).href : undefined;
+  const image = typeof data.image === "string" && data.image ? safeUrl(data.image, IMAGE_HOSTS) : undefined;
   const title = data.title || "DnyanSetu";
   const options = {
     body: data.body || "Something new on DnyanSetu.",
@@ -45,7 +58,7 @@ self.addEventListener("push", (event) => {
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const target = new URL(event.notification.data?.url || "/", self.location.origin).href;
+  const target = safeUrl(event.notification.data?.url || "/", [self.location.host]) || new URL("/", self.location.origin).href;
 
   event.waitUntil((async () => {
     const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
