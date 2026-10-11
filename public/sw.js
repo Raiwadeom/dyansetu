@@ -18,28 +18,16 @@ self.addEventListener("push", (event) => {
   } catch {
     data = { title: "DnyanSetu", body: event.data ? event.data.text() : "" };
   }
-  /* A branded banner (or the post's own photo) shows when the notification
-     is expanded on Android / desktop Chrome; iPhone shows icon + text only. */
-  const image = typeof data.image === "string" && data.image ? new URL(data.image, self.location.origin).href : undefined;
-  const title = data.title || "DnyanSetu";
-  const options = {
+  event.waitUntil(self.registration.showNotification(data.title || "DnyanSetu", {
     body: data.body || "Something new on DnyanSetu.",
     icon: "/icon-192.png",
     badge: "/badge-96.png",
-    actions: [{ action: "open", title: data.action || "Open" }],
-    requireInteraction: false,
-    silent: false,
     tag: data.tag || "dnyansetu",
     renotify: true,
     vibrate: [200, 100, 200],
     timestamp: Date.now(),
     data: { url: data.url || "/" },
-  };
-  /* If the banner picture cannot be loaded, still show the notification. */
-  event.waitUntil(
-    self.registration.showNotification(title, image ? { ...options, image } : options)
-      .catch(() => self.registration.showNotification(title, options)),
-  );
+  }));
 });
 
 self.addEventListener("notificationclick", (event) => {

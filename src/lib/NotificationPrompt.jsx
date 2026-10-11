@@ -11,30 +11,22 @@
        subscription is linked to the account. */
 
 import React, { useEffect, useState } from "react";
-import { BatteryCharging, BellRing, Loader2, X } from "lucide-react";
+import { BellRing, Loader2, X } from "lucide-react";
 import { enableSitePush, isSitePushConfigured, siteSubscription, sitePushSupport } from "./sitePush.js";
 
 const ASKED_KEY = "ds-push-asked";
-const TIP_KEY = "ds-battery-tip";
-const isAndroid = () => /Android/i.test(navigator.userAgent);
 
-function readKey(key) {
-  try { return localStorage.getItem(key) || ""; } catch { return ""; }
+function readAsked() {
+  try { return localStorage.getItem(ASKED_KEY) || ""; } catch { return ""; }
 }
-const readAsked = () => readKey(ASKED_KEY);
-function saveKey(key, value) {
-  try { localStorage.setItem(key, value); } catch { /* private mode: may ask again next visit */ }
+function saveAsked(value) {
+  try { localStorage.setItem(ASKED_KEY, value); } catch { /* private mode: may ask again next visit */ }
 }
-const saveAsked = (value) => saveKey(ASKED_KEY, value);
 
 export default function NotificationPrompt({ tr = (en) => en, signedIn = false }) {
   const [show, setShow] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  /* Android only: after Allow, one more card about Chrome's battery setting.
-     Many phones (Vivo, Oppo, Realme, Xiaomi, Samsung) put Chrome to sleep
-     when it is closed, so notifications wait until the app is opened. */
-  const [batteryTip, setBatteryTip] = useState(false);
 
   useEffect(() => {
     if (!isSitePushConfigured) return undefined;
@@ -46,8 +38,6 @@ export default function NotificationPrompt({ tr = (en) => en, signedIn = false }
       if (Notification.permission === "granted") {
         /* Said yes before (or allowed in browser settings): keep it on. */
         enableSitePush().catch(() => {});
-        /* People who allowed before the battery tip existed see it once. */
-        if (isAndroid() && readKey(TIP_KEY) !== "seen") { setBatteryTip(true); setShow(true); }
         return;
       }
       const sub = await siteSubscription().catch(() => null);
@@ -67,8 +57,7 @@ export default function NotificationPrompt({ tr = (en) => en, signedIn = false }
     try {
       await enableSitePush();
       saveAsked("yes");
-      if (isAndroid()) setBatteryTip(true);
-      else setShow(false);
+      setShow(false);
     } catch (e) {
       /* Blocked in the browser's own prompt counts as an answer too. */
       if (Notification.permission === "denied") { saveAsked("no-user"); setShow(false); return; }
@@ -78,26 +67,6 @@ export default function NotificationPrompt({ tr = (en) => en, signedIn = false }
     }
   };
   const later = () => { saveAsked(signedIn ? "no-user" : "no-guest"); setShow(false); };
-
-  if (batteryTip) {
-    const done = () => { saveKey(TIP_KEY, "seen"); setShow(false); };
-    return (
-      <div className="np-card" role="dialog" aria-labelledby="np-title" aria-describedby="np-text">
-        <button type="button" className="np-close" onClick={done} aria-label={tr("Close", "बंद करा")}><X size={16} /></button>
-        <span className="np-icon" aria-hidden="true"><BatteryCharging size={20} /></span>
-        <div className="np-body">
-          <strong id="np-title">{tr("One more step", "अजून एक पायरी")}</strong>
-          <p id="np-text">{tr(
-            "To get notifications even when the app is closed: phone Settings → Apps → Chrome → Battery → choose \"Unrestricted\" / \"Don't optimise\" and turn on \"Allow background activity\".",
-            "ॲप बंद असतानाही सूचना मिळण्यासाठी: फोनच्या Settings → Apps → Chrome → Battery मध्ये \"Unrestricted\" / \"Don't optimise\" निवडा आणि \"Allow background activity\" सुरू करा.",
-          )}</p>
-          <div className="np-actions">
-            <button type="button" className="np-btn np-btn--primary" onClick={done}>{tr("Got it", "समजले")}</button>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="np-card" role="dialog" aria-labelledby="np-title" aria-describedby="np-text">
