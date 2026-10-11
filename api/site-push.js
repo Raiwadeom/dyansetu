@@ -1,5 +1,6 @@
 /* ============================================================================
-   /api/site-push — DnyanSetu phone / browser notifications
+   /api/site-push — DnyanSetu phone / browser notifications (rebuilt 2026-10-11;
+   devices in push_devices, every send logged in push_log — migration 0026)
 
    POST   { subscription }              save this browser (sign-in optional)
    DELETE { endpoint }                  forget it (notifications turned off)
@@ -7,6 +8,7 @@
                                         renewed subscription
    POST   { notify: kind, id }          something new was published; signed in.
           kind = "announcement" | "note" | "scholarship" | "talent"
+   POST   { test: true }                admin: test notification to own devices
 
    For notify the browser only names *what* was published. The row is re-read
    here, the caller must be its author (or an administrator), and a one-time
@@ -17,7 +19,7 @@
 import {
   authenticate, bearerToken, missingEnv, readBody, supabaseAdmin,
 } from "./_lib/supabaseAdmin.js";
-import { broadcast } from "./_lib/sitePush.js";
+import { broadcast, sendToUser } from "./_lib/sitePush.js";
 
 function isPushEndpoint(value) {
   try {
@@ -157,6 +159,18 @@ async function notify(caller, kind, id) {
   return null;
 }
 
+function deviceRow(sub, userId, userAgent) {
+  return {
+    endpoint: sub.endpoint,
+    p256dh: sub.keys.p256dh,
+    auth: sub.keys.auth,
+    user_id: userId,
+    user_agent: String(userAgent || "").slice(0, 300),
+    last_seen_at: new Date().toISOString(),
+    dead_at: null,
+  };
+}
+
 export default async function handler(req, res) {
   if (!["POST", "DELETE", "PUT"].includes(req.method)) {
     res.status(405).json({ error: "Method not allowed." });
@@ -171,15 +185,15 @@ export default async function handler(req, res) {
   const admin = supabaseAdmin();
 
   try {
+    /* The service worker swapping in a renewed subscription. */
     if (req.method === "PUT") {
       if (!isPushEndpoint(body.oldEndpoint) || !validSub(body.subscription)) {
         res.status(400).json({ error: "That is not a valid push subscription." });
         return;
       }
-      const sub = body.subscription;
-      await admin.from("site_push_subscriptions")
-        .update({ endpoint: sub.endpoint, keys: { p256dh: sub.keys.p256dh, auth: sub.keys.auth } })
-        .eq("endpoint", body.oldEndpoint);
+      const { data: old } = await admin.from("push_devices").select("user_id").eq("endpoint", body.oldEndpoint).maybeSingle();
+      await admin.from("push_devices").delete().eq("endpoint", body.oldEndpoint);
+      await admin.from("push_devices").upsert(deviceRow(body.subscription, old?.user_id || null, req.headers["user-agent"]), { onConflict: "endpoint" });
       res.status(200).json({ ok: true });
       return;
     }
@@ -189,8 +203,28 @@ export default async function handler(req, res) {
         res.status(400).json({ error: "Missing endpoint." });
         return;
       }
-      await admin.from("site_push_subscriptions").delete().eq("endpoint", body.endpoint);
+      await admin.from("push_devices").delete().eq("endpoint", body.endpoint);
       res.status(200).json({ ok: true });
+      return;
+    }
+
+    /* Admin: send a test notification to this account's own devices. */
+    if (body.test) {
+      const caller = await authenticate(bearerToken(req));
+      if (!caller || !["admin", "scholarship"].includes(caller.profile.role)) {
+        res.status(403).json({ error: "Only the administrator can send a test notification." });
+        return;
+      }
+      const time = new Date().toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata", hour: "numeric", minute: "2-digit" });
+      const result = await sendToUser(caller.user.id, {
+        title: "DnyanSetu · Test notification",
+        body: `Sent at ${time}. If you can read this, notifications work on this device.`,
+        url: "/",
+        tag: `test-${Date.now()}`,
+        image: "/push/announcement.jpg",
+        action: "Open DnyanSetu",
+      });
+      res.status(200).json({ ok: true, ...result });
       return;
     }
 
@@ -208,32 +242,37 @@ export default async function handler(req, res) {
       const payload = await notify(caller, body.notify, id);
       if (!payload) { res.status(200).json({ ok: true, sent: 0 }); return; }
       const { skipUsers, ...message } = payload;
-      const result = await broadcast(message, { skipUsers });
+      const result = await broadcast(message, { skipUsers, kind: body.notify, refId: id });
       res.status(200).json({ ok: true, sent: result.sent || 0 });
       return;
     }
 
+    /* Register (or refresh) this browser. Sign-in is optional. */
     if (!validSub(body.subscription)) {
       res.status(400).json({ error: "That is not a valid push subscription." });
       return;
     }
+    const sub = body.subscription;
+    const { data: known } = await admin.from("push_devices").select("dead_at").eq("endpoint", sub.endpoint).maybeSingle();
+    if (known?.dead_at) {
+      /* Google already said this subscription is gone: the browser must make
+         a new one instead of reviving it. */
+      await admin.from("push_devices").delete().eq("endpoint", sub.endpoint);
+      res.status(200).json({ ok: false, stale: true });
+      return;
+    }
     const token = bearerToken(req);
     const caller = token ? await authenticate(token) : null;
-    const sub = body.subscription;
-    const { error } = await admin.from("site_push_subscriptions").upsert({
-      endpoint: sub.endpoint,
-      keys: { p256dh: sub.keys.p256dh, auth: sub.keys.auth },
-      user_id: caller?.user.id || null,
-      user_agent: String(req.headers["user-agent"] || "").slice(0, 300),
-    }, { onConflict: "endpoint" });
+    const { error } = await admin.from("push_devices")
+      .upsert(deviceRow(sub, caller?.user.id || null, req.headers["user-agent"]), { onConflict: "endpoint" });
     if (error) {
-      console.error("[site-push] save failed:", error.message);
+      console.error("[push] save failed:", error.message);
       res.status(500).json({ error: "Could not turn on notifications for this browser." });
       return;
     }
     res.status(200).json({ ok: true });
   } catch (error) {
-    console.error("[site-push] failed:", error.message);
+    console.error("[push] failed:", error.message);
     res.status(500).json({ error: "Something went wrong. Please try again." });
   }
 }

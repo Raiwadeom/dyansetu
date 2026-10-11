@@ -12,7 +12,7 @@
 
 import React, { useEffect, useState } from "react";
 import { BellRing, Loader2, X } from "lucide-react";
-import { enableSitePush, isSitePushConfigured, siteSubscription, sitePushSupport } from "./sitePush.js";
+import { enableSitePush, isSitePushConfigured, siteSubscription, sitePushSupport, syncSitePush } from "./sitePush.js";
 
 const ASKED_KEY = "ds-push-asked";
 
@@ -36,8 +36,9 @@ export default function NotificationPrompt({ tr = (en) => en, signedIn = false }
     const timer = setTimeout(async () => {
       if (!alive) return;
       if (Notification.permission === "granted") {
-        /* Said yes before (or allowed in browser settings): keep it on. */
-        enableSitePush().catch((error) => console.error("[dnyansetu] notifications could not start", error));
+        /* Said yes before (or allowed in browser settings): make sure this
+           device is subscribed and saved, repairing a dead subscription. */
+        syncSitePush().catch((error) => console.error("[dnyansetu] notifications could not start", error));
         return;
       }
       const sub = await siteSubscription().catch(() => null);

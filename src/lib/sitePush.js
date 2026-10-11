@@ -1,9 +1,14 @@
 /* ============================================================================
-   DnyanSetu — college notifications on this phone / browser
+   DnyanSetu — college notifications on this phone / browser (rebuilt 2026-10-11)
 
-   New announcements (faculty or office), scholarship updates and new notes.
+   New announcements, notes, scholarship updates and Talent Corner posts.
    Uses public/sw.js (scope "/"); RaktSetu's blood alerts are separate
    (src/raktsetu/push.js). Permission is only asked from a button press.
+
+   syncSitePush() runs on every app open once permission is granted: it makes
+   sure this browser has a subscription and that the server knows it. If the
+   server says the saved subscription is dead (app reinstalled, data cleared),
+   it throws it away and makes a fresh one, so a device repairs itself.
    ========================================================================== */
 
 import { getAccessToken, isBackendConfigured } from "./supabase.js";
@@ -34,8 +39,8 @@ function urlBase64ToUint8Array(base64) {
   return Uint8Array.from([...raw].map((c) => c.charCodeAt(0)));
 }
 
-/* The registration whose scope is exactly "/" (getRegistration("/") could
-   also return nothing while RaktSetu's /raktsetu/ worker exists). */
+/* The registration whose scope is exactly "/" (RaktSetu has its own at
+   /raktsetu/, which getRegistration could return instead). */
 async function findRegistration() {
   const regs = await navigator.serviceWorker.getRegistrations();
   return regs.find((r) => new URL(r.scope).pathname === SW_SCOPE) || null;
@@ -59,8 +64,8 @@ async function activeRegistration() {
   return reg;
 }
 
-/* Registers the worker quietly on page load (no prompt), so a later tap is
-   instant and tapped notifications always have a handler. */
+/* Registers the worker quietly on page load (no prompt), so tapped
+   notifications always have a handler and a new sw.js is picked up. */
 export async function ensureSiteWorker() {
   if (!sitePushSupport().supported || !isSitePushConfigured) return;
   try {
@@ -98,7 +103,27 @@ async function call(method, body, { auth = false, keepalive = false } = {}) {
   }
 }
 
-/* Call only from a click handler. */
+const newSubscription = (reg) => reg.pushManager.subscribe({
+  userVisibleOnly: true,
+  applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+});
+
+/* Makes sure this browser is subscribed and saved on the server (linked to
+   the signed-in account, if any). Needs permission already granted. */
+export async function syncSitePush() {
+  if (!isSitePushConfigured || Notification.permission !== "granted") return null;
+  const reg = await activeRegistration();
+  let sub = (await reg.pushManager.getSubscription()) || await newSubscription(reg);
+  const saved = await call("POST", { subscription: sub.toJSON() }, { auth: true });
+  if (saved.stale) {
+    await sub.unsubscribe().catch(() => {});
+    sub = await newSubscription(reg);
+    await call("POST", { subscription: sub.toJSON() }, { auth: true });
+  }
+  return sub;
+}
+
+/* Call only from a click handler: asks for permission, then syncs. */
 export async function enableSitePush() {
   const support = sitePushSupport();
   if (!support.supported) throw new Error("This browser does not support notifications. Try Chrome.");
@@ -111,13 +136,7 @@ export async function enableSitePush() {
   if (permission !== "granted") {
     throw new Error("Notifications are blocked. Allow them for this site in your browser settings, then try again.");
   }
-  const reg = await activeRegistration();
-  let sub = await reg.pushManager.getSubscription();
-  if (!sub) {
-    sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY) });
-  }
-  await call("POST", { subscription: sub.toJSON() }, { auth: true });
-  return sub;
+  return syncSitePush();
 }
 
 export async function disableSitePush() {
@@ -130,8 +149,14 @@ export async function disableSitePush() {
   }
 }
 
+/* Admin: sends a test notification to every device signed in to this
+   account. Resolves to { targets, sent, failed, removed }. */
+export function sendTestNotification() {
+  return call("POST", { test: true }, { auth: true });
+}
+
 /* Tells the server something was just published so it can notify every
-   subscriber. Fire-and-forget: the person never waits on it. */
+   device. Fire-and-forget: the person never waits on it. */
 export function notifySite(kind, id) {
   if (!isSitePushConfigured || !id) return;
   call("POST", { notify: kind, id: String(id) }, { auth: true, keepalive: true })

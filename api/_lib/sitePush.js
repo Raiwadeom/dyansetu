@@ -1,70 +1,87 @@
 /* ============================================================================
-   DnyanSetu — site-wide web push (announcements, scholarships, new notes)
+   DnyanSetu notifications — sending (rebuilt 2026-10-11)
 
-   Same free VAPID keys as RaktSetu, but its own subscriptions table and its
-   own service worker (public/sw.js, scope "/"), so turning one on or off
-   never touches the other.
+   Devices live in public.push_devices (migration 0026). Every send is
+   written to public.push_log so delivery can be checked in Supabase.
+   Same free VAPID keys as RaktSetu, but RaktSetu's blood alerts keep their
+   own table and service worker.
    ========================================================================== */
 
 import webpush from "web-push";
 
 import { env, supabaseAdmin } from "./supabaseAdmin.js";
 
-const PUSH_CHUNK = 100;
+const CHUNK = 100;
 const PAGE = 1000;
+const SEND_OPTIONS = { TTL: 24 * 60 * 60, urgency: "high", timeout: 8000 };
 
-async function allTargets() {
+function configure() {
+  const publicKey = env("VAPID_PUBLIC_KEY");
+  const privateKey = env("VAPID_PRIVATE_KEY");
+  if (!publicKey || !privateKey) return false;
+  webpush.setVapidDetails(env("VAPID_SUBJECT", "mailto:smuiqac@gmail.com"), publicKey, privateKey);
+  return true;
+}
+
+async function liveDevices(filter) {
   const admin = supabaseAdmin();
   const out = [];
   for (let from = 0; ; from += PAGE) {
-    const { data, error } = await admin.from("site_push_subscriptions")
-      .select("id, endpoint, keys, user_id").order("id").range(from, from + PAGE - 1);
-    if (error) throw new Error(`Could not load subscriptions: ${error.message}`);
+    let query = admin.from("push_devices").select("id, endpoint, p256dh, auth, user_id")
+      .is("dead_at", null).order("id").range(from, from + PAGE - 1);
+    if (filter) query = filter(query);
+    const { data, error } = await query;
+    if (error) throw new Error(`Could not load devices: ${error.message}`);
     out.push(...(data || []));
     if (!data || data.length < PAGE) break;
   }
   return out;
 }
 
-/* Sends one payload to every DnyanSetu subscriber (minus skipUsers' browsers);
-   dead subscriptions are deleted, live ones stamped. */
-export async function broadcast(payload, { skipUsers = [] } = {}) {
-  const publicKey = env("VAPID_PUBLIC_KEY");
-  const privateKey = env("VAPID_PRIVATE_KEY");
-  const subject = env("VAPID_SUBJECT", "mailto:smuiqac@gmail.com");
-  if (!publicKey || !privateKey) return { sent: 0, skipped: "VAPID keys are not configured." };
-  webpush.setVapidDetails(subject, publicKey, privateKey);
+/* Sends one payload to the given devices; marks gone ones dead, stamps the
+   rest, and logs the result. */
+async function deliver(devices, payload, { kind, refId = "" }) {
+  const admin = supabaseAdmin();
+  if (!configure()) return { sent: 0, failed: 0, removed: 0, targets: devices.length, skipped: "VAPID keys are not configured." };
 
-  const skip = new Set(skipUsers);
-  const list = (await allTargets()).filter((t) => !t.user_id || !skip.has(t.user_id));
   const body = JSON.stringify(payload);
-  let sent = 0;
-  const gone = [];
   const delivered = [];
+  const gone = [];
+  let failed = 0;
 
-  for (let i = 0; i < list.length; i += PUSH_CHUNK) {
-    const chunk = list.slice(i, i + PUSH_CHUNK);
-    const results = await Promise.allSettled(chunk.map((t) => webpush.sendNotification(
-      { endpoint: t.endpoint, keys: t.keys },
-      body,
-      { TTL: 24 * 60 * 60, urgency: "high", timeout: 8000 },
+  for (let i = 0; i < devices.length; i += CHUNK) {
+    const chunk = devices.slice(i, i + CHUNK);
+    const results = await Promise.allSettled(chunk.map((d) => webpush.sendNotification(
+      { endpoint: d.endpoint, keys: { p256dh: d.p256dh, auth: d.auth } }, body, SEND_OPTIONS,
     )));
-    results.forEach((result, index) => {
-      if (result.status === "fulfilled") {
-        sent += 1;
-        delivered.push(chunk[index].id);
-        return;
-      }
-      const status = result.reason?.statusCode;
+    results.forEach((r, index) => {
+      if (r.status === "fulfilled") { delivered.push(chunk[index].id); return; }
+      const status = r.reason?.statusCode;
       if (status === 404 || status === 410) gone.push(chunk[index].id);
-      else console.error("[site-push] failed:", status, result.reason?.body || result.reason?.message);
+      else { failed += 1; console.error("[push] send failed:", status, r.reason?.body || r.reason?.message); }
     });
   }
 
-  const admin = supabaseAdmin();
-  if (gone.length) await admin.from("site_push_subscriptions").delete().in("id", gone);
-  if (delivered.length) {
-    await admin.from("site_push_subscriptions").update({ last_used_at: new Date().toISOString() }).in("id", delivered);
-  }
-  return { sent, removed: gone.length, targets: list.length };
+  const now = new Date().toISOString();
+  if (gone.length) await admin.from("push_devices").update({ dead_at: now }).in("id", gone);
+  if (delivered.length) await admin.from("push_devices").update({ last_sent_at: now }).in("id", delivered);
+  /* Forget devices that have been gone for a month. */
+  await admin.from("push_devices").delete().lt("dead_at", new Date(Date.now() - 30 * 86400000).toISOString());
+
+  const result = { targets: devices.length, sent: delivered.length, failed, removed: gone.length };
+  await admin.from("push_log").insert({ kind, ref_id: String(refId), title: String(payload.title || "").slice(0, 200), ...result });
+  return result;
+}
+
+/* Every device, minus the browsers of skipUsers. */
+export async function broadcast(payload, { skipUsers = [], kind = "other", refId = "" } = {}) {
+  const skip = new Set(skipUsers);
+  const devices = (await liveDevices()).filter((d) => !d.user_id || !skip.has(d.user_id));
+  return deliver(devices, payload, { kind, refId });
+}
+
+/* Only the devices signed in to this account (admin "send test"). */
+export async function sendToUser(userId, payload) {
+  const devices = await liveDevices((q) => q.eq("user_id", userId));
+  return deliver(devices, payload, { kind: "test", refId: userId });
 }
