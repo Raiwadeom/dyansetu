@@ -1185,6 +1185,25 @@ function Landing({ goAuth, onOpenAbout, onOpenPage, onOpenTalent, user, onOpenDa
         </div>
       </section>
 
+      {/* Promo film. preload="none" so the 3.7 MB file downloads only on play. */}
+      <section className="section section-promo" id="watch">
+        <div className="promo-board">
+          <div className="promo-frame">
+            <video
+              className="promo-video"
+              src="/media/dnyansetu-promo.mp4"
+              poster="/media/dnyansetu-promo-poster.jpg"
+              controls
+              preload="none"
+              playsInline
+              width="1280"
+              height="720"
+              aria-label={tr("DnyanSetu introduction video", "ज्ञानसेतु परिचय व्हिडिओ")}
+            />
+          </div>
+        </div>
+      </section>
+
       {/* Study · Career · Social Services hubs — also the targets of the nav search */}
       {[...LANDING_HUBS].sort((a, b) => (a.id === "social" ? -1 : b.id === "social" ? 1 : 0)).map((hub) => {
         const HubIcon = hub.icon;
@@ -6627,6 +6646,11 @@ function Styles() {
         font-size: clamp(24px, 3vw, 34px); line-height: 1.15; color: var(--abc-navy);
       }
       .notice-board-list { list-style: none; margin: 0; padding: 0; }
+      /* Promo video: just the player, plain frame. */
+      .section-promo { padding-top: 24px; padding-bottom: 24px; }
+      .promo-board { max-width: 960px; margin: 0 auto; }
+      .promo-frame { border: 1px solid var(--border-light); border-radius: 10px; overflow: hidden; background: #F4F6FA; }
+      .promo-video { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; background: #F4F6FA; }
       .notice-empty { padding: 18px 4px; color: var(--text-muted); font-size: 14px; }
       .scheme-status { display: inline-flex; align-items: center; gap: 6px; margin: 8px 0 2px; padding: 4px 10px; border-radius: 4px; font-size: 13px; font-weight: 700; }
       .scheme-status--open { background: #E7F5EF; color: #0F7B5A; }
