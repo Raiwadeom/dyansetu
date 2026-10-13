@@ -1191,7 +1191,7 @@ function Landing({ goAuth, onOpenAbout, onOpenPage, onOpenTalent, user, onOpenDa
           <div className="promo-frame">
             <video
               className="promo-video"
-              src="/media/dnyansetu-promo.mp4"
+              src="/media/dnyansetu-promo.mp4?v=2"
               poster="/media/dnyansetu-promo-poster.jpg"
               controls
               preload="none"
