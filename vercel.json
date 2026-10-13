@@ -28,6 +28,10 @@
       "destination": "/seo/raktsetu.html"
     },
     {
+      "source": "/talent",
+      "destination": "/seo/talent.html"
+    },
+    {
       "source": "/login",
       "destination": "/seo/login.html"
     },
