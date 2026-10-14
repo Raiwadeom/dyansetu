@@ -22,6 +22,9 @@ import {
   updateAnnouncement,
 } from "../lib/siteContent";
 import { notifySite } from "../lib/sitePush";
+import { useLiveRefresh } from "../lib/liveRefresh.js";
+
+const sameOr = (next) => (prev) => (JSON.stringify(prev) === JSON.stringify(next) ? prev : next);
 
 const slug = (text) => (text || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60) || "scheme";
 
@@ -163,6 +166,7 @@ function AnnouncementsCard() {
     try { setRows(await fetchAllAnnouncements()); setError(""); } catch (e) { setError(e.message); setRows([]); }
   }, []);
   useEffect(() => { load(); }, [load]);
+  useLiveRefresh(() => fetchAllAnnouncements().then((list) => setRows(sameOr(list))), !busy);
 
   const run = async (key, fn) => {
     setBusy(key); setError("");

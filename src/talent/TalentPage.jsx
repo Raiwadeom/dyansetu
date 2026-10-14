@@ -15,7 +15,10 @@ import { isBackendConfigured } from "../lib/supabase.js";
 import { AvatarCycle } from "../lib/ProfileArt.jsx";
 import { useLang } from "../lib/i18n.js";
 import { notifySite } from "../lib/sitePush.js";
+import { useLiveRefresh } from "../lib/liveRefresh.js";
 import "./talent.css";
+
+const sameOr = (next) => (prev) => (JSON.stringify(prev) === JSON.stringify(next) ? prev : next);
 
 /* ============================================================================
    DnyanSetu — Talent Corner
@@ -54,6 +57,8 @@ export default function TalentPage({ user, onBack, onSignIn, onBlockUser, onDele
     try { setAccess(await fetchTalentAccess(user.id)); } catch { setAccess({ status: "none", note: "" }); }
   };
   useEffect(() => { loadAccess(); }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  /* An approval from the administrator shows up without a refresh. */
+  useLiveRefresh(() => fetchTalentAccess(user.id).then((next) => setAccess(sameOr(next))), canPost && access.status !== "approved");
   const openCompose = () => {
     if (access.status === "approved") setComposeOpen(true);
     else setAccessOpen(true);
@@ -90,6 +95,15 @@ export default function TalentPage({ user, onBack, onSignIn, onBlockUser, onDele
     return () => { alive = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, author, followKey]);
+  /* New posts (and ones the administrator removed) appear on their own. */
+  useLiveRefresh(() => {
+    const opts = author
+      ? { authorId: author.id }
+      : tab === "following"
+        ? { authorIds: [...following] }
+        : { category: tab === "all" ? "" : tab };
+    return fetchTalentPosts(opts).then((list) => setPosts(sameOr(list)));
+  });
 
   useEffect(() => {
     if (!user) { setFollowing(new Set()); return; }

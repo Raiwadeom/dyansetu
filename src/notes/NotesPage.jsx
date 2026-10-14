@@ -10,6 +10,7 @@ import { fetchNotes, deleteNote } from "../lib/notes.js";
 import { downloadUrl } from "../lib/cloudinary.js";
 import { isBackendConfigured } from "../lib/supabase.js";
 import { CampusCover } from "../lib/ProfileArt.jsx";
+import { useLiveRefresh } from "../lib/liveRefresh.js";
 
 /* ============================================================================
    DnyanSetu — Subject-wise notes library
@@ -106,6 +107,12 @@ export default function NotesPage({ onBack, onRegisterBack, user, UploadModal = 
     })();
     return () => { active = false; };
   }, [reloadKey, lockedStream]);
+
+  /* Notes a teacher uploads (or removes) show up without a refresh. */
+  useLiveRefresh(() => fetchNotes().then((fetched) => {
+    const all = lockedStream ? fetched.filter((n) => n.streamId === lockedStream) : fetched;
+    setNotes((prev) => (JSON.stringify(prev) === JSON.stringify(all) ? prev : all));
+  }), isBackendConfigured && !deletingId);
 
   const removeNote = async (note) => {
     setDeletingId(note.id);

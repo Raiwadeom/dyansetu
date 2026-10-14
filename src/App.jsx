@@ -48,6 +48,11 @@ import ScholarshipResetPage from "./admin/ScholarshipResetPage.jsx";
 import { LANG_KEY, LangContext, useLang, makeTr } from "./lib/i18n";
 import { isStandalone, markIosStepsSeen, useInstallApp } from "./lib/installPrompt";
 import { VisitorCounter } from "./lib/visitCounter.jsx";
+import { useLiveRefresh } from "./lib/liveRefresh.js";
+
+/* Live refreshes reload the same data every few seconds; keeping the old
+   object when nothing changed stops lists, tickers and forms from resetting. */
+const sameOr = (next) => (prev) => (JSON.stringify(prev) === JSON.stringify(next) ? prev : next);
 import {
   Mail, Phone, Lock, User, ArrowRight, ArrowLeft, CheckCircle2, Users, Award, Linkedin, GraduationCap,
   Code2, Compass, MessageSquare, LogOut, Home, MapPin, X, Loader2, Target, Shield, ExternalLink,
@@ -725,12 +730,11 @@ function Landing({ goAuth, onOpenAbout, onOpenPage, onOpenTalent, user, onOpenDa
   /* Announcements come from the administrator's Scholarships & Notices page;
      the built-in notices show until they load or if the database is unreachable. */
   const [notices, setNotices] = useState(NOTICE_BOARD);
-  useEffect(() => {
-    let alive = true;
-    fetchLiveAnnouncements().then((rows) => {
-      if (!alive || rows === null) return;
+  const aliveRef = useRef(true);
+  const loadNotices = useCallback(() => fetchLiveAnnouncements().then((rows) => {
+      if (!aliveRef.current || rows === null) return;
       const recent = Date.now() - 14 * 86400000;
-      setNotices(rows.map((r) => ({
+      setNotices(sameOr(rows.map((r) => ({
         id: r.id,
         title: r.title,
         titleMr: r.title_mr,
@@ -741,10 +745,14 @@ function Landing({ goAuth, onOpenAbout, onOpenPage, onOpenTalent, user, onOpenDa
         author: r.author_name || "",
         pdf: r.pdf_url || "",
         pdfName: r.pdf_name || "",
-      })));
-    });
-    return () => { alive = false; };
-  }, []);
+      }))));
+    }), []);
+  useEffect(() => {
+    aliveRef.current = true;
+    loadNotices();
+    return () => { aliveRef.current = false; };
+  }, [loadNotices]);
+  useLiveRefresh(loadNotices);
   const { lang, setLang } = useLang();
   const tr = makeTr(lang);
   const [activeHeroSlide, setActiveHeroSlide] = useState(0);
@@ -2495,6 +2503,7 @@ function FacultyPapers() {
     fetchPapers().then((rows) => { if (alive) setPapers(rows); }).catch(() => { if (alive) setPapers([]); });
     return () => { alive = false; };
   }, []);
+  useLiveRefresh(() => fetchPapers().then((rows) => setPapers(sameOr(rows))));
   if (!papers || papers.length === 0) return null;
 
   const streamsWithPapers = NOTE_STREAMS.filter((st) => papers.some((pp) => pp.streamId === st.id));
@@ -2556,6 +2565,7 @@ function ScholarshipsPage({ onBack, onRegisterBack }) {
     fetchSchemes().then((list) => { if (alive) setSchemes(list); });
     return () => { alive = false; };
   }, []);
+  useLiveRefresh(() => fetchSchemes().then((list) => setSchemes(sameOr(list))));
   const tx = (en, mr) => tr(en, mr || en);
   const docText = (d) => (typeof d === "string" ? d : tx(d.en, d.mr));
 
@@ -3542,6 +3552,7 @@ function PendingApprovalsPanel({ onChanged }) {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+  useLiveRefresh(() => listPendingApprovals().then((list) => setRows(sameOr(list))));
 
   const decide = async (row, approve) => {
     setBusyId(row.id);
@@ -3666,6 +3677,7 @@ function TalentRequestsPanel() {
     }
   }, []);
   useEffect(() => { load(); }, [load]);
+  useLiveRefresh(() => listTalentRequests().then((list) => setRows(sameOr(list))));
 
   const decide = async (row, approve) => {
     setBusyId(row.userId);
@@ -4970,32 +4982,27 @@ export default function App() {
     } catch { /* private mode or storage disabled — refresh just loses the spot */ }
   }, [view, booting]);
 
-  /* A block takes effect on open tabs too, not only at the next sign-in:
-     re-check this account every minute and whenever the tab comes back. */
+  /* Changes the administrator makes reach open tabs too, not only the next
+     sign-in: this account is re-read every few seconds and whenever the tab
+     comes back. A block signs the user out; anything else (an approval, a
+     role change) updates the page in place. The admin's user list follows
+     the same way. */
   const signedInId = currentUser?.id;
-  useEffect(() => {
-    if (demoMode || !signedInId) return undefined;
-    let stopped = false;
-    const check = async () => {
-      if (stopped || document.visibilityState === "hidden") return;
-      try {
-        const latest = await fetchProfile(signedInId);
-        if (stopped || !latest || !(latest.restricted || latest.status === "deleted")) return;
-        await auth.signOut();
-        setCurrentUser(null);
-        setUsers([]);
-        replaceView("landing");
-        setNotice("This account has been restricted. Please contact the administrator.");
-      } catch { /* offline — try again on the next tick */ }
-    };
-    const timer = setInterval(check, 60000);
-    document.addEventListener("visibilitychange", check);
-    return () => {
-      stopped = true;
-      clearInterval(timer);
-      document.removeEventListener("visibilitychange", check);
-    };
-  }, [demoMode, signedInId]);
+  const signedInRole = currentUser?.role;
+  useLiveRefresh(async () => {
+    const latest = await fetchProfile(signedInId);
+    if (!latest) return;
+    if (latest.restricted || latest.status === "deleted") {
+      await auth.signOut();
+      setCurrentUser(null);
+      setUsers([]);
+      replaceView("landing");
+      setNotice("This account has been restricted. Please contact the administrator.");
+      return;
+    }
+    setCurrentUser((prev) => (prev?.id === signedInId ? sameOr(normalizeStudentProfile(latest))(prev) : prev));
+    if (signedInRole === "admin") setUsers(sameOr(await listProfiles()));
+  }, !demoMode && Boolean(signedInId));
 
   /* Establishes the very first history entry once, then answers every
      hardware/gesture/browser back press from here on. A page's own
@@ -5605,16 +5612,24 @@ function InstallAppButton({ compact = false, variant = compact ? "compact" : "bu
     <>
       {variant === "banner" ? (!bannerClosed && mode && (
         <div className="install-banner" role="region" aria-label={label}>
-          <span className="install-banner-icon"><Download size={16} /></span>
-          <span className="install-banner-text">
-            <strong>{tr("Install DnyanSetu", "DnyanSetu इन्स्टॉल करा")}</strong>
-            <small>{tr("Open it from your home screen like an app.", "होम स्क्रीनवरून ॲपसारखे उघडा.")}</small>
-          </span>
-          <button type="button" className="btn btn-primary install-banner-cta" onClick={onClick}>
-            {tr("Install", "इन्स्टॉल")}
-          </button>
+          <span className="install-banner-tricolour" aria-hidden="true" />
           <button type="button" className="install-banner-close" onClick={closeBanner} aria-label={tr("Close", "बंद करा")}>
             <X size={16} />
+          </button>
+          <div className="install-banner-row">
+            <img className="install-banner-icon" src="/icon-192.png" alt="" width="52" height="52" />
+            <span className="install-banner-text">
+              <small>{tr("Free · Official college app", "मोफत · कॉलेजचे अधिकृत ॲप")}</small>
+              <strong>{tr("Get the DnyanSetu app", "DnyanSetu ॲप मिळवा")}</strong>
+            </span>
+          </div>
+          <ul className="install-banner-perks">
+            <li><CheckCircle2 size={14} /> {tr("Notes & papers", "नोट्स व पेपर्स")}</li>
+            <li><CheckCircle2 size={14} /> {tr("Notice alerts", "सूचना अलर्ट")}</li>
+            <li><CheckCircle2 size={14} /> {tr("One-tap open", "एका टॅपमध्ये उघडा")}</li>
+          </ul>
+          <button type="button" className="install-banner-cta" onClick={onClick}>
+            <Download size={18} /> {mode === "ios" ? tr("Add to Home Screen", "होम स्क्रीनवर जोडा") : tr("Install now — it's free", "आता इन्स्टॉल करा — मोफत")}
           </button>
         </div>
       )) : variant === "compact" ? (
@@ -7910,23 +7925,55 @@ function Styles() {
       .install-banner { display: none; }
       @media (max-width: 760px) {
         .install-banner {
-          display: flex; align-items: center; gap: 10px;
-          padding: 10px 12px 10px 16px;
-          background: #FFF8EC; border-bottom: 1px solid #F1D9B0; border-left: 4px solid var(--abc-saffron);
+          display: block; position: relative; overflow: hidden;
+          margin: 12px 12px 4px; padding: 18px 16px 16px; border-radius: 14px;
+          background: linear-gradient(140deg, var(--abc-navy) 0%, var(--abc-navy-light) 100%);
+          color: #fff; box-shadow: 0 10px 28px rgba(11, 30, 46, 0.28);
+          animation: install-banner-in 0.45s ease-out both;
         }
       }
-      .install-banner-icon {
-        flex: 0 0 32px; height: 32px; border-radius: 50%;
-        display: inline-flex; align-items: center; justify-content: center;
-        background: #FFFFFF; color: var(--abc-navy); border: 1px solid #F1D9B0;
+      .install-banner-tricolour {
+        position: absolute; inset: 0 0 auto 0; height: 5px;
+        background: linear-gradient(90deg, #FF9933 0 33.3%, #FFFFFF 33.3% 66.6%, #138808 66.6% 100%);
       }
-      .install-banner-text { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.3; }
-      .install-banner-text strong { font-size: 14px; color: var(--abc-navy); }
-      .install-banner-text small { font-size: 12.5px; color: var(--text-muted); }
-      .install-banner-cta { flex: 0 0 auto; min-height: 36px; padding: 0 14px; font-size: 13.5px; }
+      .install-banner-row { display: flex; align-items: center; gap: 12px; padding-right: 30px; }
+      .install-banner-icon {
+        flex: 0 0 52px; width: 52px; height: 52px; border-radius: 12px; background: #fff;
+        box-shadow: 0 0 0 3px rgba(255, 153, 51, 0.55);
+      }
+      .install-banner-text { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.25; }
+      .install-banner-text small {
+        font-size: 11.5px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: #FFB870;
+      }
+      .install-banner-text strong { font-size: 19px; font-weight: 800; color: #fff; margin-top: 2px; }
+      .install-banner-perks {
+        list-style: none; margin: 12px 0 14px; padding: 0;
+        display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 13px; color: #DCE6F0;
+      }
+      .install-banner-perks li { display: inline-flex; align-items: center; gap: 5px; }
+      .install-banner-perks svg { color: #4ADE80; flex: 0 0 auto; }
+      .install-banner-cta {
+        width: 100%; min-height: 48px; border: 0; border-radius: 10px; cursor: pointer;
+        display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+        font: inherit; font-size: 16px; font-weight: 800; color: #fff;
+        background: linear-gradient(180deg, #FF8A3D, var(--abc-saffron));
+        box-shadow: 0 4px 14px rgba(230, 81, 0, 0.45);
+        animation: install-cta-pulse 2.2s ease-in-out infinite;
+      }
+      .install-banner-cta:active { transform: translateY(1px); }
+      .install-banner-cta:focus-visible { outline: 3px solid #FFB870; outline-offset: 2px; }
       .install-banner-close {
-        flex: 0 0 36px; height: 36px; border: 0; background: transparent; color: var(--text-muted);
-        display: inline-flex; align-items: center; justify-content: center; border-radius: 8px; cursor: pointer;
+        position: absolute; top: 10px; right: 8px; width: 36px; height: 36px; border: 0;
+        background: rgba(255, 255, 255, 0.1); color: #fff;
+        display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; cursor: pointer;
+      }
+      @keyframes install-banner-in { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: none; } }
+      @keyframes install-cta-pulse {
+        0%, 100% { box-shadow: 0 4px 14px rgba(230, 81, 0, 0.45), 0 0 0 0 rgba(255, 138, 61, 0.55); }
+        50% { box-shadow: 0 4px 14px rgba(230, 81, 0, 0.45), 0 0 0 8px rgba(255, 138, 61, 0); }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .install-banner, .install-banner-cta { animation: none; }
       }
       .install-steps-card { text-align: left; }
       .install-steps-card .lang-picker-title { text-align: center; }
