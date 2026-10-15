@@ -1303,6 +1303,22 @@ function Landing({ goAuth, onOpenAbout, onOpenPage, onOpenTalent, user, onOpenDa
         />
       </Suspense>
 
+      {/* A slim strip, not a full section: the channel sits between the
+          student showcase and the principal's message. */}
+      <section className="yt-strip-wrap" aria-labelledby="yt-strip-title">
+        <div className="yt-strip">
+          <img className="yt-strip-avatar" src={YT_CHANNEL.avatar} alt="" width="64" height="64" loading="lazy" />
+          <div className="yt-strip-copy">
+            <span className="yt-strip-kicker"><YtLogo size={16} /> {tr("Our YouTube channel", "आमचे YouTube चॅनेल")}</span>
+            <h2 id="yt-strip-title">{YT_CHANNEL.name}</h2>
+            <p>{tr("Tech videos, tips and DnyanSetu updates. Subscribe so you never miss one.", "टेक व्हिडिओ, टिप्स आणि DnyanSetu अपडेट्स. एकही चुकू नये म्हणून सबस्क्राइब करा.")}</p>
+          </div>
+          <a className="yt-subscribe-btn yt-strip-btn" href={YT_CHANNEL.subscribeUrl} target="_blank" rel="noreferrer">
+            <YtLogo size={18} /> {tr("Subscribe", "सबस्क्राइब करा")}
+          </a>
+        </div>
+      </section>
+
       <section className="section section-story">
         <div className="story-shell">
           {/* The photograph leads, with the message beside it. */}
@@ -1404,6 +1420,9 @@ function Landing({ goAuth, onOpenAbout, onOpenPage, onOpenTalent, user, onOpenDa
               </a>
               <a href={SOCIAL_LINKS.linkedin} target="_blank" rel="noreferrer" className="footer-link">
                 <Linkedin size={14} /> LinkedIn
+              </a>
+              <a href={YT_CHANNEL.url} target="_blank" rel="noreferrer" className="footer-link">
+                <YtLogo size={14} /> YouTube · {YT_CHANNEL.name}
               </a>
             </div>
           </div>
@@ -3882,6 +3901,79 @@ function TalentRequestsPanel() {
   );
 }
 
+/* ------------------------------ Admin tables ------------------------------
+   One compact row per account across the admin pages. On phones each row
+   folds into a short strip (labels inline) so nothing scrolls sideways. */
+function AdminTable({ columns, rows, rowKey = (r) => r.id, empty, renderAfter }) {
+  if (!rows.length) return <p className="resource-empty" style={{ margin: 0 }}>{empty}</p>;
+  return (
+    <div className="admin-table-wrap">
+      <table className="admin-table">
+        <thead>
+          <tr>{columns.map((c) => <th key={c.header} scope="col" className={c.className}>{c.header}</th>)}</tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => {
+            const after = renderAfter?.(r);
+            return (
+              <React.Fragment key={rowKey(r)}>
+                <tr>
+                  {columns.map((c) => (
+                    <td key={c.header} data-label={c.header} className={c.className}>{c.cell(r)}</td>
+                  ))}
+                </tr>
+                {after && <tr className="admin-table-detail"><td colSpan={columns.length}>{after}</td></tr>}
+              </React.Fragment>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+const adminCols = {
+  person: (pick = (r) => r) => ({
+    header: "Name",
+    className: "is-person",
+    cell: (r) => {
+      const u = pick(r);
+      return <><strong>{u.name || "—"}</strong><span>{u.email}</span></>;
+    },
+  }),
+  role: (pick = (r) => r) => ({ header: "Role", className: "no-label", cell: (r) => <RoleBadge role={pick(r).role} /> }),
+  status: (pick = (r) => r) => ({
+    header: "Status",
+    className: "no-label",
+    cell: (r) => {
+      const u = pick(r);
+      return (
+        <span className={`status-tag ${u.restricted ? "status-blocked" : "status-active"}`}>
+          {u.restricted ? "RESTRICTED" : "ACTIVE"}
+        </span>
+      );
+    },
+  }),
+  block: (onUpdateUser, pick = (r) => r) => ({
+    header: "Access",
+    className: "no-label is-actions",
+    cell: (r) => {
+      const u = pick(r);
+      if (u.role === "admin" || !onUpdateUser) return <span className="admin-table-muted">—</span>;
+      return (
+        <button
+          type="button"
+          className={`btn btn-xs ${u.restricted ? "btn-primary" : "btn-outline"}`}
+          aria-label={u.restricted ? `Unblock ${u.name}` : `Block ${u.name}`}
+          onClick={() => onUpdateUser({ ...u, restricted: !u.restricted })}
+        >
+          {u.restricted ? <><UserCheck size={13} /> Unblock</> : <><Ban size={13} /> Block</>}
+        </button>
+      );
+    },
+  }),
+};
+
 /* Blocked accounts in one place, each with an Unblock button. A restricted
    account cannot sign in or use anything until it is unblocked here. */
 function RestrictedAccountsPanel({ users, onUpdateUser }) {
@@ -3891,32 +3983,11 @@ function RestrictedAccountsPanel({ users, onUpdateUser }) {
       <div className="admin-section-head">
         <h3><Ban size={18} /> Restricted &amp; blocked accounts ({blocked.length})</h3>
       </div>
-      {blocked.length === 0 ? (
-        <p className="resource-empty" style={{ margin: 0 }}>No account is restricted right now.</p>
-      ) : (
-        <div className="admin-signin-list">
-          {blocked.map((u) => (
-            <div className="admin-signin-row" key={u.id}>
-              <div className="admin-person-id">
-                <strong>{u.name || "—"}</strong>
-                <span className="admin-person-email">{u.email}</span>
-              </div>
-              <div className="admin-signin-meta">
-                <RoleBadge role={u.role} />
-                <span className="status-tag status-blocked">RESTRICTED</span>
-              </div>
-              <button
-                type="button"
-                className="btn btn-xs btn-primary"
-                aria-label={`Unblock ${u.name}`}
-                onClick={() => onUpdateUser({ ...u, restricted: false })}
-              >
-                <UserCheck size={13} /> Unblock
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
+      <AdminTable
+        rows={blocked}
+        empty="No account is restricted right now."
+        columns={[adminCols.person(), adminCols.role(), adminCols.status(), adminCols.block(onUpdateUser)]}
+      />
     </div>
   );
 }
@@ -3995,46 +4066,24 @@ function SignInListPanel({ users, onUpdateUser }) {
 
       {error && <p className="upload-error">{error}</p>}
 
-      {rows.length === 0 ? (
-        <p className="resource-empty" style={{ margin: 0 }}>No accounts in this list.</p>
-      ) : (
-        <div className="admin-signin-list">
-          {rows.map((u) => (
-            <div className="admin-signin-row" key={u.id}>
-              <div className="admin-person-id">
-                <strong>{u.name || "—"}</strong>
-                <span className="admin-person-email">{u.email}</span>
-              </div>
-              <div className="admin-signin-meta">
-                <RoleBadge role={u.role} />
-                <span className={`status-tag ${u.restricted ? "status-blocked" : "status-active"}`}>
-                  {u.restricted ? "RESTRICTED" : "ACTIVE"}
-                </span>
-                <span className="admin-signin-when">
-                  <Clock size={13} /> {signIns ? formatWhen(lastOf(u)) : busy ? "Loading…" : "—"}
-                </span>
-              </div>
-              {u.role !== "admin" ? (
-                <button
-                  type="button"
-                  className={`btn btn-xs ${u.restricted ? "btn-primary" : "btn-outline"}`}
-                  aria-label={u.restricted ? `Unblock ${u.name}` : `Block ${u.name}`}
-                  onClick={() => onUpdateUser({ ...u, restricted: !u.restricted })}
-                >
-                  {u.restricted ? <><UserCheck size={13} /> Unblock</> : <><Ban size={13} /> Block</>}
-                </button>
-              ) : <span />}
-            </div>
-          ))}
-        </div>
-      )}
+      <AdminTable
+        rows={rows}
+        empty="No accounts in this list."
+        columns={[
+          adminCols.person(),
+          adminCols.role(),
+          adminCols.status(),
+          { header: "Last signed in", cell: (u) => (signIns ? formatWhen(lastOf(u)) : busy ? "Loading…" : "—") },
+          adminCols.block(onUpdateUser),
+        ]}
+      />
     </div>
   );
 }
 
 /* Faculty/staff sign-ups: the ones waiting, plus the ones already decided so a
    decision can be reversed (withdraw an approval, or approve after all). */
-function AdminApprovalsPage({ users, onRefreshUsers }) {
+function AdminApprovalsPage({ users, onRefreshUsers, onUpdateUser }) {
   const [busyId, setBusyId] = useState("");
   const [confirmId, setConfirmId] = useState("");
   const [error, setError] = useState("");
@@ -4058,26 +4107,18 @@ function AdminApprovalsPage({ users, onRefreshUsers }) {
   };
 
   const list = (rows, empty, action) => (
-    rows.length === 0 ? (
-      <p className="resource-empty" style={{ margin: 0 }}>{empty}</p>
-    ) : (
-      <div className="admin-signin-list">
-        {rows.map((u) => (
-          <div className="admin-signin-row" key={u.id}>
-            <div className="admin-person-id">
-              <strong>{u.name || "—"}</strong>
-              <span className="admin-person-email">{u.email}</span>
-            </div>
-            <div className="admin-signin-meta">
-              <RoleBadge role={u.role} />
-              {u.designation && <span className="admin-signin-when">{u.designation}</span>}
-              {u.restricted && <span className="status-tag status-blocked">RESTRICTED</span>}
-            </div>
-            {action(u)}
-          </div>
-        ))}
-      </div>
-    )
+    <AdminTable
+      rows={rows}
+      empty={empty}
+      columns={[
+        adminCols.person(),
+        adminCols.role(),
+        { header: "Designation", cell: (u) => u.designation || "—" },
+        adminCols.status(),
+        { header: "Approval", className: "no-label is-actions", cell: action },
+        adminCols.block(onUpdateUser),
+      ]}
+    />
   );
 
   return (
@@ -4172,7 +4213,7 @@ function summariseQuiz(rows) {
   };
 }
 
-function AdminQuizPage({ users }) {
+function AdminQuizPage({ users, onUpdateUser }) {
   const [attempts, setAttempts] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -4297,56 +4338,59 @@ function AdminQuizPage({ users }) {
         ) : rows.length === 0 ? (
           <p className="resource-empty" style={{ margin: 0 }}>No students in this list.</p>
         ) : (
-          <div className="admin-signin-list">
-            {rows.map((p) => (
-              <div className="admin-quiz-person" key={p.user.id}>
-                <div className="admin-signin-row">
-                  <div className="admin-person-id">
-                    <strong>{p.user.name || "—"}</strong>
-                    <span className="admin-person-email">{p.user.email}</span>
+          <AdminTable
+            rows={rows}
+            rowKey={(p) => p.user.id}
+            empty="No students in this list."
+            columns={[
+              adminCols.person((p) => p.user),
+              {
+                header: "Level",
+                className: "no-label",
+                cell: (p) => <span className={`quiz-rank-tag quiz-rank-${QUIZ_RANKS[p.rank].id}`}>{QUIZ_RANKS[p.rank].label}</span>,
+              },
+              { header: "Subjects", cell: (p) => p.subjects.length },
+              { header: "Attempts", cell: (p) => p.attempts },
+              { header: "Last quiz", cell: (p) => when(p.last) },
+              adminCols.status((p) => p.user),
+              {
+                header: "Details",
+                className: "no-label is-actions",
+                cell: (p) => (p.subjects.length > 0 ? (
+                  <button type="button" className="btn btn-xs btn-outline" aria-expanded={open === p.user.id} onClick={() => setOpen(open === p.user.id ? "" : p.user.id)}>
+                    {open === p.user.id ? "Hide" : "Details"}
+                  </button>
+                ) : <span className="admin-table-muted">—</span>),
+              },
+              adminCols.block(onUpdateUser, (p) => p.user),
+            ]}
+            renderAfter={(p) => open === p.user.id && (
+              <div className="admin-quiz-subjects">
+                {p.subjects.map((s) => (
+                  <div className="admin-quiz-subject" key={`${s.streamId}/${s.year}/${s.subjectId}`}>
+                    <div className="admin-quiz-subject-name">
+                      <strong>{subjectName(s)}</strong>
+                      <small>{streamName(s)}</small>
+                    </div>
+                    <div className="admin-quiz-stages">
+                      {QUIZ_STAGES.map((st) => {
+                        const slot = s.stages[st.id];
+                        const state = !slot ? "none" : slot.passed ? "passed" : "tried";
+                        return (
+                          <span key={st.id} className={`admin-quiz-stage admin-quiz-stage--${state}`}>
+                            <b>{st.name}</b>
+                            {!slot
+                              ? "Not tried"
+                              : `${slot.passed ? "Cleared" : "Not cleared"} · best ${slot.best}/${slot.total} · ${slot.tries} tr${slot.tries === 1 ? "y" : "ies"}`}
+                          </span>
+                        );
+                      })}
+                    </div>
                   </div>
-                  <div className="admin-signin-meta">
-                    <span className={`quiz-rank-tag quiz-rank-${QUIZ_RANKS[p.rank].id}`}>{QUIZ_RANKS[p.rank].label}</span>
-                    <span className="admin-signin-when">
-                      {p.subjects.length} subject{p.subjects.length === 1 ? "" : "s"} · {p.attempts} attempt{p.attempts === 1 ? "" : "s"} · last {when(p.last)}
-                    </span>
-                  </div>
-                  {p.subjects.length > 0 ? (
-                    <button type="button" className="btn btn-xs btn-outline" onClick={() => setOpen(open === p.user.id ? "" : p.user.id)}>
-                      {open === p.user.id ? "Hide details" : "Details"}
-                    </button>
-                  ) : <span />}
-                </div>
-
-                {open === p.user.id && (
-                  <div className="admin-quiz-subjects">
-                    {p.subjects.map((s) => (
-                      <div className="admin-quiz-subject" key={`${s.streamId}/${s.year}/${s.subjectId}`}>
-                        <div className="admin-quiz-subject-name">
-                          <strong>{subjectName(s)}</strong>
-                          <small>{streamName(s)}</small>
-                        </div>
-                        <div className="admin-quiz-stages">
-                          {QUIZ_STAGES.map((st) => {
-                            const slot = s.stages[st.id];
-                            const state = !slot ? "none" : slot.passed ? "passed" : "tried";
-                            return (
-                              <span key={st.id} className={`admin-quiz-stage admin-quiz-stage--${state}`}>
-                                <b>{st.name}</b>
-                                {!slot
-                                  ? "Not tried"
-                                  : `${slot.passed ? "Cleared" : "Not cleared"} · best ${slot.best}/${slot.total} · ${slot.tries} tr${slot.tries === 1 ? "y" : "ies"}`}
-                              </span>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                ))}
               </div>
-            ))}
-          </div>
+            )}
+          />
         )}
       </div>
     </div>
@@ -4355,10 +4399,12 @@ function AdminQuizPage({ users }) {
 
 function AdminPortal({ users, onUpdateUser, onDeleteUser }) {
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
 
   const term = search.trim().toLowerCase();
   const matches = (u) =>
-    !term || `${u.name} ${u.email} ${u.city || ""}`.toLowerCase().includes(term);
+    (statusFilter === "all" || (statusFilter === "restricted" ? u.restricted : !u.restricted))
+    && (!term || `${u.name} ${u.email} ${u.city || ""}`.toLowerCase().includes(term));
 
   /* Each role gets its own table. Mixing them made it hard to answer the two
      questions an administrator actually has: who are my students, and who are
@@ -4387,79 +4433,43 @@ function AdminPortal({ users, onUpdateUser, onDeleteUser }) {
   const exportRows = (rows, label) =>
     downloadCsv(timestampedName(`dnyansetu-${label}`), rows, exportColumns);
 
-  /* One stacked card per account rather than a wide table. A six-column grid
-     forced sideways scrolling and read as landscape even on a desktop; a
-     column of cards reads top-to-bottom at every width, and gives each account
-     room for its details. */
+  /* One compact row per account: name, role, status and the actions side by
+     side, so a long list fits on screen. Phones fold each row (see .admin-table). */
   const renderPeople = (rows, label) => (
-    <div className="admin-people">
-      {rows.map((u) => {
-        return (
-          <article className="admin-person" key={u.id}>
-            <header className="admin-person-head">
-              <div className="admin-person-id">
-                <strong>{u.name || "—"}</strong>
-                <span className="admin-person-email">{u.email}</span>
-              </div>
-              <div className="admin-person-tags">
-                <RoleBadge role={u.role} />
-                <span className={`status-tag ${u.restricted ? "status-blocked" : "status-active"}`}>
-                  {u.restricted ? "RESTRICTED" : "ACTIVE"}
-                </span>
-              </div>
-            </header>
-
-            <dl className="admin-person-facts">
-              <div>
-                <dt>City</dt>
-                <dd>{u.city || "—"}</dd>
-              </div>
-              <div>
-                <dt>Subject notes</dt>
-                <dd>
-                  {u.notesLastOpenedAt
-                    ? `Opened ${new Date(u.notesLastOpenedAt).toLocaleDateString("en-IN")}`
-                    : "Not opened yet"}
-                </dd>
-              </div>
-              <div>
-                <dt>Joined</dt>
-                <dd>{u.joined ? new Date(u.joined).toLocaleDateString("en-IN") : "—"}</dd>
-              </div>
-            </dl>
-
-            <footer className="admin-person-actions">
-              {u.role !== "admin" && (
-                <button
-                  type="button"
-                  className="btn btn-xs btn-outline"
-                  aria-label={u.restricted ? `Unblock ${u.name}` : `Block ${u.name}`}
-                  onClick={() => onUpdateUser({ ...u, restricted: !u.restricted })}
-                >
-                  <Ban size={12} /> {u.restricted ? "Unblock" : "Block"}
-                </button>
-              )}
-              {u.role !== "admin" && (
-                <button
-                  type="button"
-                  className="btn btn-xs btn-outline"
-                  aria-label={`Delete ${u.name}`}
-                  onClick={() => onDeleteUser(u.id)}
-                >
-                  <Trash2 size={12} /> Delete
-                </button>
-              )}
-            </footer>
-          </article>
-        );
-      })}
-
-      {rows.length === 0 && (
-        <p className="resource-empty" style={{ margin: "6px 0 2px" }}>
-          {term ? `No ${label} match “${search.trim()}”.` : `No ${label} yet.`}
-        </p>
-      )}
-    </div>
+    <AdminTable
+      rows={rows}
+      empty={term || statusFilter !== "all" ? `No ${label} match this search.` : `No ${label} yet.`}
+      columns={[
+        adminCols.person(),
+        adminCols.role(),
+        adminCols.status(),
+        { header: "City", cell: (u) => u.city || "—" },
+        {
+          header: "Notes",
+          cell: (u) => (u.notesLastOpenedAt ? `Opened ${new Date(u.notesLastOpenedAt).toLocaleDateString("en-IN")}` : "Not opened"),
+        },
+        { header: "Joined", cell: (u) => (u.joined ? new Date(u.joined).toLocaleDateString("en-IN") : "—") },
+        {
+          header: "Actions",
+          className: "no-label is-actions",
+          cell: (u) => (u.role === "admin" ? <span className="admin-table-muted">—</span> : (
+            <span className="admin-table-actions">
+              <button
+                type="button"
+                className={`btn btn-xs ${u.restricted ? "btn-primary" : "btn-outline"}`}
+                aria-label={u.restricted ? `Unblock ${u.name}` : `Block ${u.name}`}
+                onClick={() => onUpdateUser({ ...u, restricted: !u.restricted })}
+              >
+                {u.restricted ? <><UserCheck size={13} /> Unblock</> : <><Ban size={13} /> Block</>}
+              </button>
+              <button type="button" className="btn btn-xs btn-outline" aria-label={`Delete ${u.name}`} onClick={() => onDeleteUser(u.id)}>
+                <Trash2 size={13} /> Delete
+              </button>
+            </span>
+          )),
+        },
+      ]}
+    />
   );
 
   const section = (title, rows, label, Icon) => (
@@ -4526,7 +4536,19 @@ function AdminPortal({ users, onUpdateUser, onDeleteUser }) {
               aria-label="Search users"
             />
           </label>
-
+          <div className="admin-signin-filter" role="group" aria-label="Filter by status" style={{ marginTop: 10 }}>
+            {[["all", "All"], ["active", `Active (${activeUsers})`], ["restricted", `Restricted (${blockedUsers})`]].map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                className={`btn btn-xs ${statusFilter === id ? "btn-primary" : "btn-outline"}`}
+                aria-pressed={statusFilter === id}
+                onClick={() => setStatusFilter(id)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -5705,10 +5727,10 @@ export default function App() {
           <AdminPortal users={users} onUpdateUser={handleUpdateUser} onDeleteUser={handleDeleteUser} />
         )}
         {view === "admin-approvals" && (adminLock === "held" || adminLock === "idle") && (
-          <AdminApprovalsPage users={users} onRefreshUsers={refreshUsers} />
+          <AdminApprovalsPage users={users} onRefreshUsers={refreshUsers} onUpdateUser={handleUpdateUser} />
         )}
         {view === "admin-quiz" && (adminLock === "held" || adminLock === "idle") && (
-          <AdminQuizPage users={users} />
+          <AdminQuizPage users={users} onUpdateUser={handleUpdateUser} />
         )}
         {view === "admin-content" && (adminLock === "held" || adminLock === "idle") && (
           <ContentAdminPage />
@@ -6362,6 +6384,42 @@ function Styles() {
       /* Sign-in list and restricted accounts: one compact row per account. */
       .admin-signin-tools { display: flex; gap: 8px; flex-wrap: wrap; }
       .admin-signin-filter { display: flex; gap: 8px; flex-wrap: wrap; margin: 0 0 12px; }
+      /* Admin tables (Desk, Approvals, Quiz results) */
+      .admin-table-wrap { border: 1px solid var(--border-light); border-radius: var(--radius-sm); overflow-x: auto; background: #fff; }
+      .admin-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+      .admin-table th {
+        text-align: left; padding: 9px 12px; background: #F1F5F9; color: var(--text-muted);
+        font-size: 11.5px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap;
+        border-bottom: 1px solid var(--border-light);
+      }
+      .admin-table td { padding: 8px 12px; vertical-align: middle; color: var(--text-subtle); border-bottom: 1px solid var(--border-light); white-space: nowrap; }
+      .admin-table tbody tr:last-child td { border-bottom: 0; }
+      .admin-table tbody tr:not(.admin-table-detail):hover td { background: #F8FAFC; }
+      .admin-table td.is-person { white-space: normal; min-width: 180px; }
+      .admin-table td.is-person strong { display: block; color: var(--text-dark); font-size: 14px; line-height: 1.3; }
+      .admin-table td.is-person span { display: block; font-size: 12.5px; color: var(--text-muted); word-break: break-all; }
+      .admin-table td.is-actions { text-align: right; }
+      .admin-table th.is-actions { text-align: right; }
+      .admin-table-actions { display: inline-flex; gap: 6px; }
+      .admin-table-muted { color: var(--text-muted); }
+      .admin-table-detail td { white-space: normal; background: #F8FAFC; padding: 4px 12px 12px; }
+      @media (max-width: 700px) {
+        .admin-table-wrap { overflow: visible; }
+        .admin-table thead { display: none; }
+        .admin-table, .admin-table tbody { display: block; }
+        .admin-table tr {
+          display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px;
+          padding: 10px 12px; border-bottom: 1px solid var(--border-light);
+        }
+        .admin-table tbody tr:last-child { border-bottom: 0; }
+        .admin-table td { display: block; padding: 0; border: 0; font-size: 12.5px; }
+        .admin-table td.is-person { flex: 1 1 100%; min-width: 0; }
+        .admin-table td:not(.no-label):not(.is-person)::before { content: attr(data-label) ": "; font-weight: 600; color: var(--text-muted); }
+        .admin-table td.is-actions { margin-left: auto; }
+        .admin-table td.is-actions + td.is-actions { margin-left: 0; }
+        .admin-table .btn-xs { min-height: 34px; }
+        .admin-table-detail td { flex: 1 1 100%; padding: 0; background: none; }
+      }
       .admin-signin-list { display: flex; flex-direction: column; border: 1px solid var(--border-light); border-radius: var(--radius-sm); overflow: hidden; }
       .admin-signin-row {
         display: grid;
@@ -8051,6 +8109,9 @@ function Styles() {
         .header-install { padding: 0 5px; }
         .header-install-label { display: none; }
       }
+      @media (max-width: 380px) {
+        .app-brand-college-short { display: none !important; }
+      }
       /* Phones only: desktop visitors have the nav button. */
       .install-banner { display: none; }
       @media (max-width: 760px) {
@@ -8102,6 +8163,28 @@ function Styles() {
       .yt-subscribe-btn-lg:hover { background: #CC0000; }
       .yt-subscribe-btn-lg svg rect { fill: #fff; }
       .yt-subscribe-btn-lg svg path { fill: #FF0000; }
+      .yt-strip-wrap { padding: 8px 48px 40px; max-width: 1200px; margin: 0 auto; }
+      .yt-strip {
+        display: flex; align-items: center; gap: 18px; padding: 18px 22px;
+        background: #fff; border: 1px solid var(--border-light); border-left: 4px solid #FF0000;
+        border-radius: var(--radius-sm, 10px); box-shadow: 0 2px 10px rgba(15, 23, 42, 0.05);
+      }
+      .yt-strip-avatar { width: 64px; height: 64px; flex: 0 0 64px; border-radius: 50%; }
+      .yt-strip-copy { flex: 1; min-width: 0; text-align: left; }
+      .yt-strip-kicker { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-muted); }
+      .yt-strip-copy h2 { margin: 2px 0 2px; font-size: 20px; color: var(--text-dark); }
+      .yt-strip-copy p { margin: 0; font-size: 14px; color: var(--text-muted); }
+      .yt-strip-btn { flex: none; background: #FF0000; }
+      .yt-strip-btn:hover { background: #CC0000; }
+      .yt-strip-btn svg rect { fill: #fff; }
+      .yt-strip-btn svg path { fill: #FF0000; }
+      @media (max-width: 640px) {
+        .yt-strip-wrap { padding: 4px 16px 28px; }
+        .yt-strip { flex-wrap: wrap; gap: 12px 14px; padding: 16px; }
+        .yt-strip-avatar { width: 52px; height: 52px; flex-basis: 52px; }
+        .yt-strip-copy { flex: 1 1 180px; }
+        .yt-strip-btn { width: 100%; }
+      }
       .yt-gate { text-align: center; max-width: 420px; margin: 0 auto; }
       .yt-gate-step { margin: 0 0 22px; font-size: 13px; font-weight: 700; color: var(--abc-saffron); letter-spacing: 0.03em; text-transform: uppercase; }
       .yt-gate .yt-gate-avatar { width: 96px; height: 96px; border-radius: 50%; margin: 24px auto 18px; display: block; box-shadow: 0 0 0 4px #fff, 0 0 0 6px #FF0000; }
@@ -8807,6 +8890,9 @@ function Styles() {
         .app-brand-crest { width: 28px !important; height: 28px !important; flex-basis: 28px !important; }
         .app-header-right { gap: 4px; }
         .header-logout { width: 38px; height: 38px; }
+        /* The avatar keeps its size; the brand gives way instead, so the
+           Install app button never slides over it. */
+        .header-profile-button { flex: none; padding: 4px; }
         .dash-grid, .profile-page { width: calc(100% - 24px); padding-bottom: calc(60px + env(safe-area-inset-bottom)); }
         .profile-card { padding: 18px 16px; }
         .profile-cover { height: 130px; }
