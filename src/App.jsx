@@ -132,7 +132,7 @@ function pathForView(view, authMode, scope, next) {
     if (scope === "staff") return `/staff${query}`;
     return `${authMode === "signup" ? "/signup" : "/login"}${query}`;
   }
-  if (view === "accept-terms") return `/login${query}`;
+  if (view === "accept-terms" || view === "yt-subscribe") return `/login${query}`;
   if (view === "terms") return `/terms${window.location.hash === "#raktsetu" ? "#raktsetu" : ""}`;
   if (view === "privacy") return "/privacy";
   if (view === "scholarships") return "/scholarships";
@@ -2159,6 +2159,124 @@ function AuthScreen({ mode, setMode, onSubmit, notice = "", onClearNotice, goLan
 /* Shown once to anyone signed in who has not accepted the current terms —
    typically a Google sign-in from /login, or an account moved over from
    Firebase. Nothing else opens until they accept or sign out. */
+/* ---------------------- College YouTube channel (students) --------------------- */
+
+const YT_CHANNEL = {
+  name: "Oruim_tech",
+  handle: "@oruimtech",
+  url: "https://www.youtube.com/@oruimtech",
+  /* Opens YouTube's own "Subscribe?" confirmation straight away. */
+  subscribeUrl: "https://www.youtube.com/@oruimtech?sub_confirmation=1",
+  avatar: "/yt-channel.jpg",
+};
+
+/* Student pages that wait until the channel step is done. */
+const YT_GATED_VIEWS = new Set(["profile", "student-setup", "notes", "pyq", "quiz"]);
+
+/* YouTube does not tell other websites who subscribed, so the step is
+   recorded once the student has opened the channel and come back. Stored in
+   the profile (details.ytSubscribedAt) so it is asked once per account. */
+function needsYtStep(u, demoMode = false) {
+  return Boolean(u && !demoMode && u.role === "student" && u.termsAcceptedAt && !u.ytSubscribedAt);
+}
+
+function YtLogo({ size = 20 }) {
+  return (
+    <svg width={size} height={Math.round(size * 0.7)} viewBox="0 0 28 20" aria-hidden="true">
+      <rect width="28" height="20" rx="5" fill="#FF0000" />
+      <path d="M11.2 5.7v8.6L18.6 10z" fill="#fff" />
+    </svg>
+  );
+}
+
+function YtChannelCard() {
+  return (
+    <section className="profile-card yt-card">
+      <img className="yt-card-avatar" src={YT_CHANNEL.avatar} alt="" width="56" height="56" />
+      <div className="yt-card-copy">
+        <span className="profile-section-kicker"><YtLogo size={16} /> FOLLOW OUR YOUTUBE CHANNEL</span>
+        <h2>{YT_CHANNEL.name}</h2>
+        <p>Tech videos, tips and DnyanSetu updates. Subscribe and stay connected.</p>
+      </div>
+      <a className="yt-subscribe-btn" href={YT_CHANNEL.subscribeUrl} target="_blank" rel="noreferrer">
+        <YtLogo size={18} /> Subscribe
+      </a>
+    </section>
+  );
+}
+
+function YtSubscribeScreen({ user, onDone, onSignOut }) {
+  const [opened, setOpened] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const leftAt = useRef(0);
+  const doneRef = useRef(false);
+
+  const finish = useCallback(async () => {
+    if (doneRef.current) return;
+    doneRef.current = true;
+    setBusy(true);
+    await onDone();
+  }, [onDone]);
+
+  /* Coming back from YouTube (the app on a phone, a new tab on a computer)
+     carries on by itself. */
+  useEffect(() => {
+    if (!opened) return undefined;
+    const onReturn = () => {
+      if (document.visibilityState !== "visible") return;
+      if (Date.now() - leftAt.current > 2500) finish();
+    };
+    document.addEventListener("visibilitychange", onReturn);
+    window.addEventListener("focus", onReturn);
+    return () => {
+      document.removeEventListener("visibilitychange", onReturn);
+      window.removeEventListener("focus", onReturn);
+    };
+  }, [opened, finish]);
+
+  const openChannel = () => {
+    leftAt.current = Date.now();
+    setOpened(true);
+  };
+
+  return (
+    <div className="auth-screen">
+      <div className="auth-brand-panel">
+        <InstitutionLockup size={64} tone="dark" className="auth-brand-institution" />
+      </div>
+      <div className="auth-form-panel">
+        <div className="yt-gate">
+          <p className="yt-gate-step">One last step</p>
+          <img className="yt-gate-avatar" src={YT_CHANNEL.avatar} alt="" width="96" height="96" />
+          <h2 className="auth-title">Subscribe to {YT_CHANNEL.name}</h2>
+          <p className="auth-sub">
+            Hi {(user.name || "Student").split(" ")[0]}, subscribe to our YouTube channel to open your
+            DnyanSetu profile. Tap the button, press <strong>Subscribe</strong> on YouTube, then come back here.
+          </p>
+          <a
+            className="yt-subscribe-btn yt-subscribe-btn-lg"
+            href={YT_CHANNEL.subscribeUrl}
+            target="_blank"
+            rel="noreferrer"
+            onClick={openChannel}
+          >
+            <YtLogo size={22} /> Subscribe on YouTube
+          </a>
+          <p className="yt-gate-handle">{YT_CHANNEL.handle} · youtube.com</p>
+          {opened && (
+            <button type="button" className="btn btn-primary btn-block btn-lg" style={{ marginTop: 14 }} onClick={finish} disabled={busy}>
+              {busy ? <><Loader2 size={16} className="spin" /> Opening your profile…</> : <>I&apos;ve subscribed — open my profile <ArrowRight size={16} /></>}
+            </button>
+          )}
+          <button type="button" className="btn btn-ghost btn-block" style={{ marginTop: 10 }} onClick={onSignOut}>
+            Sign out instead
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function AcceptTermsScreen({ user, onAccept, onSignOut }) {
   const [checked, setChecked] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -2892,6 +3010,8 @@ function StudentProfile({ profile, onSaveProfile }) {
 
       <div className="profile-layout">
         <div className="profile-main-column">
+          <YtChannelCard />
+
           {isEditing && (
             <section className="profile-card">
               <div className="profile-card-heading">
@@ -4808,6 +4928,13 @@ export default function App() {
 
   const redirectUser = (u, next = pendingNext) => {
     if (!u) return;
+    /* Students follow the college YouTube channel once, right after the
+       terms, before the portal opens. Any ?next= waits until they are done. */
+    if (needsYtStep(u, demoMode)) {
+      if (next) setPendingNext(next);
+      replaceView("yt-subscribe");
+      return;
+    }
     /* A ?next= path (e.g. /raktsetu) is a separate app, so it gets a real page
        load; the session carries over. */
     if (next) {
@@ -5141,10 +5268,12 @@ export default function App() {
       || (awaiting && !["pending-approval", "terms", "privacy", "about", "notfound"].includes(view))
       || (!awaiting && view === "pending-approval")
       || (currentUser.role === "staff" && STUDY_PAGES.has(view))
+      || (needsYtStep(currentUser, demoMode) && YT_GATED_VIEWS.has(view))
+      || (view === "yt-subscribe" && !needsYtStep(currentUser, demoMode))
       || (!awaiting && currentUser.role === "scholarship" && !["admin-content", "landing", "about", "scholarships", "scholarship-reset", "auth", "accept-terms", "terms", "privacy", "notfound"].includes(view))) {
       replaceView(homeViewFor(currentUser));
     }
-  }, [view, currentUser, booting, browsingHome]);
+  }, [view, currentUser, booting, browsingHome, demoMode]);
 
   /* Going back to one's own dashboard ends "browsing home"; visiting Notes or
      About from the landing page and pressing Back returns to the landing page. */
@@ -5278,6 +5407,12 @@ export default function App() {
     if (!refreshed.trackingId) await seedNewProfile(refreshed);
     redirectUser(refreshed);
     return { success: true };
+  };
+
+  const handleYtSubscribed = async () => {
+    const updated = { ...currentUser, ytSubscribedAt: new Date().toISOString() };
+    await handleProfileEdit(updated);
+    redirectUser(updated);
   };
 
   const handleFacultySetupComplete = async (data) => {
@@ -5519,6 +5654,9 @@ export default function App() {
         {view === "accept-terms" && currentUser && (
           <AcceptTermsScreen user={currentUser} onAccept={handleAcceptTerms} onSignOut={logout} />
         )}
+        {view === "yt-subscribe" && currentUser && (
+          <YtSubscribeScreen user={currentUser} onDone={handleYtSubscribed} onSignOut={logout} />
+        )}
         {view === "pending-approval" && currentUser && (
           <PendingApprovalScreen user={currentUser} onRefresh={refreshApproval} onSignOut={logout} />
         )}
@@ -5612,24 +5750,16 @@ function InstallAppButton({ compact = false, variant = compact ? "compact" : "bu
     <>
       {variant === "banner" ? (!bannerClosed && mode && (
         <div className="install-banner" role="region" aria-label={label}>
-          <span className="install-banner-tricolour" aria-hidden="true" />
-          <button type="button" className="install-banner-close" onClick={closeBanner} aria-label={tr("Close", "बंद करा")}>
-            <X size={16} />
-          </button>
-          <div className="install-banner-row">
-            <img className="install-banner-icon" src="/icon-192.png" alt="" width="52" height="52" />
-            <span className="install-banner-text">
-              <small>{tr("Free · Official college app", "मोफत · कॉलेजचे अधिकृत ॲप")}</small>
-              <strong>{tr("Get the DnyanSetu app", "DnyanSetu ॲप मिळवा")}</strong>
-            </span>
-          </div>
-          <ul className="install-banner-perks">
-            <li><CheckCircle2 size={14} /> {tr("Notes & papers", "नोट्स व पेपर्स")}</li>
-            <li><CheckCircle2 size={14} /> {tr("Notice alerts", "सूचना अलर्ट")}</li>
-            <li><CheckCircle2 size={14} /> {tr("One-tap open", "एका टॅपमध्ये उघडा")}</li>
-          </ul>
+          <img className="install-banner-icon" src="/icon-192.png" alt="" width="60" height="60" />
+          <span className="install-banner-text">
+            <strong>{tr("Install DnyanSetu - Student Portal", "DnyanSetu इन्स्टॉल करा - विद्यार्थी पोर्टल")}</strong>
+            <small>www.dnyansetu.online</small>
+          </span>
           <button type="button" className="install-banner-cta" onClick={onClick}>
-            <Download size={18} /> {mode === "ios" ? tr("Add to Home Screen", "होम स्क्रीनवर जोडा") : tr("Install now — it's free", "आता इन्स्टॉल करा — मोफत")}
+            {mode === "ios" ? tr("Add", "जोडा") : tr("Install", "इन्स्टॉल")}
+          </button>
+          <button type="button" className="install-banner-close" onClick={closeBanner} aria-label={tr("Close", "बंद करा")}>
+            <X size={13} />
           </button>
         </div>
       )) : variant === "compact" ? (
@@ -7925,56 +8055,58 @@ function Styles() {
       .install-banner { display: none; }
       @media (max-width: 760px) {
         .install-banner {
-          display: block; position: relative; overflow: hidden;
-          margin: 12px 12px 4px; padding: 18px 16px 16px; border-radius: 14px;
-          background: linear-gradient(140deg, var(--abc-navy) 0%, var(--abc-navy-light) 100%);
-          color: #fff; box-shadow: 0 10px 28px rgba(11, 30, 46, 0.28);
-          animation: install-banner-in 0.45s ease-out both;
+          display: flex; align-items: center; gap: 14px; position: relative;
+          margin: 10px 10px 4px; padding: 16px 14px 16px 16px; border-radius: 18px;
+          background: #2B2C30; color: #E8EAED;
+          box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+          animation: install-banner-in 0.35s ease-out both;
         }
       }
-      .install-banner-tricolour {
-        position: absolute; inset: 0 0 auto 0; height: 5px;
-        background: linear-gradient(90deg, #FF9933 0 33.3%, #FFFFFF 33.3% 66.6%, #138808 66.6% 100%);
-      }
-      .install-banner-row { display: flex; align-items: center; gap: 12px; padding-right: 30px; }
       .install-banner-icon {
-        flex: 0 0 52px; width: 52px; height: 52px; border-radius: 12px; background: #fff;
-        box-shadow: 0 0 0 3px rgba(255, 153, 51, 0.55);
+        flex: 0 0 60px; width: 60px; height: 60px; border-radius: 16px; background: #fff; object-fit: cover;
       }
-      .install-banner-text { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.25; }
-      .install-banner-text small {
-        font-size: 11.5px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: #FFB870;
-      }
-      .install-banner-text strong { font-size: 19px; font-weight: 800; color: #fff; margin-top: 2px; }
-      .install-banner-perks {
-        list-style: none; margin: 12px 0 14px; padding: 0;
-        display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 13px; color: #DCE6F0;
-      }
-      .install-banner-perks li { display: inline-flex; align-items: center; gap: 5px; }
-      .install-banner-perks svg { color: #4ADE80; flex: 0 0 auto; }
+      .install-banner-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; line-height: 1.25; }
+      .install-banner-text strong { font-size: 17px; font-weight: 500; color: #F1F3F4; }
+      .install-banner-text small { font-size: 14px; color: #BDC1C6; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
       .install-banner-cta {
-        width: 100%; min-height: 48px; border: 0; border-radius: 10px; cursor: pointer;
-        display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-        font: inherit; font-size: 16px; font-weight: 800; color: #fff;
-        background: linear-gradient(180deg, #FF8A3D, var(--abc-saffron));
-        box-shadow: 0 4px 14px rgba(230, 81, 0, 0.45);
-        animation: install-cta-pulse 2.2s ease-in-out infinite;
+        flex: 0 0 auto; min-height: 44px; padding: 0 8px; border: 0; background: none; cursor: pointer;
+        font: inherit; font-size: 17px; font-weight: 600; color: #81C995; border-radius: 10px;
       }
-      .install-banner-cta:active { transform: translateY(1px); }
-      .install-banner-cta:focus-visible { outline: 3px solid #FFB870; outline-offset: 2px; }
+      .install-banner-cta:active { background: rgba(129, 201, 149, 0.12); }
+      .install-banner-cta:focus-visible { outline: 2px solid #81C995; outline-offset: 2px; }
       .install-banner-close {
-        position: absolute; top: 10px; right: 8px; width: 36px; height: 36px; border: 0;
-        background: rgba(255, 255, 255, 0.1); color: #fff;
-        display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; cursor: pointer;
+        position: absolute; top: -6px; right: -4px; width: 26px; height: 26px; padding: 0;
+        border: 2px solid #fff; border-radius: 50%; background: #5F6368; color: #fff; cursor: pointer;
+        display: inline-flex; align-items: center; justify-content: center;
       }
       @keyframes install-banner-in { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: none; } }
-      @keyframes install-cta-pulse {
-        0%, 100% { box-shadow: 0 4px 14px rgba(230, 81, 0, 0.45), 0 0 0 0 rgba(255, 138, 61, 0.55); }
-        50% { box-shadow: 0 4px 14px rgba(230, 81, 0, 0.45), 0 0 0 8px rgba(255, 138, 61, 0); }
-      }
       @media (prefers-reduced-motion: reduce) {
-        .install-banner, .install-banner-cta { animation: none; }
+        .install-banner { animation: none; }
       }
+
+      /* College YouTube channel: profile card + the students' subscribe step */
+      .yt-card { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+      .yt-card-avatar { width: 56px; height: 56px; border-radius: 50%; flex: 0 0 56px; border: 2px solid var(--border-light); }
+      .yt-card-copy { flex: 1 1 200px; min-width: 0; }
+      .yt-card-copy .profile-section-kicker { display: inline-flex; align-items: center; gap: 6px; }
+      .yt-card-copy h2 { margin: 4px 0 2px; font-size: 18px; }
+      .yt-card-copy p { margin: 0; font-size: 14px; color: var(--text-muted); }
+      .yt-subscribe-btn {
+        display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+        min-height: 44px; padding: 0 18px; border-radius: 999px; text-decoration: none;
+        background: #0F0F0F; color: #fff; font-weight: 700; font-size: 15px;
+      }
+      .yt-subscribe-btn:hover { background: #272727; }
+      .yt-subscribe-btn:focus-visible { outline: 3px solid #FF0000; outline-offset: 2px; }
+      .yt-subscribe-btn-lg { width: 100%; min-height: 52px; font-size: 17px; background: #FF0000; }
+      .yt-subscribe-btn-lg:hover { background: #CC0000; }
+      .yt-subscribe-btn-lg svg rect { fill: #fff; }
+      .yt-subscribe-btn-lg svg path { fill: #FF0000; }
+      .yt-gate { text-align: center; max-width: 420px; margin: 0 auto; }
+      .yt-gate-step { margin: 0 0 22px; font-size: 13px; font-weight: 700; color: var(--abc-saffron); letter-spacing: 0.03em; text-transform: uppercase; }
+      .yt-gate .yt-gate-avatar { width: 96px; height: 96px; border-radius: 50%; margin: 24px auto 18px; display: block; box-shadow: 0 0 0 4px #fff, 0 0 0 6px #FF0000; }
+      .yt-gate .auth-sub { margin-bottom: 20px; }
+      .yt-gate-handle { margin: 10px 0 0; font-size: 13px; color: var(--text-muted); }
       .install-steps-card { text-align: left; }
       .install-steps-card .lang-picker-title { text-align: center; }
       .install-steps { list-style: none; padding: 0; margin: 0 0 24px; display: flex; flex-direction: column; gap: 14px; }
