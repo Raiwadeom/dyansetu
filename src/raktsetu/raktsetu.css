@@ -1212,3 +1212,88 @@
   .rs-activity-stat strong { font-size: 20px; }
   .rs-activity-stat small { font-size: 12px; }
 }
+
+
+/* ============================================================================
+   RaktSetu v4 — DnyanSetu admin look (2026-10-15)
+   Same structure as the DnyanSetu main admin desk: light grey page, flat white
+   cards with a thin border and small shadow, 8–12px corners, stat tiles with a
+   coloured left edge, flat buttons. No blush gradients. Red stays as the
+   RaktSetu accent. Overrides v2/v3 above; markup is unchanged.
+   ========================================================================== */
+.rs-root {
+  --rs-radius: 12px;
+  --rs-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+  --rs-line: #E2E8F0;
+  background: #F8FAFC;
+  color: #0F172A;
+}
+.rs-root h1, .rs-root h2, .rs-root h3 { font-weight: 600; letter-spacing: 0; color: #0B1E2E; }
+
+/* Header + menu: white bar, plain tabs like the DnyanSetu top bar. */
+.rs-header { background: #fff; box-shadow: 0 2px 12px rgba(15, 23, 42, 0.06); border-bottom: 1px solid #E2E8F0; }
+.rs-header::before { height: 4px; background: #0B1E2E; }
+.rs-nav-inner { padding: 8px 16px; gap: 4px; }
+.rs-root .rs-nav-link { border: 0; border-radius: 8px; background: transparent; padding: 8px 14px; font-weight: 600; color: #334155 !important; }
+.rs-root .rs-nav-link:hover { background: #F1F5F9; color: #0B1E2E !important; }
+.rs-root .rs-nav-link.is-active { background: #F1F5F9; color: #0B1E2E !important; box-shadow: inset 0 -2px 0 #DC2626; border-radius: 8px 8px 0 0; }
+.rs-root .rs-nav-cta { background: #DC2626; color: #fff !important; box-shadow: none; }
+.rs-root .rs-nav-cta:hover { background: #B91C1C; }
+.rs-root .rs-nav-cta.is-active { background: #B91C1C; box-shadow: none; border-radius: 8px; }
+.rs-back, .rs-signout, .rs-lang { border-radius: 8px; }
+.rs-lang button.is-active { background: #0B1E2E; }
+
+/* Hero: a flat white card, navy headline. */
+.rs-hero {
+  background: #fff; color: #0F172A; border: 1px solid #E2E8F0; border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05); padding: 28px;
+}
+.rs-hero h1 { color: #0B1E2E; font-weight: 700; font-size: clamp(26px, 3.4vw, 38px); }
+.rs-hero-sub { color: #475569; font-size: 16px; }
+.rs-hero .rs-eyebrow { background: #F1F5F9; color: #0B1E2E; border: 1px solid #E2E8F0; box-shadow: none; border-radius: 6px; }
+.rs-hero .rs-btn { border-radius: 8px; }
+.rs-hero-features li > span { background: #FEF2F2; box-shadow: none; border-radius: 10px; }
+.rs-hero-panel { background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 12px; backdrop-filter: none; -webkit-backdrop-filter: none; }
+.rs-hero-facts li {
+  background: #fff; border: 1px solid #E2E8F0; border-left: 3px solid #DC2626;
+  border-radius: 8px; box-shadow: none;
+}
+.rs-fact-num { background: #F1F5F9; color: #0B1E2E; border-radius: 8px; }
+
+/* Cards / sections: flat white, thin border. */
+.rs-card, .rs-steps li, .rs-profile-card, .rs-statpanel, .rs-activity-stat, .rs-activity-panel, .rs-push-prompt,
+.rs-root .rs-push-prompt, .rs-age-banner, .rs-profile-header, .rs-form, .rs-elig-block {
+  background: #fff; border: 1px solid #E2E8F0; border-radius: 12px; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+}
+.rs-root .rs-push-prompt { border-left: 3px solid #DC2626; }
+.rs-age-banner { border-left: 3px solid #DC2626; }
+.rs-section#how-it-works { background: transparent; margin: 0; padding: 0; border-radius: 0; }
+.rs-title-block { border-bottom: 1px solid #E2E8F0; padding-bottom: 10px; }
+.rs-title { font-size: 20px; font-weight: 600; color: #0B1E2E; }
+.rs-title-heart, .rs-title-heart svg { border-radius: 8px; }
+.rs-steps li::before, .rs-activity-stat-icon, .rs-activity-empty > span { background: #F1F5F9; color: #0B1E2E; }
+.rs-activity-stat { border-left: 3px solid #DC2626; border-radius: 8px; }
+.rs-activity-stat strong { font-weight: 700; color: #0B1E2E; }
+.rs-rest-card { background: #fff; border: 1px solid #E2E8F0; border-left: 3px solid #DC2626; border-radius: 8px; }
+.rs-request-card { border: 1px solid #E2E8F0; border-left: 3px solid #DC2626; border-radius: 8px; box-shadow: none; }
+.rs-activity-panel .rs-request-card { background: #fff; }
+.rs-group--lg { background: #0B1E2E; box-shadow: none; border-radius: 8px; }
+
+/* Buttons: flat, 8px corners. */
+.rs-btn, .rs-root .rs-btn { border-radius: 8px; font-weight: 600; box-shadow: none; }
+.rs-btn-primary { background: #DC2626; }
+.rs-btn-primary:hover:not(:disabled) { background: #B91C1C; box-shadow: none; }
+.rs-btn-ghost { background: #fff; color: #0B1E2E !important; border: 1px solid #CBD5E1; }
+.rs-btn-ghost:hover:not(:disabled) { background: #F8FAFC; border-color: #0B1E2E; }
+
+/* Fields: DnyanSetu inputs. */
+.rs-root input[type="text"], .rs-root input[type="number"], .rs-root input[type="tel"],
+.rs-root input[type="date"], .rs-root input[type="datetime-local"], .rs-root input[type="search"],
+.rs-root select, .rs-root textarea { border-radius: 8px; border-color: #CBD5E1; }
+.rs-root input:focus, .rs-root select:focus, .rs-root textarea:focus { border-color: #0B1E2E; outline: 0; box-shadow: 0 0 0 2px rgba(11, 30, 46, 0.1); }
+.rs-choice { border-radius: 8px; }
+.rs-choice.is-on { border-color: #0B1E2E; outline: 0; box-shadow: 0 0 0 2px rgba(11, 30, 46, 0.1); background: #F8FAFC; }
+
+/* Profile cover + footer: DnyanSetu navy, flat. */
+.rs-profile-cover { background: #0B1E2E; }
+.rs-footer { background: #0B1E2E; }
