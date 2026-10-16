@@ -41,14 +41,31 @@ export function toScheme(row) {
 
 export const builtInSchemes = () => builtInScholarshipRows().map(toScheme);
 
-/* Public list (active schemes only). Falls back to the built-in copy. */
-export async function fetchSchemes() {
-  if (!isBackendConfigured) return builtInSchemes();
+/* Public list (active schemes only). Falls back to the built-in copy, unless
+   `quiet` is set: a background refresh that fails returns null so the page
+   keeps what it already shows instead of swapping in the built-in copy. */
+const CACHE_KEY = "dnyansetu.schemes.v1";
+
+/* The list as last loaded in this tab, so a return visit shows it at once
+   (the live list then replaces it). null when nothing is stored. */
+export function cachedSchemes() {
+  try {
+    const raw = JSON.parse(sessionStorage.getItem(CACHE_KEY) || "null");
+    return Array.isArray(raw) ? raw : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function fetchSchemes({ quiet = false } = {}) {
+  if (!isBackendConfigured) return quiet ? null : builtInSchemes();
   try {
     const rows = check(await supabase.from("scholarships").select("*").eq("active", true).order("sort").order("name"), "Could not load scholarships.");
-    return (rows || []).map(toScheme);
+    const list = (rows || []).map(toScheme);
+    try { sessionStorage.setItem(CACHE_KEY, JSON.stringify(list)); } catch { /* storage blocked */ }
+    return list;
   } catch {
-    return builtInSchemes();
+    return quiet ? null : builtInSchemes();
   }
 }
 

@@ -34,7 +34,7 @@ import {
 } from "./lib/adminSession";
 import { NOTE_STREAMS, SEMESTERS, ACCEPTED_NOTE_TYPES, formatBytes } from "./data/notes";
 import { SCHOLARSHIP_CATEGORIES } from "./data/resources";
-import { builtInSchemes, fetchSchemes, schemeStatus, fetchLiveAnnouncements } from "./lib/siteContent";
+import { builtInSchemes, cachedSchemes, fetchSchemes, schemeStatus, fetchLiveAnnouncements } from "./lib/siteContent";
 import ContentAdminPage, { FacultyAnnouncementsCard } from "./admin/ContentAdminPage.jsx";
 import NotificationPrompt from "./lib/NotificationPrompt.jsx";
 import CookieConsent, { readConsent } from "./lib/cookieConsent.jsx";
@@ -204,6 +204,13 @@ const STREAM_OPTIONS = [
   ...NOTE_STREAMS.map((st) => ({ value: st.id, label: `${st.name} — ${st.full}` })),
 ];
 const streamDegree = (id, fallback = "") => NOTE_STREAMS.find((st) => st.id === id)?.name || fallback;
+
+/* The category on the student's certificate; kept in the profile so the
+   Scholarships page can open already filtered. Optional. */
+const CATEGORY_OPTIONS = [
+  { value: "", label: "Select category (optional)" },
+  ...SCHOLARSHIP_CATEGORIES.map((c) => ({ value: c.id, label: c.name })),
+];
 
 const GENDER_OPTIONS = [
   { value: "", label: "Select gender" },
@@ -600,8 +607,8 @@ function SelectField({ label, icon: Icon, options, ...props }) {
         {Icon && <Icon size={16} className="field-icon" />}
         <select className="field-input" {...props}>
           {options.map((opt) => (
-            <option key={opt.value || opt} value={opt.value || opt}>
-              {opt.label || opt}
+            <option key={opt.value ?? opt} value={opt.value ?? opt}>
+              {opt.label ?? opt}
             </option>
           ))}
         </select>
@@ -2512,6 +2519,7 @@ function StudentProfileSetup({ profile, onComplete, onHome, onSignOut }) {
     branch: profile.branch || "",
     gradYear: profile.gradYear || "",
     college: profile.college || INSTITUTION.short,
+    scholarshipCategory: profile.scholarshipCategory || "",
   });
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
   return (
@@ -2533,6 +2541,7 @@ function StudentProfileSetup({ profile, onComplete, onHome, onSignOut }) {
             <Field label="Graduation Year" icon={CalendarDays} value={form.gradYear} onChange={set("gradYear")} placeholder="e.g. 2027" inputMode="numeric" maxLength={4} />
           </div>
           <Field label="College" icon={GraduationCap} value={form.college} onChange={set("college")} />
+          <SelectField label="Scholarship category" icon={Coins} value={form.scholarshipCategory} onChange={set("scholarshipCategory")} options={CATEGORY_OPTIONS} />
           <button type="submit" className="btn btn-primary btn-block btn-lg" style={{ marginTop: 20 }}>
             Open My Profile <ArrowRight size={16} />
           </button>
@@ -2715,7 +2724,7 @@ function FacultyPapers() {
 
 /* =============================== VIEW: Scholarships ============================== */
 
-function ScholarshipsPage({ onBack, onRegisterBack }) {
+function ScholarshipsPage({ onBack, onRegisterBack, profile }) {
   const { lang } = useLang();
   const tr = makeTr(lang);
   const [categoryId, setCategoryId] = useState(null);
@@ -2724,18 +2733,30 @@ function ScholarshipsPage({ onBack, onRegisterBack }) {
 
   /* The administrator's current list; the built-in copy shows until it loads
      (and stays if the database cannot be reached). */
-  const [schemes, setSchemes] = useState(builtInSchemes);
+  const [schemes, setSchemes] = useState(cachedSchemes);
   useEffect(() => {
     let alive = true;
     fetchSchemes().then((list) => { if (alive) setSchemes(list); });
     return () => { alive = false; };
   }, []);
-  useLiveRefresh(() => fetchSchemes().then((list) => setSchemes(sameOr(list))));
+  useLiveRefresh(() => fetchSchemes({ quiet: true }).then((list) => { if (list) setSchemes(sameOr(list)); }));
   const tx = (en, mr) => tr(en, mr || en);
   const docText = (d) => (typeof d === "string" ? d : tx(d.en, d.mr));
 
+  /* A signed-in student's saved category opens the page already filtered.
+     Anyone else (signed out, faculty) picks a chip as before. Once the reader
+     taps a chip themselves, their choice wins over the saved one. */
+  const savedCategory = profile?.role === "student" && SCHOLARSHIP_CATEGORIES.some((c) => c.id === profile.scholarshipCategory)
+    ? profile.scholarshipCategory : null;
+  const [picked, setPicked] = useState(false);
+  useEffect(() => {
+    if (!picked) setCategoryId(savedCategory);
+  }, [savedCategory, picked]);
+  const loading = schemes === null;
+  const list = schemes || [];
+
   const category = SCHOLARSHIP_CATEGORIES.find((c) => c.id === categoryId) || null;
-  const matches = category ? schemes.filter((sc) => sc.categories.includes(category.id)) : [];
+  const matches = category ? list.filter((sc) => sc.categories.includes(category.id)) : [];
   const allDocs = category ? [...new Set(matches.flatMap((sc) => sc.documents.map(docText)))] : [];
 
   /* Closes the documents panel first, then the category, and only then
@@ -2774,7 +2795,7 @@ function ScholarshipsPage({ onBack, onRegisterBack }) {
             "तुमच्या प्रमाणपत्रावरील प्रवर्ग निवडा — तुमच्यासाठी खुल्या योजना आणि आवश्यक कागदपत्रे दिसतील.",
           )}
           stats={[
-            { icon: Award, value: schemes.length, label: tr("Schemes", "योजना") },
+            { icon: Award, value: loading ? "…" : list.length, label: tr("Schemes", "योजना") },
             { icon: Users, value: SCHOLARSHIP_CATEGORIES.length, label: tr("Categories", "प्रवर्ग") },
           ]}
         />
@@ -2796,18 +2817,37 @@ function ScholarshipsPage({ onBack, onRegisterBack }) {
             type="button"
             key={item.id}
             className={`category-chip ${categoryId === item.id ? "is-active" : ""}`}
-            onClick={() => { setCategoryId(item.id); setOpenDocs(null); setShowAllDocs(false); }}
+            onClick={() => { setPicked(true); setCategoryId(item.id); setOpenDocs(null); setShowAllDocs(false); }}
           >
             {tr(item.name, item.nameMr)}
           </button>
         ))}
       </div>
 
-      {!category && (
+      {profile?.role === "student" && (
+        <p className="resource-note">
+          <Info size={15} />
+          <span>
+            {savedCategory
+              ? tr(
+                  `Showing the category saved in your profile${categoryId === savedCategory ? "" : " — you are viewing another one right now"}. You can change it any time in Edit Profile.`,
+                  `तुमच्या प्रोफाइलमध्ये जतन केलेला प्रवर्ग${categoryId === savedCategory ? " दाखवत आहे" : " — सध्या तुम्ही दुसरा पाहत आहात"}. Edit Profile मध्ये केव्हाही बदलता येईल.`,
+                )
+              : tr(
+                  "Save your category in Edit Profile and this page will open with your schemes already shown.",
+                  "Edit Profile मध्ये तुमचा प्रवर्ग जतन करा — हे पान तुमच्या योजनांसह थेट उघडेल.",
+                )}
+          </span>
+        </p>
+      )}
+
+      {loading && <p className="resource-empty">{tr("Loading scholarships…", "शिष्यवृत्ती लोड होत आहेत…")}</p>}
+
+      {!loading && !category && (
         <p className="resource-empty">{tr("Select your category above to see the schemes open to you.", "तुमच्यासाठी खुल्या असलेल्या योजना पाहण्यासाठी वरील प्रवर्ग निवडा.")}</p>
       )}
 
-      {category && (
+      {!loading && category && (
         <>
           <div className="category-summary">
             <div>
@@ -2970,32 +3010,23 @@ function DeleteAccountCard({ variant = "student" }) {
 
 function StudentProfile({ profile, onSaveProfile }) {
   const [isEditing, setIsEditing] = useState(false);
-  const [draft, setDraft] = useState({
-    name: profile.name || "",
-    gender: profile.gender || "",
-    stream: profile.stream || "",
-    branch: profile.branch || "Computer Science & Engineering",
-    college: profile.college || "",
-    university: profile.university || "SRTM University, Nanded",
-    gradYear: profile.gradYear || "2026",
-    studentIdNum: profile.studentIdNum || "",
-    about: profile.about || "",
-    skills: (profile.skills || []).join(", ")
+  const draftFrom = (p) => ({
+    name: p.name || "",
+    gender: p.gender || "",
+    stream: p.stream || "",
+    branch: p.branch || "Computer Science & Engineering",
+    college: p.college || "",
+    university: p.university || "SRTM University, Nanded",
+    gradYear: p.gradYear || "2026",
+    studentIdNum: p.studentIdNum || "",
+    about: p.about || "",
+    scholarshipCategory: p.scholarshipCategory || "",
+    skills: (p.skills || []).join(", ")
   });
+  const [draft, setDraft] = useState(() => draftFrom(profile));
 
   useEffect(() => {
-    setDraft({
-      name: profile.name || "",
-      gender: profile.gender || "",
-      stream: profile.stream || "",
-      branch: profile.branch || "Computer Science & Engineering",
-      college: profile.college || "",
-      university: profile.university || "SRTM University, Nanded",
-      gradYear: profile.gradYear || "2026",
-      studentIdNum: profile.studentIdNum || "",
-      about: profile.about || "",
-      skills: (profile.skills || []).join(", ")
-    });
+    setDraft(draftFrom(profile));
   }, [profile]);
 
   const initials = (profile.name || "Student")
@@ -3100,6 +3131,7 @@ function StudentProfile({ profile, onSaveProfile }) {
                   <Field label="Graduation Year" icon={CalendarDays} value={draft.gradYear} onChange={(e) => setDraft({ ...draft, gradYear: e.target.value })} />
                   <Field label="Skills (comma separated)" icon={Code2} value={draft.skills} onChange={(e) => setDraft({ ...draft, skills: e.target.value })} />
                 </div>
+                <SelectField label="Scholarship category" icon={Coins} value={draft.scholarshipCategory} onChange={(e) => setDraft({ ...draft, scholarshipCategory: e.target.value })} options={CATEGORY_OPTIONS} />
                 <Field label="About" icon={Info} value={draft.about} onChange={(e) => setDraft({ ...draft, about: e.target.value })} />
                 <button type="submit" className="btn btn-primary btn-block btn-lg" style={{ marginTop: 16 }}>Save Changes</button>
               </form>
@@ -5671,7 +5703,7 @@ export default function App() {
             <QuizPage onBack={goBack} onRegisterBack={registerPageBack} user={currentUser} />
           </Suspense>
         )}
-        {view === "scholarships" && <ScholarshipsPage onBack={goBack} onRegisterBack={registerPageBack} />}
+        {view === "scholarships" && <ScholarshipsPage onBack={goBack} onRegisterBack={registerPageBack} profile={currentUser} />}
         {view === "talent" && (
           <Suspense fallback={<div className="boot-screen"><Loader2 size={20} className="spin" /> Loading Talent Corner…</div>}>
             <TalentPage
