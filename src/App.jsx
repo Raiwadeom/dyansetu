@@ -2189,6 +2189,21 @@ const YT_CHANNEL = {
   avatar: "/yt-channel.jpg",
 };
 
+const IG_CHANNEL = {
+  handle: "@oruim.tech",
+  url: "https://www.instagram.com/oruim.tech",
+};
+
+function IgLogo({ size = 20 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="18" height="18" rx="5" />
+      <circle cx="12" cy="12" r="4" />
+      <circle cx="17.3" cy="6.7" r="0.6" fill="currentColor" />
+    </svg>
+  );
+}
+
 /* Student pages that wait until the channel step is done. */
 const YT_GATED_VIEWS = new Set(["profile", "student-setup", "notes", "pyq", "quiz"]);
 
@@ -2215,10 +2230,13 @@ function YtChannelCard() {
       <div className="yt-card-copy">
         <span className="profile-section-kicker"><YtLogo size={16} /> FOLLOW OUR YOUTUBE CHANNEL</span>
         <h2>{YT_CHANNEL.name}</h2>
-        <p>Tech videos, tips and DnyanSetu updates. Subscribe and stay connected.</p>
+        <p>Tech videos, tips and DnyanSetu updates. Subscribe on YouTube and follow us on Instagram.</p>
       </div>
       <a className="yt-subscribe-btn" href={YT_CHANNEL.subscribeUrl} target="_blank" rel="noreferrer">
         <YtLogo size={18} /> Subscribe
+      </a>
+      <a className="yt-subscribe-btn ig-follow-btn" href={IG_CHANNEL.url} target="_blank" rel="noreferrer">
+        <IgLogo size={18} /> Follow on Instagram
       </a>
     </section>
   );
@@ -2269,8 +2287,8 @@ function YtSubscribeScreen({ user, onDone, onSignOut }) {
           <img className="yt-gate-avatar" src={YT_CHANNEL.avatar} alt="" width="96" height="96" />
           <h2 className="auth-title">Subscribe to {YT_CHANNEL.name}</h2>
           <p className="auth-sub">
-            Hi {(user.name || "Student").split(" ")[0]}, subscribe to our YouTube channel to open your
-            DnyanSetu profile. Tap the button, press <strong>Subscribe</strong> on YouTube, then come back here.
+            Hi {(user.name || "Student").split(" ")[0]}, subscribe to our YouTube channel and follow us on Instagram to open your
+            DnyanSetu profile. Tap the buttons, press <strong>Subscribe</strong> on YouTube and <strong>Follow</strong> on Instagram, then come back here.
           </p>
           <a
             className="yt-subscribe-btn yt-subscribe-btn-lg"
@@ -2282,6 +2300,16 @@ function YtSubscribeScreen({ user, onDone, onSignOut }) {
             <YtLogo size={22} /> Subscribe on YouTube
           </a>
           <p className="yt-gate-handle">{YT_CHANNEL.handle} · youtube.com</p>
+          <a
+            className="yt-subscribe-btn yt-subscribe-btn-lg ig-follow-btn"
+            href={IG_CHANNEL.url}
+            target="_blank"
+            rel="noreferrer"
+            onClick={openChannel}
+          >
+            <IgLogo size={22} /> Follow on Instagram
+          </a>
+          <p className="yt-gate-handle">{IG_CHANNEL.handle} · instagram.com</p>
           {opened && (
             <button type="button" className="btn btn-primary btn-block btn-lg" style={{ marginTop: 14 }} onClick={finish} disabled={busy}>
               {busy ? <><Loader2 size={16} className="spin" /> Opening your profile…</> : <>I&apos;ve subscribed — open my profile <ArrowRight size={16} /></>}
@@ -8161,6 +8189,9 @@ function Styles() {
       .yt-subscribe-btn:focus-visible { outline: 3px solid #FF0000; outline-offset: 2px; }
       .yt-subscribe-btn-lg { width: 100%; min-height: 52px; font-size: 17px; background: #FF0000; }
       .yt-subscribe-btn-lg:hover { background: #CC0000; }
+      .ig-follow-btn, .ig-follow-btn:hover { background: #C13584; }
+      .ig-follow-btn:hover { background: #A52A6F; }
+      .yt-gate .ig-follow-btn { margin-top: 14px; }
       .yt-subscribe-btn-lg svg rect { fill: #fff; }
       .yt-subscribe-btn-lg svg path { fill: #FF0000; }
       .yt-strip-wrap { padding: 8px 48px 40px; max-width: 1200px; margin: 0 auto; }
