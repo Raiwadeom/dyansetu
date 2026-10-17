@@ -5147,6 +5147,16 @@ export default function App() {
   /* Boot: wait for Supabase to restore any saved session (or finish a Google
      redirect), then load the profile. */
   const bootedRef = useRef(false);
+  const savingProfileRef = useRef(0);
+  const lastProfileSaveRef = useRef(0);
+  /* Wraps every save of the signed-in account so the live refresh knows. */
+  const trackSave = async (job) => {
+    savingProfileRef.current += 1;
+    try { return await job(); } finally {
+      savingProfileRef.current -= 1;
+      lastProfileSaveRef.current = Date.now();
+    }
+  };
   useEffect(() => {
     if (bootedRef.current) return undefined;
     if (demoMode) {
@@ -5199,8 +5209,14 @@ export default function App() {
   const signedInId = currentUser?.id;
   const signedInRole = currentUser?.role;
   useLiveRefresh(async () => {
+    const startedAt = Date.now();
     const latest = await fetchProfile(signedInId);
     if (!latest) return;
+    /* A save made while this read was in flight (the faculty setup form, a
+       profile edit) would be overwritten by the older copy just fetched, and
+       the avatar/details would flicker back to blank. Skip; the next tick
+       reads the saved copy. */
+    if (savingProfileRef.current > 0 || lastProfileSaveRef.current >= startedAt) return;
     if (latest.restricted || latest.status === "deleted") {
       await auth.signOut();
       setCurrentUser(null);
@@ -5376,7 +5392,7 @@ export default function App() {
     const fresh = await fetchProfile(currentUser.id);
     if (!fresh) return null;
     const full = normalizeStudentProfile(fresh);
-    setCurrentUser(full);
+    setCurrentUser(sameOr(full));
     return full;
   }, [currentUser, demoMode]);
 
@@ -5503,7 +5519,15 @@ export default function App() {
     const updated = { ...currentUser, ...data, trackingId };
     setCurrentUser(updated);
     if (!demoMode) {
-      try { await updateProfile(updated.id, updated); } catch (e) { setNotice("Could not save your details."); }
+      try {
+        await trackSave(() => updateProfile(updated.id, updated));
+      } catch (e) {
+        /* Stay on the form: moving on would let the next refresh bring the
+           blank profile back and the details would look lost. */
+        console.error(e);
+        setNotice("Could not save your details. Please check your connection and press the button again.");
+        return;
+      }
     }
     replaceView("faculty-portal");
   };
@@ -5515,7 +5539,7 @@ export default function App() {
       return;
     }
     try {
-      const saved = await updateProfile(updatedU.id, updatedU);
+      const saved = await trackSave(() => updateProfile(updatedU.id, updatedU));
       if (saved) {
         setCurrentUser(normalizeStudentProfile(saved));
       }

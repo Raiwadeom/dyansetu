@@ -12,7 +12,7 @@
                    matched to the gender in the profile, fixed per account.
    ========================================================================== */
 
-import React from "react";
+import React, { useState } from "react";
 import collegeLogo from "../img/college-logo.jpg";
 
 /* Page banner: the same abstract navy + saffron art as the profile banner,
@@ -59,13 +59,16 @@ const AVATAR_BG = ["#DBEAFE", "#E0E7FF", "#DCFCE7", "#FFEDD5", "#FCE7F3", "#CFFA
    changes on refresh): an illustrated person matching the gender in the
    profile. Other / not chosen yet: a plain silhouette. */
 export function AvatarCycle({ gender = "", seed = "", className = "" }) {
+  /* If the illustration cannot load (weak network, a stale cached page), fall
+     back to the plain silhouette instead of showing an empty circle. */
+  const [broken, setBroken] = useState(false);
   const h = hashOf(String(seed || "dnyansetu"));
   const list = AVATARS[gender];
-  if (list) {
+  if (list && !broken) {
     const i = h % list.length;
     return (
       <span className={`avatar-cycle ${className}`} aria-hidden="true" style={{ background: AVATAR_BG[i] }}>
-        <img className="avatar-illustration" src={list[i]} alt="" draggable={false} />
+        <img className="avatar-illustration" src={list[i]} alt="" draggable={false} onError={() => setBroken(true)} />
       </span>
     );
   }

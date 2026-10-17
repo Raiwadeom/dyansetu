@@ -8,6 +8,7 @@ import "./index.css";
 /* Imported early so the browser's one-time install offer is not missed. */
 import "./lib/installPrompt.js";
 import { registerVisit } from "./lib/visitCounter.jsx";
+import { reloadForUpdate, startUpdateCheck } from "./lib/updateCheck.js";
 
 /* /raktsetu is its own full page with its own look, but the same site, domain
    and sign-in session — so it shares the AuthProvider and nothing else. */
@@ -102,6 +103,14 @@ if (typeof window !== "undefined") {
     }, 300);
   });
 }
+
+/* A page asked for a code file a newer deploy removed: refresh into the new
+   version instead of showing an error. */
+window.addEventListener("vite:preloadError", (e) => {
+  e.preventDefault();
+  reloadForUpdate();
+});
+startUpdateCheck();
 
 window.addEventListener("error", (e) => {
   showFatal("Script error", e.message + (e.filename ? `\n  at ${e.filename}:${e.lineno}` : ""));

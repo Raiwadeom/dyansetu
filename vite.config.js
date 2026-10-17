@@ -176,9 +176,25 @@ function seoPages() {
   };
 }
 
+/* A tab left open across a deploy still runs the old code and asks for files
+   that no longer exist ("Something went wrong / Try again", a 404, a frozen
+   screen). Every build gets an id, written to /version.json; the app compares
+   it with its own (src/lib/updateCheck.js) and refreshes itself. */
+const BUILD_ID = String(Date.now());
+function versionFile() {
+  return {
+    name: "dnyansetu-version-file",
+    apply: "build",
+    closeBundle() {
+      fs.writeFileSync(path.resolve("dist", "version.json"), JSON.stringify({ id: BUILD_ID }));
+    },
+  };
+}
+
 export default defineConfig(({ mode }) => {
   return {
-    plugins: [react(), apiRoutes(mode), seoPages()],
+    define: { __BUILD_ID__: JSON.stringify(mode === "production" ? BUILD_ID : "dev") },
+    plugins: [react(), apiRoutes(mode), seoPages(), versionFile()],
     server: {
       host: true,
       watch: {
