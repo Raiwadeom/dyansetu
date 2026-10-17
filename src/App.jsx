@@ -1091,6 +1091,11 @@ function Landing({ goAuth, onOpenAbout, onOpenPage, onOpenTalent, user, onOpenDa
             <button type="button" className="btn btn-primary btn-lg" onClick={() => goAuth("signup")}>
               {tr("Get Started", "सुरुवात करा")} <ArrowRight size={18} />
             </button>
+            {!user && (
+              <button type="button" className="btn btn-lg hero-full-secondary hero-full-staff" onClick={() => goAuth("login", "staff")}>
+                <Shield size={17} /> {tr("Faculty / Staff Sign in", "शिक्षक / कर्मचारी साइन इन")}
+              </button>
+            )}
             <button
               type="button"
               className="btn btn-lg hero-full-secondary"
@@ -6732,6 +6737,7 @@ function Styles() {
       .hero-full-brochure-text strong { font-size: 15px; font-weight: 700; }
       .hero-full-brochure-text small { font-size: 12px; color: rgba(255,255,255,.75); margin-top: 2px; }
       .hero-full-secondary { background: #FFFFFF; color: var(--abc-navy); border: 1px solid #FFFFFF; }
+      .hero-full-staff { gap: 8px; }
       .hero-full-secondary:hover { background: #F1F5F9; color: var(--abc-navy); }
 
       .hero-full-controls {
