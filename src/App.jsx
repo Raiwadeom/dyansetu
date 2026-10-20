@@ -8396,23 +8396,26 @@ function Styles() {
       /* Phones only: desktop visitors have the nav button. */
       .install-banner { display: none; }
       @media (max-width: 760px) {
+        /* A small popup floating over the page (not part of the layout), so
+           it never pushes the college header down. */
         .install-banner {
-          display: flex; align-items: center; gap: 14px; position: relative;
-          margin: 10px 10px 4px; padding: 16px 14px 16px 16px; border-radius: 18px;
+          display: flex; align-items: center; gap: 10px; position: fixed; z-index: 300;
+          top: calc(10px + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%);
+          width: min(360px, calc(100% - 20px)); padding: 10px 12px 10px 12px; border-radius: 14px;
           background: #2B2C30; color: #E8EAED;
-          box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+          box-shadow: 0 8px 26px rgba(0, 0, 0, 0.4);
           animation: install-banner-in 0.35s ease-out both;
         }
       }
       .install-banner-icon {
-        flex: 0 0 60px; width: 60px; height: 60px; border-radius: 16px; background: #fff; object-fit: cover;
+        flex: 0 0 40px; width: 40px; height: 40px; border-radius: 10px; background: #fff; object-fit: cover;
       }
       .install-banner-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; line-height: 1.25; }
-      .install-banner-text strong { font-size: 17px; font-weight: 500; color: #F1F3F4; }
-      .install-banner-text small { font-size: 14px; color: #BDC1C6; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .install-banner-text strong { font-size: 13.5px; font-weight: 500; color: #F1F3F4; }
+      .install-banner-text small { font-size: 12px; color: #BDC1C6; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
       .install-banner-cta {
-        flex: 0 0 auto; min-height: 44px; padding: 0 8px; border: 0; background: none; cursor: pointer;
-        font: inherit; font-size: 17px; font-weight: 600; color: #81C995; border-radius: 10px;
+        flex: 0 0 auto; min-height: 40px; padding: 0 8px; border: 0; background: none; cursor: pointer;
+        font: inherit; font-size: 14.5px; font-weight: 600; color: #81C995; border-radius: 10px;
       }
       .install-banner-cta:active { background: rgba(129, 201, 149, 0.12); }
       .install-banner-cta:focus-visible { outline: 2px solid #81C995; outline-offset: 2px; }
@@ -8421,7 +8424,7 @@ function Styles() {
         border: 2px solid #fff; border-radius: 50%; background: #5F6368; color: #fff; cursor: pointer;
         display: inline-flex; align-items: center; justify-content: center;
       }
-      @keyframes install-banner-in { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: none; } }
+      @keyframes install-banner-in { from { opacity: 0; transform: translate(-50%, -10px); } to { opacity: 1; transform: translateX(-50%); } }
       @media (prefers-reduced-motion: reduce) {
         .install-banner { animation: none; }
       }

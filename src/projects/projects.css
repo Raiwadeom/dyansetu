@@ -420,3 +420,32 @@
   .sp-k-full { display: none; }
   .sp-k-short { display: inline; }
 }
+
+/* ---- phone: horizontal cards (picture left, text right) so the list is short ---- */
+@media (max-width: 640px) {
+  .sp-card, .sp-lcard { flex-direction: row; align-items: stretch; border-radius: 14px; }
+  .sp-shot, .sp-lshot { flex: 0 0 34%; max-width: 150px; aspect-ratio: auto; min-height: 138px; }
+  .sp-shot img, .sp-lshot img { position: absolute; inset: 0; height: 100%; }
+  .sp-cover b { font-size: 26px; }
+  .sp-cover-icon { display: none; }
+  .sp-platform { display: none; }
+  .sp-kind, .sp-lshot em { top: 6px; left: 6px; font-size: 9.5px; padding: 2px 7px; }
+  .sp-body, .sp-lbody { padding: 10px 12px; gap: 6px; min-width: 0; justify-content: center; }
+  .sp-body h3, .sp-lbody h3 { font-size: 14.5px; }
+  .sp-desc, .sp-lbody p { font-size: 12.5px; -webkit-line-clamp: 2; }
+  .sp-tech { display: none; }
+  .sp-meta, .sp-lbody ul { padding-top: 6px; gap: 3px; font-size: 12px; }
+  .sp-actions { padding-top: 2px; }
+  .sp-actions .sp-btn, .sp-lbody a { min-height: 32px; padding: 6px 12px; font-size: 12.5px; }
+  .sp-lbody a small { display: none; }
+  .sp-grid, .sp-landing-grid { gap: 10px; }
+  .sp-manage { padding-top: 6px; }
+}
+
+/* phones: the landing section is just the heading, counts and the button;
+   the project cards live on the full Projects page */
+@media (max-width: 640px) {
+  .sp-landing-grid { display: none; }
+  .sp-landing-head { margin-bottom: 0; }
+  .sp-landing-in { padding-bottom: 26px; }
+}
