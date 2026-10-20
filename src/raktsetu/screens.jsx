@@ -19,6 +19,8 @@ import {
   listResponders, markDonated, nextEligibleDate, reportRequest, respondToRequest, saveMyRaktProfile,
   setRequestStatus, updateMyRaktSettings,
 } from "./api.js";
+import { useAuth } from "../lib/auth.jsx";
+import { AdminShell, BarCard, CalendarCard, PillTabs, StatRow as TileRow, StatTile, bucketCounts, monthDelta } from "../admin/adminKit.jsx";
 import { currentSubscription, disablePush, enablePush, isPushConfigured, pushSupport } from "./push.js";
 import {
   EmergencyHelp, GroupBadge, Link, NewMemberBadge, PaymentWarning, Spinner, StatusBadge, formatDate, formatDateTime, todayIso,
@@ -1130,9 +1132,9 @@ function StatPanel({ title, tone, children }) {
   );
 }
 
-function AdminBlock({ title, count, note, action, children }) {
+function AdminBlock({ id, title, count, note, action, children }) {
   return (
-    <section className="rs-card rs-admin-block">
+    <section className="rs-card rs-admin-block" id={id}>
       <div className="rs-admin-block-head">
         <div>
           <h2 className="rs-card-title">
@@ -1152,17 +1154,20 @@ function AdminBlock({ title, count, note, action, children }) {
    status filter, and the moderation log. Admin only (checked by the page
    router and again by the database). */
 export function AdminPage({ navigate }) {
-  const [state, setState] = useState({ loading: true, stats: null, reports: [], requests: [], log: [], members: [], error: "" });
+  const [state, setState] = useState({ loading: true, stats: null, reports: [], requests: [], log: [], members: [], all: [], error: "" });
   const [filter, setFilter] = useState("open");
+  const [range, setRange] = useState("month");
+  const [active, setActive] = useState("overview");
+  const { signOut } = useAuth();
   const [memberFilter, setMemberFilter] = useState("all");
   const [reasons, setReasons] = useState({});
 
   const load = useCallback(async () => {
     try {
-      const [stats, reports, requests, log, members] = await Promise.all([
-        fetchAdminStats(), listReports(), listRequestsForAdmin(filter), listAdminLog(), listMembersForAdmin(),
+      const [stats, reports, requests, log, members, all] = await Promise.all([
+        fetchAdminStats(), listReports(), listRequestsForAdmin(filter), listAdminLog(), listMembersForAdmin(), listRequestsForAdmin(""),
       ]);
-      setState({ loading: false, stats, reports, requests, log, members, error: "" });
+      setState({ loading: false, stats, reports, requests, log, members, all, error: "" });
     } catch (error) {
       const denied = /administrators only/i.test(error.message || "");
       setState((s) => ({
@@ -1205,51 +1210,60 @@ export function AdminPage({ navigate }) {
   const groups = BLOOD_GROUPS.concat("unknown");
   const sickCount = state.members.filter((m) => m.has_current_disease).length;
   const shownMembers = memberFilter === "disease" ? state.members.filter((m) => m.has_current_disease) : state.members;
+  /* Each sidebar item opens its own section; nothing scrolls the page. */
+  const goTo = (id) => {
+    setActive(id);
+    window.scrollTo({ top: 0 });
+  };
+  const TITLES = { overview: "RaktSetu overview", members: "Members", reports: "Reported requests", requests: "Requests", log: "Moderation log" };
 
   return (
-    <section className="rs-section">
-      <div className="rs-page-head">
-        <h1 className="rs-page-title">RaktSetu admin</h1>
-        <a className="rs-btn rs-btn-ghost rs-btn-sm" href="/">DnyanSetu admin desk</a>
-      </div>
-      <p className="rs-lead">
-        Overview, reports and every request. A request reported by 3 members is hidden automatically until you remove
-        it or dismiss the reports. To stop someone posting again, restrict their account from the DnyanSetu admin desk.
+    <AdminShell
+      brand="RaktSetu"
+      logo="/raktsetu-icon.svg"
+      tag="Admin"
+      title={TITLES[active] || "RaktSetu overview"}
+      active={active}
+      user={{ name: "Administrator" }}
+      nav={[
+        { id: "overview", label: "Overview", icon: ClipboardList, onClick: () => goTo("overview") },
+        { id: "members", label: "Members", icon: HandHeart, onClick: () => goTo("members") },
+        { id: "reports", label: "Reports", icon: Flag, badge: st.reports_pending || 0, onClick: () => goTo("reports") },
+        { id: "requests", label: "Requests", icon: Droplet, onClick: () => goTo("requests") },
+        { id: "log", label: "Moderation log", icon: AlertTriangle, onClick: () => goTo("log") },
+        { id: "dnyansetu", label: "DnyanSetu admin", icon: ClipboardList, href: "/" },
+      ]}
+      promo={{ title: "RaktSetu app", text: "See the member-facing blood request pages.", button: "Open", href: "/raktsetu" }}
+      footer={[{ id: "site", label: "DnyanSetu website", icon: Droplet, href: "/" }]}
+      onLogout={async () => { await signOut(); window.location.href = "/"; }}
+      bell={{ label: "Reports waiting", count: st.reports_pending, onClick: () => goTo("reports") }}
+    >
+      <p className="rs-lead" style={{ margin: 0 }}>
+        A request reported by 3 members is hidden automatically until you remove it or dismiss the reports.
+        To stop someone posting again, restrict their account from the DnyanSetu admin desk.
       </p>
       <ErrorBox message={state.error} />
 
       {state.loading ? <Spinner /> : (
         <>
-          <div className="rs-statpanels">
-            <StatPanel title="Community" tone={3}>
-              <dl className="rs-statlist">
-                <StatRow label="Members" value={st.members} strong />
-                <StatRow label="Eligible donors" value={st.eligible_donors} />
-                <StatRow label="Donations recorded" value={st.donations_recorded} />
-              </dl>
-            </StatPanel>
-            <StatPanel title="Requests" tone={1}>
-              <dl className="rs-statlist">
-                <StatRow label="Open now" value={st.requests_open} strong />
-                <StatRow label="Fulfilled" value={st.requests_fulfilled} />
-                <StatRow label="Total ever" value={st.requests_total} />
-                <StatRow label="“I can help” taps" value={st.responses_total} />
-              </dl>
-            </StatPanel>
-            <StatPanel title="Moderation" tone={4}>
-              <dl className="rs-statlist">
-                <StatRow label="Reports waiting" value={st.reports_pending} strong />
-                <StatRow label="Hidden for review" value={st.requests_hidden} />
-              </dl>
-            </StatPanel>
-            <StatPanel title="Alerts & email" tone={5}>
-              <dl className="rs-statlist">
-                <StatRow label="Browsers with alerts" value={st.push_browsers} strong />
-              </dl>
-              <QuotaRow label="Emails today" used={st.emails_today} limit={90} />
-              <QuotaRow label="Emails this month" used={st.emails_month} limit={2900} />
-            </StatPanel>
+          {active === "overview" && (<>
+          <PillTabs value={range} onChange={setRange} options={[["day", "Day"], ["week", "Week"], ["month", "Month"], ["year", "Year"]]} />
+          <TileRow>
+            <StatTile dark label="Members" value={(st.members ?? 0).toLocaleString("en-IN")} note={`${st.eligible_donors ?? 0} eligible donors`} />
+            <StatTile label="Open requests" value={st.requests_open ?? 0} note={`${st.requests_total ?? 0} requests ever`} />
+            <StatTile label="Reports waiting" value={st.reports_pending ?? 0} note={`${st.requests_hidden ?? 0} hidden for review`} />
+            <StatTile label="Fulfilled" value={st.requests_fulfilled ?? 0} note={`of ${st.requests_total ?? 0} requests`} />
+          </TileRow>
+          <div className="ak-row">
+            <BarCard title="Blood requests" data={bucketCounts(state.all.map((r) => r.created_at), range)} empty="No requests in this period." />
+            <CalendarCard ring={{ title: "Requests fulfilled", pct: st.requests_total ? ((st.requests_fulfilled || 0) / st.requests_total) * 100 : 0, note: `${st.donations_recorded ?? 0} donations recorded` }} />
           </div>
+
+          <AdminBlock title="Alerts & email" note="Sending limits of the free email plan.">
+            <QuotaRow label="Emails today" used={st.emails_today} limit={90} />
+            <QuotaRow label="Emails this month" used={st.emails_month} limit={2900} />
+            <p className="rs-muted" style={{ margin: "8px 0 0" }}>{st.push_browsers ?? 0} browsers have alerts switched on.</p>
+          </AdminBlock>
 
           <AdminBlock title="Members by blood group">
             <div className="rs-group-grid">
@@ -1261,8 +1275,11 @@ export function AdminPage({ navigate }) {
               ))}
             </div>
           </AdminBlock>
+          </>)}
 
+          {active === "members" && (
           <AdminBlock
+            id="rs-members"
             title="Members"
             count={state.members.length}
             note="Current disease is what each member wrote on their profile. Anyone who answered Yes is not asked to donate until they change it back to No."
@@ -1300,8 +1317,10 @@ export function AdminPage({ navigate }) {
               </div>
             )}
           </AdminBlock>
+          )}
 
-          <AdminBlock title="Reported requests" count={state.reports.length}>
+          {active === "reports" && (
+          <AdminBlock id="rs-reports" title="Reported requests" count={state.reports.length}>
             {state.reports.length === 0 ? <p className="rs-empty">No reports waiting.</p> : (
               <div className="rs-admin-list">
                 {state.reports.map(({ request, reasons: rs }) => (
@@ -1317,8 +1336,11 @@ export function AdminPage({ navigate }) {
               </div>
             )}
           </AdminBlock>
+          )}
 
+          {active === "requests" && (
           <AdminBlock
+            id="rs-requests"
             title="Requests"
             count={state.requests.length}
             action={(
@@ -1342,8 +1364,10 @@ export function AdminPage({ navigate }) {
               </div>
             )}
           </AdminBlock>
+          )}
 
-          <AdminBlock title="Moderation log" note="Every removal and dismissed report is recorded here, with who did it and why.">
+          {active === "log" && (
+          <AdminBlock id="rs-log" title="Moderation log" note="Every removal and dismissed report is recorded here, with who did it and why.">
             {state.log.length === 0 ? <p className="rs-empty">No moderation actions yet.</p> : (
               <ul className="rs-admin-log">
                 {state.log.map((x) => (
@@ -1356,9 +1380,10 @@ export function AdminPage({ navigate }) {
               </ul>
             )}
           </AdminBlock>
+          )}
         </>
       )}
-    </section>
+    </AdminShell>
   );
 }
 

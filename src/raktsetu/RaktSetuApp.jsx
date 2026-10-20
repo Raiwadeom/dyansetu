@@ -546,6 +546,15 @@ export default function RaktSetuApp() {
     );
   }
 
+  /* The admin page brings its own dashboard layout, so no member header or footer. */
+  if (page.rest === "/admin") {
+    return (
+      <div className="rs-root rs-root--admin">
+        <ErrorBoundary resetKey={path} inline>{body}</ErrorBoundary>
+      </div>
+    );
+  }
+
   return (
     <div className="rs-root">
       <Header path={path} navigate={navigate} user={user} isAdmin={isAdmin} lang={lang} setLang={setLang} tr={tr} />

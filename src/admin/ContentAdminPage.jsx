@@ -23,6 +23,7 @@ import {
 } from "../lib/siteContent";
 import { notifySite } from "../lib/sitePush";
 import { useLiveRefresh } from "../lib/liveRefresh.js";
+import { BarCard, CalendarCard, PillTabs, StatRow, StatTile, bucketCounts, monthDelta } from "./adminKit.jsx";
 
 const sameOr = (next) => (prev) => (JSON.stringify(prev) === JSON.stringify(next) ? prev : next);
 
@@ -615,12 +616,51 @@ function ScholarshipsCard({ onAnnouncementsChanged }) {
   );
 }
 
+/* Headline numbers for the scholarship admin: schemes, who is open right now,
+   and how many notices went out over time. */
+function ContentOverview({ refreshKey }) {
+  const [range, setRange] = useState("month");
+  const [data, setData] = useState(null);
+  const load = useCallback(async () => {
+    try {
+      const [schemes, notices] = await Promise.all([fetchAllSchemeRows(), fetchAllAnnouncements()]);
+      setData(sameOr({ schemes, notices }));
+    } catch { setData((d) => d || { schemes: [], notices: [] }); }
+  }, []);
+  useEffect(() => { load(); }, [load, refreshKey]);
+  useLiveRefresh(load);
+
+  const { schemes, notices } = data || { schemes: [], notices: [] };
+  const visible = schemes.filter((r) => r.active !== false);
+  const states = visible.map((r) => schemeStatus(toScheme(r))?.tone);
+  const open = states.filter((t) => t === "open").length;
+  const soon = states.filter((t) => t === "soon").length;
+  const dates = notices.map((n) => n.created_at || n.notice_date).filter(Boolean);
+  const pct = schemes.length ? Math.round((visible.length / schemes.length) * 100) : 0;
+  return (
+    <div className="ak-overview" style={{ gridColumn: "1 / -1" }}>
+      <PillTabs value={range} onChange={setRange} options={[["day", "Day"], ["week", "Week"], ["month", "Month"], ["year", "Year"]]} />
+      <StatRow>
+        <StatTile dark label="Scholarship schemes" value={schemes.length} note={`${visible.length} shown to students`} />
+        <StatTile label="Open for applications" value={open} note="dates are running now" />
+        <StatTile label="Opening soon" value={soon} note="start date not reached" />
+        <StatTile label="Notices posted" value={notices.length} delta={monthDelta(dates)} />
+      </StatRow>
+      <div className="ak-row">
+        <BarCard title="Notices posted" data={bucketCounts(dates, range)} empty="No notices in this period." />
+        <CalendarCard ring={{ title: "Schemes shown", pct, note: `${schemes.length - visible.length} hidden` }} />
+      </div>
+    </div>
+  );
+}
+
 export default function ContentAdminPage() {
   /* Saving scholarship dates changes the announcements list too. */
   const [annKey, setAnnKey] = useState(0);
   return (
     <div className="dash-grid ca-page">
       <style>{CSS}</style>
+      <ContentOverview refreshKey={annKey} />
       <div className="ca-intro" style={{ gridColumn: "1 / -1" }}>
         <h2>Scholarships &amp; Notices</h2>
         <p>Everything here is live: what you save shows on the website for every student straight away. No code needed.</p>

@@ -13,6 +13,9 @@ const NotesPage = lazy(() => import("./notes/NotesPage"));
 const TalentPage = lazy(() => import("./talent/TalentPage"));
 const TalentShowcase = lazy(() => import("./talent/TalentShowcase"));
 const LegalPage = lazy(() => import("./legal/LegalPage"));
+const ProjectsPage = lazy(() => import("./projects/ProjectsPage"));
+const MyProjectsCard = lazy(() => import("./projects/MyProjectsCard"));
+const ProjectsShowcase = lazy(() => import("./projects/ProjectsShowcase"));
 import { generateTrackingId } from "./utils/identity";
 import { downloadCsv, timestampedName } from "./utils/exportSheet";
 import { isBackendConfigured, supabase } from "./lib/supabase";
@@ -45,6 +48,9 @@ import PageHero from "./lib/PageHero.jsx";
 import { PAPER_SESSIONS, deletePaper, fetchMyPapers, fetchPapers, uploadPaper } from "./lib/papers.js";
 import { ensureSiteWorker } from "./lib/sitePush";
 import ScholarshipResetPage from "./admin/ScholarshipResetPage.jsx";
+import {
+  AdminShell, BarCard, CalendarCard, PillTabs, StatRow, StatTile, bucketCounts, monthDelta,
+} from "./admin/adminKit.jsx";
 import { LANG_KEY, LangContext, useLang, makeTr } from "./lib/i18n";
 import { isStandalone, markIosStepsSeen, useInstallApp } from "./lib/installPrompt";
 import { VisitorCounter } from "./lib/visitCounter.jsx";
@@ -59,7 +65,7 @@ import {
   FileText, Edit3, Trash2, Ban, Sparkles, BookOpen, ImagePlus, BarChart3,
   Info, Facebook, Instagram, CalendarDays, Search, Droplet, ClipboardList, ListChecks, Coins, HandHeart,
   ScrollText, NotebookPen, FileDown, AlertTriangle, Newspaper,
-  Languages, Menu, Briefcase, ChevronLeft, ChevronRight, Clock, BadgeCheck, IdCard, LogIn, UserCheck, RefreshCw, Download, Share, SquarePlus, Play, Pause,
+  LayoutDashboard, Languages, Menu, Briefcase, ChevronLeft, ChevronRight, Clock, BadgeCheck, IdCard, LogIn, UserCheck, RefreshCw, Download, Share, SquarePlus, Play, Pause,
 } from "lucide-react";
 
 /* ============================================================================
@@ -140,6 +146,7 @@ function pathForView(view, authMode, scope, next) {
   if (view === "scholarship-reset") return "/scholarship-reset";
   if (view === "notes") return "/notes";
   if (view === "talent") return "/talent";
+  if (view === "projects") return "/projects";
   return "/";
 }
 
@@ -167,6 +174,7 @@ function initialRoute() {
     if (post) talentIntent = { post: post.slice(0, 64) };
     return { view: "talent", direct: true };
   }
+  if (path === "/projects") return { view: "projects", direct: true };
   if (path === "/" || path === "/index.html") return { view: "landing", direct: false };
   /* Anything else is a wrong address: show the 404 page instead of quietly
      landing on the home page. */
@@ -231,7 +239,7 @@ const FACULTY_DESIGNATIONS = ["Professor", "Associate Professor", "Assistant Pro
 /* A restored view still has to be one this account may actually open — a stale
    entry must never hand out a portal the user has no right to. */
 /* The administrator's pages, each its own entry in the header. */
-const ADMIN_VIEWS = new Set(["admin-portal", "admin-approvals", "admin-quiz", "admin-content"]);
+const ADMIN_VIEWS = new Set(["admin-portal", "admin-approvals", "admin-quiz", "admin-content", "admin-projects"]);
 
 function mayOpenView(view, profile) {
   if (!view || view === "auth" || view === "accept-terms") return false;
@@ -800,6 +808,7 @@ function Landing({ goAuth, onOpenAbout, onOpenPage, onOpenTalent, user, onOpenDa
     { key: "home", icon: Home, label: tr("Home", "मुख्यपृष्ठ"), run: () => window.scrollTo({ top: 0, behavior: "smooth" }) },
     { key: "about", icon: Info, label: tr("About DnyanSetu", "डायनसेतू विषयी"), run: onOpenAbout },
     { key: "talent", icon: Sparkles, label: tr("Talent Corner", "कला मंच"), run: () => onOpenTalent() },
+    { key: "projects", icon: Code2, label: tr("Student Projects", "विद्यार्थी प्रकल्प"), run: () => onOpenPage("projects") },
     { key: "raktsetu", icon: Droplet, label: tr("RaktSetu", "रक्तसेतू"), href: "/raktsetu" },
     { key: "csmnews", icon: Newspaper, label: tr("CSM News Desk", "सीएसएम न्यूज डेस्क"), href: CSM_NEWS_DESK_URL, external: true },
     { key: "brochure", icon: FileDown, label: tr("Download brochure", "माहितीपत्रक डाउनलोड करा"), href: BROCHURE_URL, download: "DnyanSetu-Brochure.pdf" },
@@ -1307,6 +1316,10 @@ function Landing({ goAuth, onOpenAbout, onOpenPage, onOpenTalent, user, onOpenDa
       })}
 
       <Suspense fallback={null}>
+        <ProjectsShowcase tr={tr} onOpen={() => onOpenPage("projects")} />
+      </Suspense>
+
+      <Suspense fallback={null}>
         <TalentShowcase
           tr={tr}
           canShare={user?.role === "student"}
@@ -1400,6 +1413,7 @@ function Landing({ goAuth, onOpenAbout, onOpenPage, onOpenTalent, user, onOpenDa
             <nav className="footer-col" aria-label="Quick links">
               <h4>{tr("Quick links", "महत्त्वाचे दुवे")}</h4>
               <a href="/scholarships" className="footer-link" onClick={(e) => { e.preventDefault(); onOpenPage("scholarships"); }}>{tr("Scholarships", "शिष्यवृत्ती")}</a>
+              <a href="/projects" className="footer-link" onClick={(e) => { e.preventDefault(); onOpenPage("projects"); }}>{tr("Student Projects", "विद्यार्थी प्रकल्प")}</a>
               <a href="/raktsetu" className="footer-link">{tr("RaktSetu — blood donors", "रक्तसेतू — रक्तदाते")}</a>
               <a href="/login" className="footer-link" onClick={(e) => { e.preventDefault(); goAuth("login", "student"); }}>{tr("Student login", "विद्यार्थी लॉगिन")}</a>
               <a href="/staff" className="footer-link" onClick={(e) => { e.preventDefault(); goAuth("login", "staff"); }}>{tr("Faculty & staff login", "प्राध्यापक व कर्मचारी लॉगिन")}</a>
@@ -3013,7 +3027,7 @@ function DeleteAccountCard({ variant = "student" }) {
   );
 }
 
-function StudentProfile({ profile, onSaveProfile }) {
+function StudentProfile({ profile, onSaveProfile, onOpenProjects }) {
   const [isEditing, setIsEditing] = useState(false);
   const draftFrom = (p) => ({
     name: p.name || "",
@@ -3188,6 +3202,10 @@ function StudentProfile({ profile, onSaveProfile }) {
               {skills.map((skill) => <span key={skill} className="skill-pill">{skill}</span>)}
             </div>
           </section>
+
+          <Suspense fallback={null}>
+            <MyProjectsCard user={profile} onOpenAll={onOpenProjects} />
+          </Suspense>
 
           <DeleteAccountCard />
 
@@ -3501,6 +3519,7 @@ function NoteUploadModal({ author, onClose, onUploaded, onPaperUploaded, initial
         </div>
 
         <div className="upload-modal-body">
+          <div className="upload-pane">
           <div className="upload-kind" role="tablist" aria-label="What are you uploading?">
             <button type="button" role="tab" aria-selected={!isPaper} className={!isPaper ? "is-active" : ""} onClick={() => setKind("notes")} disabled={publishing}>
               <NotebookPen size={16} /> Notes
@@ -3566,6 +3585,8 @@ function NoteUploadModal({ author, onClose, onUploaded, onPaperUploaded, initial
             )}
           </div>
 
+          </div>
+          <div className="upload-pane upload-pane--files">
           <span className="field-label upload-files-label">{isPaper ? "Paper (PDF or photos)" : "PDF or images"}</span>
           <label className={`note-dropzone upload-drop ${nFiles.length ? "has-files" : ""}`}>
             <span className="upload-drop-icon"><ImagePlus size={20} /></span>
@@ -3606,6 +3627,7 @@ function NoteUploadModal({ author, onClose, onUploaded, onPaperUploaded, initial
           )}
 
           {uploadError && <p className="upload-error" style={{ marginTop: 12 }}>{uploadError}</p>}
+          </div>
         </div>
 
         <div className="upload-modal-foot">
@@ -4462,8 +4484,11 @@ function AdminQuizPage({ users, onUpdateUser }) {
   );
 }
 
-function AdminPortal({ users, onUpdateUser, onDeleteUser }) {
-  const [search, setSearch] = useState("");
+function AdminPortal({ users, onUpdateUser, onDeleteUser, search: shellSearch }) {
+  const [ownSearch, setOwnSearch] = useState("");
+  /* The dashboard's top-bar search drives this list; without it, a box below. */
+  const search = shellSearch ?? ownSearch;
+  const setSearch = setOwnSearch;
   const [statusFilter, setStatusFilter] = useState("all");
 
   const term = search.trim().toLowerCase();
@@ -4556,6 +4581,8 @@ function AdminPortal({ users, onUpdateUser, onDeleteUser }) {
 
   return (
     <div className="dash-grid">
+      <div className="ak-overview" style={{ gridColumn: "1 / -1" }}><AdminOverview users={users} /></div>
+
       {/* RaktSetu has its own admin page (overview, reports, all requests). */}
       <a className="card admin-rakt-link" href="/raktsetu/admin" style={{ gridColumn: "1 / -1" }}>
         <span className="admin-rakt-icon"><Droplet size={20} /></span>
@@ -4591,7 +4618,7 @@ function AdminPortal({ users, onUpdateUser, onDeleteUser }) {
         </div>
 
         <div style={{ marginTop: 16 }}>
-          <label style={{ display: "block", maxWidth: 420 }}>
+          <label style={{ display: shellSearch === undefined ? "block" : "none", maxWidth: 420 }}>
             <span style={{ display: "block", fontSize: 12, marginBottom: 6, color: "var(--muted)" }}>Search all accounts</span>
             <input
               className="field-input"
@@ -4625,6 +4652,77 @@ function AdminPortal({ users, onUpdateUser, onDeleteUser }) {
 
       {admins.length > 0 && section("Administrator", admins, "administrators", Shield)}
     </div>
+  );
+}
+
+/* The top of the administrator's dashboard: the headline numbers, a sign-up
+   chart with a Day / Week / Month / Year switch, and the active-accounts ring. */
+function AdminOverview({ users }) {
+  const [range, setRange] = useState("month");
+  const joined = users.map((u) => u.joined).filter(Boolean);
+  const total = users.length;
+  const active = users.filter((u) => !u.restricted).length;
+  const blocked = total - active;
+  const waiting = users.filter((u) => needsApproval(u.role) && u.approvalStatus === "pending").length;
+  const newThisMonth = bucketCounts(joined, "month").at(-1).value;
+  const growth = { pct: null, label: newThisMonth === 1 ? "1 joined this month" : `${newThisMonth} joined this month` };
+  const pct = total ? Math.round((active / total) * 100) : 0;
+  return (
+    <>
+      <PillTabs value={range} onChange={setRange} options={[["day", "Day"], ["week", "Week"], ["month", "Month"], ["year", "Year"]]} />
+      <StatRow>
+        <StatTile dark label="Total accounts" value={total.toLocaleString("en-IN")} delta={growth} />
+        <StatTile label="Active accounts" value={active.toLocaleString("en-IN")} note={`${pct}% of all accounts`} />
+        <StatTile label="New this month" value={newThisMonth} delta={monthDelta(joined)} />
+        <StatTile label="Waiting for approval" value={waiting} note="faculty, staff & scholarship admin" />
+      </StatRow>
+      <div className="ak-row">
+        <BarCard title="New sign-ups" data={bucketCounts(joined, range)} empty="No sign-ups in this period." />
+        <CalendarCard ring={{ title: "Active accounts", pct, note: `${blocked} restricted` }} />
+      </div>
+    </>
+  );
+}
+
+const ADMIN_TITLES = {
+  "admin-portal": "Dashboard",
+  "admin-approvals": "Approvals",
+  "admin-quiz": "Quiz results",
+  "admin-projects": "Student projects",
+  "admin-content": "Scholarships & notices",
+};
+
+/* Sidebar + top bar around every admin page (main admin and scholarship admin). */
+function AdminFrame({ view, go, user, onHome, onLogout, pendingCount, search, onSearch, children }) {
+  const main = user.role === "admin";
+  const nav = main ? [
+    { id: "admin-portal", label: "Dashboard", icon: LayoutDashboard, onClick: () => go("admin-portal") },
+    { id: "admin-approvals", label: "Approvals", icon: BadgeCheck, badge: pendingCount, onClick: () => go("admin-approvals") },
+    { id: "admin-quiz", label: "Quiz results", icon: BarChart3, onClick: () => go("admin-quiz") },
+    { id: "admin-projects", label: "Student projects", icon: Code2, onClick: () => go("admin-projects") },
+    { id: "admin-content", label: "Scholarships & notices", icon: Coins, onClick: () => go("admin-content") },
+    { id: "raktsetu", label: "RaktSetu admin", icon: Droplet, href: "/raktsetu/admin" },
+  ] : [
+    { id: "admin-content", label: "Scholarships & notices", icon: Coins, onClick: () => go("admin-content") },
+  ];
+  return (
+    <AdminShell
+      brand="DnyanSetu"
+      tag={main ? "Admin" : "Scholarship"}
+      nav={nav}
+      active={view}
+      title={ADMIN_TITLES[view] || "Admin"}
+      user={user}
+      onLogout={onLogout}
+      footer={[{ id: "home", label: "Website home", icon: Home, onClick: onHome }]}
+      promo={main ? { title: "RaktSetu admin", text: "Blood requests, reports and the moderation log.", button: "Open", href: "/raktsetu/admin" } : undefined}
+      bell={main ? { label: "Approvals waiting", count: pendingCount, onClick: () => go("admin-approvals") } : undefined}
+      search={view === "admin-portal" ? search : undefined}
+      onSearch={view === "admin-portal" ? onSearch : undefined}
+      searchPlaceholder="Search accounts…"
+    >
+      {children}
+    </AdminShell>
   );
 }
 
@@ -4804,6 +4902,12 @@ function TopNavApp({ view, go, onHome, onLogout, user, pendingCount = 0 }) {
             </button>
           )}
 
+          {!isScholarshipAdmin && !isStaffOnly && (
+            <button type="button" className={`app-nav-item ${view === "projects" ? "active" : ""}`} onClick={() => go("projects")}>
+              Projects
+            </button>
+          )}
+
           {/* A separate app on the same domain and session, so a plain link
               opens it already signed in. */}
           {!isScholarshipAdmin && (
@@ -4927,6 +5031,7 @@ export default function App() {
   /* The members-only page a signed-out visitor tried to open, so signing in
      takes them there instead of dumping them on their profile. */
   const [pendingPage, setPendingPage] = useState(null);
+  const [adminSearch, setAdminSearch] = useState("");
   /* Faculty/staff picked on the staff page, carried to the terms screen for a
      brand-new Google account. */
   const [pendingRole, setPendingRole] = useState("");
@@ -5378,6 +5483,12 @@ export default function App() {
     }
   }, [view, currentUser, booting, browsingHome, demoMode]);
 
+  /* The administrator manages projects inside the dashboard ("Student
+     projects"), never on the public page with the website header. */
+  useEffect(() => {
+    if (!booting && currentUser?.role === "admin" && view === "projects") replaceView("admin-projects");
+  }, [view, booting, currentUser?.role]);
+
   /* Going back to one's own dashboard ends "browsing home"; visiting Notes or
      About from the landing page and pressing Back returns to the landing page. */
   useEffect(() => {
@@ -5632,7 +5743,11 @@ export default function App() {
      along on every page reached from it — not just the three portals. It needs
      a user to render, so a signed-out visitor on an open page still sees none. */
   const isAppView = Boolean(currentUser)
-    && (["profile", "faculty-portal", "notes", "quiz", "pyq", "scholarships", "talent"].includes(view) || ADMIN_VIEWS.has(view));
+    && ["profile", "faculty-portal", "notes", "quiz", "pyq", "scholarships", "talent", "projects"].includes(view);
+  /* The administrator and the scholarship admin work inside the dashboard
+     shell (sidebar + top bar) instead of the public header. */
+  const inAdminShell = Boolean(currentUser) && ADMIN_VIEWS.has(view)
+    && (currentUser.role === "admin" || currentUser.role === "scholarship");
 
   return (
     <LangContext.Provider value={{ lang, setLang }}>
@@ -5781,11 +5896,23 @@ export default function App() {
         )}
         {view === "faculty-setup" && currentUser && <FacultyProfileSetup profile={currentUser} onComplete={handleFacultySetupComplete} onHome={() => { setBrowsingHome(true); navigateTo("landing"); }} onSignOut={logout} />}
         {view === "profile" && currentUser?.role === "student" && (
-          <StudentProfile profile={currentUser} onSaveProfile={handleProfileEdit} />
+          <StudentProfile profile={currentUser} onSaveProfile={handleProfileEdit} onOpenProjects={() => navigateTo("projects")} />
         )}
         {view === "faculty-portal" && currentUser && (
           <FacultyPortal profile={currentUser} onSaveProfile={handleProfileEdit} />
         )}
+        {ADMIN_VIEWS.has(view) && (inAdminShell ? (
+          <AdminFrame
+            view={view}
+            go={navigateTo}
+            user={currentUser}
+            onHome={() => { setBrowsingHome(true); navigateTo("landing"); }}
+            onLogout={logout}
+            pendingCount={users.filter((u) => needsApproval(u.role) && u.approvalStatus === "pending").length}
+            search={adminSearch}
+            onSearch={setAdminSearch}
+          >
+            <>
         {ADMIN_VIEWS.has(view) && adminLock === "denied" && (
           <main className="resource-page pyq-page">
             <div className="resource-head">
@@ -5813,7 +5940,7 @@ export default function App() {
           <div className="boot-screen"><Loader2 size={20} className="spin" /> Checking administrator session…</div>
         )}
         {view === "admin-portal" && (adminLock === "held" || adminLock === "idle") && (
-          <AdminPortal users={users} onUpdateUser={handleUpdateUser} onDeleteUser={handleDeleteUser} />
+          <AdminPortal users={users} onUpdateUser={handleUpdateUser} onDeleteUser={handleDeleteUser} search={inAdminShell ? adminSearch : undefined} />
         )}
         {view === "admin-approvals" && (adminLock === "held" || adminLock === "idle") && (
           <AdminApprovalsPage users={users} onRefreshUsers={refreshUsers} onUpdateUser={handleUpdateUser} />
@@ -5823,6 +5950,70 @@ export default function App() {
         )}
         {view === "admin-content" && (adminLock === "held" || adminLock === "idle") && (
           <ContentAdminPage />
+        )}
+        {view === "admin-projects" && (adminLock === "held" || adminLock === "idle") && (
+          <Suspense fallback={<div className="boot-screen"><Loader2 size={20} className="spin" /> Loading projects…</div>}>
+            <ProjectsPage user={currentUser} embedded />
+          </Suspense>
+        )}
+            </>
+          </AdminFrame>
+        ) : (
+          <>
+        {ADMIN_VIEWS.has(view) && adminLock === "denied" && (
+          <main className="resource-page pyq-page">
+            <div className="resource-head">
+              <div className="resource-head-copy">
+                <p className="section-eyebrow"><Shield size={14} /> Access denied</p>
+                <h1 className="resource-title">The administrator desk is open on another device</h1>
+                <p className="resource-sub">
+                  The admin account can be used on one device or browser at a time. This page
+                  checks again every few seconds and opens by itself once the other one is closed —
+                  or move the desk here now.
+                </p>
+              </div>
+            </div>
+            <div className="admin-denied">
+              <button type="button" className="btn btn-primary" onClick={takeOverAdminDesk}>
+                Use the admin desk here
+              </button>
+              <button type="button" className="btn btn-ghost" onClick={logout}>
+                Sign out
+              </button>
+            </div>
+          </main>
+        )}
+        {ADMIN_VIEWS.has(view) && adminLock === "checking" && (
+          <div className="boot-screen"><Loader2 size={20} className="spin" /> Checking administrator session…</div>
+        )}
+        {view === "admin-portal" && (adminLock === "held" || adminLock === "idle") && (
+          <AdminPortal users={users} onUpdateUser={handleUpdateUser} onDeleteUser={handleDeleteUser} search={inAdminShell ? adminSearch : undefined} />
+        )}
+        {view === "admin-approvals" && (adminLock === "held" || adminLock === "idle") && (
+          <AdminApprovalsPage users={users} onRefreshUsers={refreshUsers} onUpdateUser={handleUpdateUser} />
+        )}
+        {view === "admin-quiz" && (adminLock === "held" || adminLock === "idle") && (
+          <AdminQuizPage users={users} onUpdateUser={handleUpdateUser} />
+        )}
+        {view === "admin-content" && (adminLock === "held" || adminLock === "idle") && (
+          <ContentAdminPage />
+        )}
+        {view === "admin-projects" && (adminLock === "held" || adminLock === "idle") && (
+          <Suspense fallback={<div className="boot-screen"><Loader2 size={20} className="spin" /> Loading projects…</div>}>
+            <ProjectsPage user={currentUser} embedded />
+          </Suspense>
+        )}
+          </>
+        ))}
+        {view === "projects" && (
+          <Suspense fallback={<div className="boot-screen"><Loader2 size={20} className="spin" /> Loading projects…</div>}>
+            <ProjectsPage
+              user={currentUser}
+              onBack={goBack}
+              onSignIn={() => { setPendingPage("projects"); setAuthMode("login"); setAuthRoleScope("student"); navigateTo("auth"); }}
+              onOpenProfile={() => navigateTo("profile")}
+            />
+          </Suspense>
         )}
         {view === "scholarship-reset" && (
           <ScholarshipResetPage onDone={() => { setAuthMode("login"); setAuthRoleScope("staff"); replaceView("auth"); }} />
@@ -8345,6 +8536,25 @@ function Styles() {
         .upload-modal-head, .upload-modal-body, .upload-modal-foot { padding-left: 16px; padding-right: 16px; }
         .upload-grid { grid-template-columns: 1fr; }
         .upload-modal-foot .btn { flex: 1; justify-content: center; }
+      }
+
+      /* Landscape layouts: on wide screens forms and dialogs use the width
+         (fields side by side) instead of one long tall column. Phones keep
+         the single column. */
+      @media (min-width: 900px) {
+        .wizard-card { width: min(100%, 1040px); }
+        .wizard-card form, .profile-card form { display: grid; gap: 0 20px; align-items: start; }
+        .wizard-card form { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+        .profile-card form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .wizard-card form .two-col, .profile-card form .two-col { display: contents; }
+        .wizard-card form > .btn-block, .profile-card form > .btn-block,
+        .profile-card form > textarea, .profile-card form > label.field-label { grid-column: 1 / -1; }
+        .wizard-card form > .btn-block { justify-self: end; width: auto; min-width: 260px; }
+        .modal-card.upload-modal { max-width: 1020px; }
+        .upload-modal-body { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 28px; align-items: start; }
+        .upload-pane--files .upload-files-label { margin-top: 0; }
+        .upload-pane--files .upload-drop { min-height: 170px; flex-direction: column; justify-content: center; text-align: center; }
+        .upload-pane--files .upload-drop-text { align-items: center; }
       }
 
       /* Question Papers page: faculty uploads. */
