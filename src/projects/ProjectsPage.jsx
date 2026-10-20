@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft, Check, CheckCircle2, Clock, Code2, ExternalLink, FolderGit2, Github, GraduationCap, ImagePlus, Loader2,
-  LayoutGrid, List, Pencil, Plus, Search, ShieldCheck, Trash2, UserCheck, Users, X, XCircle,
+  Eye, Pencil, Plus, Search, ShieldCheck, Trash2, UserCheck, Users, X, XCircle,
 } from "lucide-react";
 import collegeLogo from "../img/college-logo.jpg";
 import ProjectCover from "./ProjectCover.jsx";
@@ -172,97 +172,116 @@ function StatusTag({ status }) {
   );
 }
 
-export function ProjectCard({ p, user, staff, onEdit, onDecide, onDelete, busy }) {
-  const mine = user && p.ownerId === user.id;
-  const platform = platformOf(p.live);
-  return (
-    <article className={`sp-card${p.status !== "approved" ? " is-dim" : ""}`}>
-      <div className="sp-shot">
-        {p.image ? <img src={p.image} alt={`Screenshot of ${p.title}`} loading="lazy" /> : <ProjectCover title={p.title} />}
-        <span className="sp-kind">{kindLabel(p.kind)}</span>
-        <span className="sp-platform">{platform}</span>
-      </div>
-      <div className="sp-body">
-        <StatusTag status={p.status} />
-        <h3>{p.title}</h3>
-        <p className="sp-desc">{p.description}</p>
-        {p.tech.length > 0 && (
-          <ul className="sp-tech">{p.tech.slice(0, 6).map((t) => <li key={t}>{t}</li>)}</ul>
-        )}
-        <ul className="sp-meta">
-          <li><Users size={14} /><span>{p.students}</span></li>
-          <li><GraduationCap size={14} /><span>{streamLabel(p.stream)}{p.className ? ` · ${p.className}` : ""}{p.year ? ` · ${p.year}` : ""}</span></li>
-          {p.guide && <li><UserCheck size={14} /><span>Guide: {p.guide}</span></li>}
-        </ul>
-        <div className="sp-actions">
-          {p.live && (
-            <a className="sp-btn sp-btn-primary" href={p.live} target="_blank" rel="noopener noreferrer nofollow ugc">
-            <ExternalLink size={14} /> Open project
-          </a>
-          )}
-          {p.repo && (
-            <a className="sp-btn sp-btn-ghost" href={p.repo} target="_blank" rel="noopener noreferrer nofollow ugc">
-              <Github size={14} /> Code
-            </a>
-          )}
-        </div>
-        {(staff || mine) && (
-          <div className="sp-manage">
-            {staff && p.status !== "approved" && (
-              <button type="button" className="sp-chipbtn is-ok" disabled={busy} onClick={() => onDecide(p, "approved")}><Check size={13} /> Approve</button>
-            )}
-            {staff && p.status === "pending" && (
-              <button type="button" className="sp-chipbtn" disabled={busy} onClick={() => onDecide(p, "rejected")}><X size={13} /> Reject</button>
-            )}
-            {staff && p.status === "approved" && (
-              <button type="button" className="sp-chipbtn" disabled={busy} onClick={() => onDecide(p, "rejected")}>Hide</button>
-            )}
-            <button type="button" className="sp-chipbtn" onClick={() => onEdit(p)}><Pencil size={13} /> Edit</button>
-            <button type="button" className="sp-chipbtn is-bad" disabled={busy} onClick={() => onDelete(p)}><Trash2 size={13} /> Delete</button>
-          </div>
-        )}
-      </div>
-    </article>
-  );
-}
-
 const STATUS_DOT = {
   approved: { cls: "is-live", label: "Live" },
   pending: { cls: "is-wait", label: "Awaiting review" },
   rejected: { cls: "is-no", label: "Not approved" },
 };
 
-/* The list view: one row per project — thumbnail, title and students, a short
-   description, class, type, hosting platform, status and the actions. Rows that
-   are waiting or not approved are tinted so they stand out. On a phone each
-   row becomes a card. */
+const fmtDate = (ms) => new Date(ms).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+
+/* "View more": the whole story of one project — title, the full description,
+   who made it, class, guide, technologies and the links. The people who may
+   manage it (owner, faculty, admin) also get their buttons here. */
+export function ProjectDetail({ p, onClose, canManage, staff, busy, onEdit, onDecide, onDelete }) {
+  const st = STATUS_DOT[p.status] || STATUS_DOT.pending;
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.removeEventListener("keydown", onKey); document.body.style.overflow = prev; };
+  }, [onClose]);
+
+  return (
+    <div className="sp-modal" role="dialog" aria-modal="true" aria-label={p.title} onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="sp-detail">
+        <div className="sp-detail-head">
+          <div className="sp-detail-badges">
+            <span className="sp-chip-kind">{kindLabel(p.kind)} project</span>
+            <span className={`sp-dotstat ${st.cls}`}>{st.label}</span>
+          </div>
+          <button type="button" className="sp-icon" onClick={onClose} aria-label="Close"><X size={18} /></button>
+        </div>
+        <div className="sp-detail-body">
+          <div className="sp-detail-media">
+            {p.image ? <img src={p.image} alt={`Screenshot of ${p.title}`} /> : <ProjectCover title={p.title} />}
+          </div>
+          <h2>{p.title}</h2>
+          <h3 className="sp-detail-label">About this project</h3>
+          <p className="sp-detail-desc">{p.description}</p>
+          <dl className="sp-detail-grid">
+            <div><dt>Made by</dt><dd>{p.students}</dd></div>
+            <div><dt>Stream &amp; class</dt><dd>{streamLabel(p.stream)}{p.className ? ` · ${p.className}` : ""}</dd></div>
+            {p.year && <div><dt>Academic year</dt><dd>{p.year}</dd></div>}
+            {p.guide && <div><dt>Guide</dt><dd>{p.guide}</dd></div>}
+            <div><dt>Hosted on</dt><dd>{platformOf(p.live)}</dd></div>
+            <div><dt>Added on</dt><dd>{fmtDate(p.createdAt)}</dd></div>
+          </dl>
+          {p.tech.length > 0 && (
+            <>
+              <h3 className="sp-detail-label">Technologies</h3>
+              <ul className="sp-tech">{p.tech.map((t) => <li key={t}>{t}</li>)}</ul>
+            </>
+          )}
+        </div>
+        <div className="sp-detail-foot">
+          {p.live && (
+            <a className="sp-btn sp-btn-primary" href={p.live} target="_blank" rel="noopener noreferrer nofollow ugc"><ExternalLink size={15} /> Open project</a>
+          )}
+          {p.repo && (
+            <a className="sp-btn sp-btn-ghost" href={p.repo} target="_blank" rel="noopener noreferrer nofollow ugc"><Github size={15} /> Source code</a>
+          )}
+          {canManage && (
+            <span className="sp-detail-manage">
+              {staff && p.status !== "approved" && <button type="button" className="sp-chipbtn is-ok" disabled={busy} onClick={() => { onDecide(p, "approved"); onClose(); }}><Check size={13} /> Approve</button>}
+              {staff && p.status === "pending" && <button type="button" className="sp-chipbtn" disabled={busy} onClick={() => { onDecide(p, "rejected"); onClose(); }}><X size={13} /> Reject</button>}
+              {staff && p.status === "approved" && <button type="button" className="sp-chipbtn" disabled={busy} onClick={() => { onDecide(p, "rejected"); onClose(); }}>Hide</button>}
+              <button type="button" className="sp-chipbtn" onClick={() => { onEdit(p); onClose(); }}><Pencil size={13} /> Edit</button>
+              <button type="button" className="sp-chipbtn is-bad" disabled={busy} onClick={() => { onClose(); onDelete(p); }}><Trash2 size={13} /> Delete</button>
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* The list: one row per project on every screen size — thumbnail, title and
+   students, a short description, class, type, hosting platform, status and a
+   View button. Rows that are waiting or not approved are tinted. On a phone
+   the less important columns fold away but it stays a table. */
 export function ProjectTable({ rows, user, staff, busyId, onEdit, onDecide, onDelete }) {
+  const [detail, setDetail] = useState(null);
+  const open = detail ? rows.find((r) => r.id === detail) || null : null;
   return (
     <div className="sp-table-wrap">
       <table className="sp-table">
         <thead>
           <tr>
+            <th scope="col" className="sp-col-no">No.</th>
             <th scope="col">Project</th>
             <th scope="col" className="sp-col-about">About</th>
             <th scope="col">Class</th>
-            <th scope="col">Type</th>
-            <th scope="col">Hosted on</th>
-            <th scope="col">Status</th>
+            <th scope="col" className="sp-col-type">Type</th>
+            <th scope="col" className="sp-col-host">Hosted on</th>
+            <th scope="col" className="sp-col-status">Status</th>
             <th scope="col"><span className="sp-sr">Actions</span></th>
           </tr>
         </thead>
         <tbody>
-          {rows.map((p) => {
-            const mine = user && p.ownerId === user.id;
+          {rows.map((p, i) => {
+            const mine = Boolean(user) && p.ownerId === user.id;
             const st = STATUS_DOT[p.status] || STATUS_DOT.pending;
             return (
               <tr key={p.id} className={p.status !== "approved" ? `is-${p.status}` : ""}>
+                <td className="sp-cell-no" data-label="No.">{i + 1}</td>
                 <td className="sp-cell-project" data-label="Project">
                   <span className="sp-thumb">
                     {p.image ? <img src={p.image} alt="" loading="lazy" /> : <ProjectCover title={p.title} size="thumb" />}
                   </span>
                   <span className="sp-cell-text">
-                    <strong>{p.title}</strong>
+                    <button type="button" className="sp-titlebtn" onClick={() => setDetail(p.id)}>{p.title}</button>
                     <small>{p.students}</small>
                   </span>
                 </td>
@@ -271,32 +290,20 @@ export function ProjectTable({ rows, user, staff, busyId, onEdit, onDecide, onDe
                   <strong className="sp-sub1">{streamLabel(p.stream)}{p.className ? ` · ${p.className}` : ""}</strong>
                   <small>{p.year}{p.guide ? ` · ${p.guide}` : ""}</small>
                 </td>
-                <td data-label="Type">
+                <td className="sp-col-type" data-label="Type">
                   <strong className="sp-sub1">{kindLabel(p.kind)}</strong>
                   {p.tech.length > 0 && <small>{p.tech.slice(0, 3).join(", ")}</small>}
                 </td>
-                <td data-label="Hosted on"><span className="sp-host">{platformOf(p.live)}</span></td>
-                <td data-label="Status"><span className={`sp-dotstat ${st.cls}`}>{st.label}</span></td>
+                <td className="sp-col-host" data-label="Hosted on"><span className="sp-host">{platformOf(p.live)}</span></td>
+                <td className="sp-col-status" data-label="Status"><span className={`sp-dotstat ${st.cls}`}>{st.label}</span></td>
                 <td className="sp-cell-actions">
                   <span className="sp-rowbtns">
-                    {p.live && <a className="sp-pill" href={p.live} target="_blank" rel="noopener noreferrer nofollow ugc" aria-label={`Open ${p.title}`} title="Open project"><ExternalLink size={15} /></a>}
-                    {p.repo && (
-                      <a className="sp-pill sp-pill--plain" href={p.repo} target="_blank" rel="noopener noreferrer nofollow ugc" aria-label={`Source code of ${p.title}`} title="Source code"><Github size={15} /></a>
-                    )}
-                    {staff && p.status !== "approved" && (
-                      <button type="button" className="sp-pill sp-pill--ok" disabled={busyId === p.id} onClick={() => onDecide(p, "approved")} aria-label={`Approve ${p.title}`} title="Approve"><Check size={15} /></button>
-                    )}
-                    {staff && p.status === "pending" && (
-                      <button type="button" className="sp-pill sp-pill--plain" disabled={busyId === p.id} onClick={() => onDecide(p, "rejected")} aria-label={`Reject ${p.title}`} title="Reject"><X size={15} /></button>
-                    )}
-                    {staff && p.status === "approved" && (
-                      <button type="button" className="sp-pill sp-pill--plain" disabled={busyId === p.id} onClick={() => onDecide(p, "rejected")} aria-label={`Hide ${p.title}`} title="Hide from public list"><XCircle size={15} /></button>
+                    <button type="button" className="sp-viewbtn" onClick={() => setDetail(p.id)} aria-label={`View more about ${p.title}`}><Eye size={15} /> <span>View</span></button>
+                    {p.live && (
+                      <a className="sp-pill sp-pill--open" href={p.live} target="_blank" rel="noopener noreferrer nofollow ugc" aria-label={`Open ${p.title}`} title="Open project"><ExternalLink size={15} /></a>
                     )}
                     {(staff || mine) && (
-                      <>
-                        <button type="button" className="sp-pill" onClick={() => onEdit(p)} aria-label={`Edit ${p.title}`} title="Edit"><Pencil size={15} /></button>
-                        <button type="button" className="sp-trash" disabled={busyId === p.id} onClick={() => onDelete(p)} aria-label={`Delete ${p.title}`} title="Delete"><Trash2 size={16} /></button>
-                      </>
+                      <button type="button" className="sp-trash sp-hide-sm" disabled={busyId === p.id} onClick={() => onDelete(p)} aria-label={`Delete ${p.title}`} title="Delete"><Trash2 size={16} /></button>
                     )}
                   </span>
                 </td>
@@ -305,6 +312,18 @@ export function ProjectTable({ rows, user, staff, busyId, onEdit, onDecide, onDe
           })}
         </tbody>
       </table>
+      {open && (
+        <ProjectDetail
+          p={open}
+          onClose={() => setDetail(null)}
+          canManage={staff || (Boolean(user) && open.ownerId === user.id)}
+          staff={staff}
+          busy={busyId === open.id}
+          onEdit={onEdit}
+          onDecide={onDecide}
+          onDelete={onDelete}
+        />
+      )}
     </div>
   );
 }
@@ -330,8 +349,6 @@ export default function ProjectsPage({ user, onBack, onSignIn, onOpenProfile, em
   const [kind, setKind] = useState("all");
   const [stream, setStream] = useState("all");
   const [tab, setTab] = useState("live"); /* live | review | mine */
-  /* A table is for laptops; on a phone the cards read better, so they start as the view. */
-  const [layout, setLayout] = useState(() => (window.matchMedia?.("(max-width: 760px)").matches ? "cards" : "list")); /* list | cards */
 
   const signedIn = Boolean(user);
   const load = useCallback(async () => {
@@ -396,7 +413,7 @@ export default function ProjectsPage({ user, onBack, onSignIn, onOpenProfile, em
             see what our students can build.
           </p>
           <ul className="sp-counts" aria-label="Project counts">
-            <li><strong>{live.length}</strong><span>Live projects</span></li>
+            <li><strong>{live.length}</strong><span>Live</span></li>
             <li><strong>{count("final-year")}</strong><span>Final year</span></li>
             <li><strong>{count("ojt")}</strong><span>OJT</span></li>
             <li><strong>{count("mini")}</strong><span>Mini</span></li>
@@ -409,10 +426,6 @@ export default function ProjectsPage({ user, onBack, onSignIn, onOpenProfile, em
           <Search size={15} />
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search title, student, technology…" aria-label="Search projects" />
         </label>
-        <div className="sp-toggle" role="group" aria-label="View">
-          <button type="button" className={layout === "list" ? "is-on" : ""} aria-pressed={layout === "list"} onClick={() => setLayout("list")}><List size={15} /> List</button>
-          <button type="button" className={layout === "cards" ? "is-on" : ""} aria-pressed={layout === "cards"} onClick={() => setLayout("cards")}><LayoutGrid size={15} /> Cards</button>
-        </div>
         {canAdd ? (
           <button type="button" className="sp-btn sp-btn-primary" onClick={() => setForm("new")}><Plus size={15} /> Add project</button>
         ) : role === "student" ? (
@@ -431,16 +444,20 @@ export default function ProjectsPage({ user, onBack, onSignIn, onOpenProfile, em
       )}
 
       <div className="sp-filters">
-        <div className="sp-chips" role="group" aria-label="Type">
-          {[{ id: "all", short: "All types" }, ...PROJECT_KINDS].map((k) => (
-            <button key={k.id} type="button" className={kind === k.id ? "is-on" : ""} aria-pressed={kind === k.id} onClick={() => setKind(k.id)}>{k.short}</button>
-          ))}
-        </div>
-        <div className="sp-chips" role="group" aria-label="Stream">
-          {[{ id: "all", name: "All streams" }, ...PROJECT_STREAMS].map((s) => (
-            <button key={s.id} type="button" className={stream === s.id ? "is-on" : ""} aria-pressed={stream === s.id} onClick={() => setStream(s.id)}>{s.name}</button>
-          ))}
-        </div>
+        <label className="sp-select">
+          <span className="sp-sr">Type</span>
+          <select value={kind} onChange={(e) => setKind(e.target.value)} aria-label="Filter by type">
+            <option value="all">All types</option>
+            {PROJECT_KINDS.map((k) => <option key={k.id} value={k.id}>{k.label}</option>)}
+          </select>
+        </label>
+        <label className="sp-select">
+          <span className="sp-sr">Stream</span>
+          <select value={stream} onChange={(e) => setStream(e.target.value)} aria-label="Filter by stream">
+            <option value="all">All streams</option>
+            {PROJECT_STREAMS.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
+          </select>
+        </label>
       </div>
 
       {notice && <p className="sp-note" role="status"><CheckCircle2 size={15} /> {notice} <button type="button" onClick={() => setNotice("")} aria-label="Dismiss"><X size={13} /></button></p>}
@@ -454,18 +471,11 @@ export default function ProjectsPage({ user, onBack, onSignIn, onOpenProfile, em
           <strong>{source.length === 0 ? (tab === "review" ? "Nothing is waiting for review." : "No projects here yet.") : "No project matches this search."}</strong>
           {source.length === 0 && tab === "live" && <span>{canAdd ? "Add the first project." : "Students will add their projects here soon."}</span>}
         </div>
-      ) : layout === "list" ? (
+      ) : (
         <>
           <h2 className="sp-list-title">{tab === "review" ? "Waiting for review" : tab === "mine" ? "My projects" : "Projects"} ({shown.length})</h2>
           <ProjectTable rows={shown} user={user} staff={staff} busyId={busyId} onEdit={(x) => setForm(x)} onDecide={decide} onDelete={remove} />
         </>
-      ) : (
-        <div className="sp-grid">
-          {shown.map((p) => (
-            <ProjectCard key={p.id} p={p} user={user} staff={staff} busy={busyId === p.id}
-              onEdit={(x) => setForm(x)} onDecide={decide} onDelete={remove} />
-          ))}
-        </div>
       )}
 
       <p className="sp-foot"><ShieldCheck size={14} /> Project links open websites made by students. The college checks each one before it is listed, but is not responsible for outside websites.</p>

@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { ArrowRight, Code2, ExternalLink, FolderGit2, GraduationCap, Users } from "lucide-react";
+import { ArrowRight, Code2 } from "lucide-react";
 
-import { fetchProjects, kindLabel, platformOf, streamLabel } from "../lib/projects.js";
-import ProjectCover from "./ProjectCover.jsx";
+import { fetchProjects } from "../lib/projects.js";
+import { ProjectTable } from "./ProjectsPage.jsx";
 import "./projects.css";
 
 /* Landing-page section for Student Projects. Always shown: with projects it
@@ -64,28 +64,8 @@ export default function ProjectsShowcase({ tr, onOpen }) {
         </div>
 
         {latest.length > 0 ? (
-          <div className="sp-landing-grid">
-            {latest.map((p) => (
-              <article className="sp-lcard" key={p.id}>
-                <div className="sp-lshot">
-                  {p.image ? <img src={p.image} alt={`Screenshot of ${p.title}`} loading="lazy" /> : <ProjectCover title={p.title} />}
-                  <em>{kindLabel(p.kind)}</em>
-                </div>
-                <div className="sp-lbody">
-                  <h3>{p.title}</h3>
-                  <p>{p.description}</p>
-                  <ul>
-                    <li><Users size={14} /><span>{p.students}</span></li>
-                    <li><GraduationCap size={14} /><span>{streamLabel(p.stream)}{p.className ? ` · ${p.className}` : ""}</span></li>
-                  </ul>
-                  {p.live && (
-                    <a href={p.live} target="_blank" rel="noopener noreferrer nofollow ugc">
-                      <ExternalLink size={14} /> {tr("Open project", "प्रकल्प उघडा")} <small>{platformOf(p.live)}</small>
-                    </a>
-                  )}
-                </div>
-              </article>
-            ))}
+          <div className="sp-landing-list">
+            <ProjectTable rows={latest} user={null} staff={false} />
           </div>
         ) : (
           <ol className="sp-landing-steps">
