@@ -8557,6 +8557,28 @@ function Styles() {
         .upload-pane--files .upload-drop-text { align-items: center; }
       }
 
+      /* Phones turned sideways and small tablets: two columns, not the full
+         desktop three. */
+      @media (min-width: 640px) and (max-width: 899px) {
+        .wizard-card form, .profile-card form { display: grid; gap: 0 16px; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
+        .wizard-card form .two-col, .profile-card form .two-col { display: contents; }
+        .wizard-card form > .btn-block, .profile-card form > .btn-block,
+        .profile-card form > textarea, .profile-card form > label.field-label { grid-column: 1 / -1; }
+        .modal-card.upload-modal { max-width: 820px; }
+        .upload-modal-body { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+        .upload-pane--files .upload-files-label { margin-top: 0; }
+        .upload-grid { grid-template-columns: 1fr 1fr; }
+      }
+      /* Short screens (a phone on its side): tighter dialogs that scroll inside. */
+      @media (max-height: 520px) {
+        .modal-overlay { padding: 8px; }
+        .modal-card.upload-modal { max-height: 96dvh; }
+        .upload-modal-head { padding: 10px 16px 8px; }
+        .upload-modal-body { padding: 10px 16px 12px; }
+        .upload-modal-foot { padding: 8px 16px; }
+        .upload-kind { margin-bottom: 10px; }
+      }
+
       /* Question Papers page: faculty uploads. */
       .pyq-faculty { max-width: 900px; margin: 28px auto 0; }
       .pyq-faculty-head h2 { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 20px; color: var(--abc-navy); }

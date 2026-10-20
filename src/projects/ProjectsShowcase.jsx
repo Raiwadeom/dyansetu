@@ -44,8 +44,8 @@ export default function ProjectsShowcase({ tr, onOpen }) {
             <h2 id="sp-landing-title">{tr("Projects built by our students, live on the internet", "आपल्या विद्यार्थ्यांनी बनवलेले प्रकल्प, इंटरनेटवर लाईव्ह")}</h2>
             <p className="sp-landing-sub">
               {tr(
-                "Final-year, OJT and mini projects from our B.Sc., B.Sc. CS, BCA, B.Com. and B.A. students. Open any project and see it working.",
-                "आमच्या B.Sc., B.Sc. CS, BCA, B.Com. व B.A. विद्यार्थ्यांचे अंतिम वर्ष, OJT व मिनी प्रकल्प. कोणताही प्रकल्प उघडून प्रत्यक्ष चालताना पहा.",
+                "Final-year, OJT and mini projects from our B.Sc., B.Sc. CS and B.A. students. Open any project and see it working.",
+                "आमच्या B.Sc., B.Sc. CS व B.A. विद्यार्थ्यांचे अंतिम वर्ष, OJT व मिनी प्रकल्प. कोणताही प्रकल्प उघडून प्रत्यक्ष चालताना पहा.",
               )}
             </p>
           </div>

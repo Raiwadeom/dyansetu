@@ -7,10 +7,10 @@ import collegeLogo from "../img/college-logo.jpg";
 import ProjectCover from "./ProjectCover.jsx";
 
 import {
-  PROJECT_KINDS, PROJECT_CLASSES, projectDraft, addProject, deleteProject, fetchProjects, isHttpsUrl, kindLabel, platformOf,
+  PROJECT_KINDS, PROJECT_CLASSES, PROJECT_STREAMS, projectDraft, addProject, deleteProject, fetchProjects, isHttpsUrl, kindLabel, platformOf,
   setProjectStatus, streamLabel, updateProject,
 } from "../lib/projects.js";
-import { NOTE_STREAMS } from "../data/notes.js";
+
 import { useLiveRefresh } from "../lib/liveRefresh.js";
 import "./projects.css";
 
@@ -87,7 +87,7 @@ export function ProjectForm({ initial, user, onClose, onSaved }) {
         <div className="sp-kinds" role="group" aria-label="Type of project">
           {PROJECT_KINDS.map((k) => (
             <button key={k.id} type="button" className={f.kind === k.id ? "is-on" : ""} aria-pressed={f.kind === k.id} onClick={() => setF((x) => ({ ...x, kind: k.id }))}>
-              {k.label}
+              <span className="sp-k-full">{k.label}</span><span className="sp-k-short">{k.short}</span>
             </button>
           ))}
         </div>
@@ -108,7 +108,7 @@ export function ProjectForm({ initial, user, onClose, onSaved }) {
           <label className="sp-field"><span>Stream *</span>
             <select value={f.stream} onChange={set("stream")}>
               <option value="">Select stream</option>
-              {NOTE_STREAMS.map((s) => <option key={s.id} value={s.id}>{s.name} — {s.full}</option>)}
+              {PROJECT_STREAMS.map((s) => <option key={s.id} value={s.id}>{s.name} — {s.full}</option>)}
             </select>
           </label>
           <label className="sp-field"><span>Class</span>
@@ -143,6 +143,7 @@ export function ProjectForm({ initial, user, onClose, onSaved }) {
         </div>
         </div>
 
+        <div className="sp-form-bottom">
         {!editing && (
           <label className="sp-check">
             <input type="checkbox" checked={confirm} onChange={(e) => setConfirm(e.target.checked)} />
@@ -155,6 +156,7 @@ export function ProjectForm({ initial, user, onClose, onSaved }) {
           <button type="submit" className="sp-btn sp-btn-primary" disabled={busy}>
             {busy ? <><Loader2 size={15} className="spin" /> Saving…</> : editing ? "Save changes" : "Submit project"}
           </button>
+        </div>
         </div>
       </form>
     </div>
@@ -328,7 +330,8 @@ export default function ProjectsPage({ user, onBack, onSignIn, onOpenProfile, em
   const [kind, setKind] = useState("all");
   const [stream, setStream] = useState("all");
   const [tab, setTab] = useState("live"); /* live | review | mine */
-  const [layout, setLayout] = useState("list"); /* list | cards */
+  /* A table is for laptops; on a phone the cards read better, so they start as the view. */
+  const [layout, setLayout] = useState(() => (window.matchMedia?.("(max-width: 760px)").matches ? "cards" : "list")); /* list | cards */
 
   const signedIn = Boolean(user);
   const load = useCallback(async () => {
@@ -415,7 +418,7 @@ export default function ProjectsPage({ user, onBack, onSignIn, onOpenProfile, em
         ) : role === "student" ? (
           <button type="button" className="sp-btn sp-btn-primary" onClick={onOpenProfile}><Plus size={15} /> Add yours from your profile</button>
         ) : !user ? (
-          <button type="button" className="sp-btn sp-btn-primary" onClick={onSignIn}>Student? Sign in to add yours</button>
+          <button type="button" className="sp-btn sp-btn-primary" onClick={onSignIn}>Sign in to add yours</button>
         ) : null}
       </div>
 
@@ -434,7 +437,7 @@ export default function ProjectsPage({ user, onBack, onSignIn, onOpenProfile, em
           ))}
         </div>
         <div className="sp-chips" role="group" aria-label="Stream">
-          {[{ id: "all", name: "All streams" }, ...NOTE_STREAMS].map((s) => (
+          {[{ id: "all", name: "All streams" }, ...PROJECT_STREAMS].map((s) => (
             <button key={s.id} type="button" className={stream === s.id ? "is-on" : ""} aria-pressed={stream === s.id} onClick={() => setStream(s.id)}>{s.name}</button>
           ))}
         </div>

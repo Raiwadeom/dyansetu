@@ -18,6 +18,8 @@ export const PROJECT_KINDS = [
 ];
 export const PROJECT_CLASSES = ["FY (First year)", "SY (Second year)", "TY (Third year)", "Final year", "Post-graduate"];
 export const kindLabel = (id) => PROJECT_KINDS.find((k) => k.id === id)?.short || "Project";
+/* Streams that can add and filter projects (BCA and B.Com. are not offered here). */
+export const PROJECT_STREAMS = NOTE_STREAMS.filter((s) => s.id !== "bca" && s.id !== "bcom");
 export const streamLabel = (id) => NOTE_STREAMS.find((s) => s.id === id)?.name || id;
 
 /* Hosting sites students commonly use, recognised from the link. */
