@@ -18,13 +18,13 @@ function hash(text = "") {
 const initialsOf = (title = "") =>
   title.split(/\s+/).filter(Boolean).map((w) => w[0]).join("").replace(/[^\p{L}\p{N}]/gu, "").slice(0, 2).toUpperCase() || "P";
 
-export default function ProjectCover({ title, size = "card" }) {
+export default function ProjectCover({ title }) {
   const [a, b] = PALETTE[hash(title) % PALETTE.length];
   return (
-    <span className={`sp-cover sp-cover--${size}`} style={{ background: `linear-gradient(135deg, ${a}, ${b})` }} aria-hidden="true">
+    <span className="sp-cover" style={{ background: `linear-gradient(135deg, ${a}, ${b})` }} aria-hidden="true">
       <i className="sp-cover-dots" />
       <b>{initialsOf(title)}</b>
-      {size === "card" && <Code2 className="sp-cover-icon" size={22} />}
+      <Code2 className="sp-cover-icon" size={22} />
     </span>
   );
 }

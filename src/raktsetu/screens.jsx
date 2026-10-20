@@ -20,7 +20,7 @@ import {
   setRequestStatus, updateMyRaktSettings,
 } from "./api.js";
 import { useAuth } from "../lib/auth.jsx";
-import { AdminShell, BarCard, CalendarCard, PillTabs, StatRow as TileRow, StatTile, bucketCounts, monthDelta } from "../admin/adminKit.jsx";
+import { AdminShell, BarCard, CalendarCard, PillTabs, StatRow as TileRow, StatTile, bucketCounts } from "../admin/adminKit.jsx";
 import { currentSubscription, disablePush, enablePush, isPushConfigured, pushSupport } from "./push.js";
 import {
   EmergencyHelp, GroupBadge, Link, NewMemberBadge, PaymentWarning, Spinner, StatusBadge, formatDate, formatDateTime, todayIso,
@@ -1096,16 +1096,6 @@ const STATUS_FILTERS = [
   ["", "All"],
 ];
 
-/* One labelled number inside an overview panel. */
-function StatRow({ label, value, strong }) {
-  return (
-    <div className={`rs-statrow${strong ? " rs-statrow--strong" : ""}`}>
-      <dt>{label}</dt>
-      <dd>{value ?? "—"}</dd>
-    </div>
-  );
-}
-
 /* A daily/monthly sending quota as a bar, so "12 / 2,900" reads at a glance. */
 function QuotaRow({ label, used, limit }) {
   const n = Number(used) || 0;
@@ -1120,15 +1110,6 @@ function QuotaRow({ label, used, limit }) {
         <span style={{ width: `${pct}%` }} />
       </div>
     </div>
-  );
-}
-
-function StatPanel({ title, tone, children }) {
-  return (
-    <section className={`rs-card rs-statpanel rs-tone-${tone}`}>
-      <h2 className="rs-statpanel-title">{title}</h2>
-      {children}
-    </section>
   );
 }
 

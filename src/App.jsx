@@ -10,8 +10,6 @@ import heroFive from "../media/slideshow 5.jpeg";
    bundle and fetched only when a student actually opens it. */
 const QuizPage = lazy(() => import("./quiz/QuizPage"));
 const NotesPage = lazy(() => import("./notes/NotesPage"));
-const TalentPage = lazy(() => import("./talent/TalentPage"));
-const TalentShowcase = lazy(() => import("./talent/TalentShowcase"));
 const LegalPage = lazy(() => import("./legal/LegalPage"));
 const ProjectsPage = lazy(() => import("./projects/ProjectsPage"));
 const MyProjectsCard = lazy(() => import("./projects/MyProjectsCard"));
@@ -24,7 +22,7 @@ import {
   useAuth, acceptTerms, readOAuthIntent, clearOAuthIntent, safeNext, deleteMyAccount,
 } from "./lib/auth";
 import {
-  fetchProfile, updateProfile, listProfiles, adminUpdateProfile, adminDeleteProfile, adminSetRestricted, fetchSignIns,
+  fetchProfile, updateProfile, listProfiles, adminUpdateProfile, adminDeleteProfile, fetchSignIns,
   markNotesOpened, submitIdProof, listPendingApprovals, adminReviewPending,
 } from "./lib/profiles";
 import { fetchMyNotes, uploadNote, deleteNote } from "./lib/notes";
@@ -37,13 +35,12 @@ import {
 } from "./lib/adminSession";
 import { NOTE_STREAMS, SEMESTERS, ACCEPTED_NOTE_TYPES, formatBytes } from "./data/notes";
 import { SCHOLARSHIP_CATEGORIES } from "./data/resources";
-import { builtInSchemes, cachedSchemes, fetchSchemes, schemeStatus, fetchLiveAnnouncements } from "./lib/siteContent";
+import { cachedSchemes, fetchSchemes, schemeStatus, fetchLiveAnnouncements } from "./lib/siteContent";
 import ContentAdminPage, { FacultyAnnouncementsCard } from "./admin/ContentAdminPage.jsx";
 import NotificationPrompt from "./lib/NotificationPrompt.jsx";
 import CookieConsent, { readConsent } from "./lib/cookieConsent.jsx";
-import { listTalentRequests, reviewTalentRequest } from "./lib/talent.js";
 import { GMAIL_ONLY_MESSAGE, isGmail } from "./lib/gmailOnly.js";
-import { AvatarCycle, CampusCover, ProfileCover } from "./lib/ProfileArt.jsx";
+import { AvatarCycle, ProfileCover } from "./lib/ProfileArt.jsx";
 import PageHero from "./lib/PageHero.jsx";
 import { PAPER_SESSIONS, deletePaper, fetchMyPapers, fetchPapers, uploadPaper } from "./lib/papers.js";
 import { ensureSiteWorker } from "./lib/sitePush";
@@ -122,11 +119,6 @@ const MEMBERS_ONLY_PAGES = new Set(["notes", "quiz"]);
    rather than shared, so two tabs do not fight over one another's position. */
 const VIEW_KEY = "dnyansetu:view";
 const FOCUS_NOTE_KEY = "dnyansetu:focus-note";
-/* What the Talent Corner should open on (a tab, a shared post, the composer);
-   set just before navigating there and read once by the page. */
-let talentIntent = null;
-const readTalentIntent = () => talentIntent;
-const clearTalentIntent = () => { talentIntent = null; };
 const HOME_KEY = "dnyansetu:browsing-home";
 
 /* Real addresses for the pages people link to or bookmark directly. Everything
@@ -145,7 +137,6 @@ function pathForView(view, authMode, scope, next) {
   if (view === "notfound") return window.location.pathname;
   if (view === "scholarship-reset") return "/scholarship-reset";
   if (view === "notes") return "/notes";
-  if (view === "talent") return "/talent";
   if (view === "projects") return "/projects";
   return "/";
 }
@@ -167,12 +158,6 @@ function initialRoute() {
       try { sessionStorage.setItem(FOCUS_NOTE_KEY, note.slice(0, 120)); } catch { /* storage blocked */ }
     }
     return { view: "notes", direct: true };
-  }
-  /* /talent?post=<id> — a shared Talent Corner post. */
-  if (path === "/talent") {
-    const post = new URLSearchParams(window.location.search).get("post");
-    if (post) talentIntent = { post: post.slice(0, 64) };
-    return { view: "talent", direct: true };
   }
   if (path === "/projects") return { view: "projects", direct: true };
   if (path === "/" || path === "/index.html") return { view: "landing", direct: false };
@@ -741,7 +726,7 @@ function NoticeTicker({ items, renderItem, tr }) {
   );
 }
 
-function Landing({ goAuth, onOpenAbout, onOpenPage, onOpenTalent, user, onOpenDashboard }) {
+function Landing({ goAuth, onOpenAbout, onOpenPage, user, onOpenDashboard }) {
   /* Announcements come from the administrator's Scholarships & Notices page;
      the built-in notices show until they load or if the database is unreachable. */
   const [notices, setNotices] = useState(NOTICE_BOARD);
@@ -807,11 +792,9 @@ function Landing({ goAuth, onOpenAbout, onOpenPage, onOpenTalent, user, onOpenDa
   const siteLinks = [
     { key: "home", icon: Home, label: tr("Home", "मुख्यपृष्ठ"), run: () => window.scrollTo({ top: 0, behavior: "smooth" }) },
     { key: "about", icon: Info, label: tr("About DnyanSetu", "डायनसेतू विषयी"), run: onOpenAbout },
-    { key: "talent", icon: Sparkles, label: tr("Talent Corner", "कला मंच"), run: () => onOpenTalent() },
     { key: "projects", icon: Code2, label: tr("Student Projects", "विद्यार्थी प्रकल्प"), run: () => onOpenPage("projects") },
     { key: "raktsetu", icon: Droplet, label: tr("RaktSetu", "रक्तसेतू"), href: "/raktsetu" },
     { key: "csmnews", icon: Newspaper, label: tr("CSM News Desk", "सीएसएम न्यूज डेस्क"), href: CSM_NEWS_DESK_URL, external: true },
-    { key: "brochure", icon: FileDown, label: tr("Download brochure", "माहितीपत्रक डाउनलोड करा"), href: BROCHURE_URL, download: "DnyanSetu-Brochure.pdf" },
     { key: "terms", icon: ScrollText, label: tr("Terms & Conditions", "अटी व शर्ती"), run: () => onOpenPage("terms") },
     { key: "privacy", icon: Shield, label: tr("Privacy Policy", "गोपनीयता धोरण"), run: () => onOpenPage("privacy") },
     { key: "contact", icon: Phone, label: tr("Contact", "संपर्क"), run: () => document.getElementById("contact")?.scrollIntoView({ behavior: "smooth", block: "center" }) },
@@ -1102,7 +1085,7 @@ function Landing({ goAuth, onOpenAbout, onOpenPage, onOpenTalent, user, onOpenDa
             </button>
             {!user && (
               <button type="button" className="btn btn-lg hero-full-secondary hero-full-staff" onClick={() => goAuth("login", "staff")}>
-                <Shield size={17} /> {tr("Faculty / Staff Sign in", "शिक्षक / कर्मचारी साइन इन")}
+                <Shield size={17} /> <span className="lbl-full">{tr("Faculty / Staff Sign in", "शिक्षक / कर्मचारी साइन इन")}</span><span className="lbl-short">{tr("Staff Sign in", "कर्मचारी साइन इन")}</span>
               </button>
             )}
             <button
@@ -1113,33 +1096,9 @@ function Landing({ goAuth, onOpenAbout, onOpenPage, onOpenTalent, user, onOpenDa
               {tr("Explore services", "सेवा पहा")}
             </button>
           </div>
-          <a href={BROCHURE_URL} download="DnyanSetu-Brochure.pdf" className="hero-full-brochure">
-            <span className="hero-full-brochure-icon" aria-hidden="true"><FileDown size={18} /></span>
-            <span className="hero-full-brochure-text">
-              <strong>{tr("Download brochure", "माहितीपत्रक डाउनलोड करा")}</strong>
-            </span>
-          </a>
         </div>
 
-        <div className="hero-full-controls">
-          <div className="hero-full-progress" role="tablist" aria-label={tr("Choose a photograph", "छायाचित्र निवडा")}>
-            {HERO_SLIDES.map((slide, index) => (
-              <button
-                key={slide.id}
-                type="button"
-                role="tab"
-                aria-selected={index === activeHeroSlide}
-                aria-label={`${tr("Photo", "छायाचित्र")} ${index + 1}`}
-                className={`hero-full-bar ${index === activeHeroSlide ? "is-active" : ""} ${index < activeHeroSlide ? "is-done" : ""}`}
-                onClick={() => setActiveHeroSlide(index)}
-              >
-                <span key={index === activeHeroSlide ? `on-${activeHeroSlide}` : "off"} />
-              </button>
-            ))}
-          </div>
-          <span className="hero-full-count" aria-live="polite">
-            {String(activeHeroSlide + 1).padStart(2, "0")} <small>/ {String(HERO_SLIDES.length).padStart(2, "0")}</small>
-          </span>
+        <div className="hero-full-controls hero-full-controls--arrows">
           <div className="hero-full-arrows">
             <button type="button" onClick={() => showHeroSlide(-1)} aria-label={tr("Previous photo", "मागील छायाचित्र")}>
               <ArrowLeft size={18} />
@@ -1211,25 +1170,6 @@ function Landing({ goAuth, onOpenAbout, onOpenPage, onOpenTalent, user, onOpenDa
               }}
             />
           )}
-        </div>
-      </section>
-
-      {/* Promo film. preload="none" so the 3.7 MB file downloads only on play. */}
-      <section className="section section-promo" id="watch">
-        <div className="promo-board">
-          <div className="promo-frame">
-            <video
-              className="promo-video"
-              src="/media/dnyansetu-promo.mp4?v=2"
-              poster="/media/dnyansetu-promo-poster.jpg"
-              controls
-              preload="none"
-              playsInline
-              width="1280"
-              height="720"
-              aria-label={tr("DnyanSetu introduction video", "ज्ञानसेतु परिचय व्हिडिओ")}
-            />
-          </div>
         </div>
       </section>
 
@@ -1319,28 +1259,22 @@ function Landing({ goAuth, onOpenAbout, onOpenPage, onOpenTalent, user, onOpenDa
         <ProjectsShowcase tr={tr} onOpen={() => onOpenPage("projects")} />
       </Suspense>
 
-      <Suspense fallback={null}>
-        <TalentShowcase
-          tr={tr}
-          canShare={user?.role === "student"}
-          onOpen={(tab, post) => onOpenTalent({ tab, post })}
-          onShare={() => onOpenTalent({ compose: true })}
-        />
-      </Suspense>
-
-      {/* A slim strip, not a full section: the channel sits between the
-          student showcase and the principal's message. */}
-      <section className="yt-strip-wrap" aria-labelledby="yt-strip-title">
-        <div className="yt-strip">
-          <img className="yt-strip-avatar" src={YT_CHANNEL.avatar} alt="" width="64" height="64" loading="lazy" />
-          <div className="yt-strip-copy">
-            <span className="yt-strip-kicker"><YtLogo size={16} /> {tr("Our YouTube channel", "आमचे YouTube चॅनेल")}</span>
-            <h2 id="yt-strip-title">{YT_CHANNEL.name}</h2>
-            <p>{tr("Tech videos, tips and DnyanSetu updates. Subscribe so you never miss one.", "टेक व्हिडिओ, टिप्स आणि DnyanSetu अपडेट्स. एकही चुकू नये म्हणून सबस्क्राइब करा.")}</p>
+      {/* Promo film. preload="none" so the 3.7 MB file downloads only on play. */}
+      <section className="section section-promo" id="watch">
+        <div className="promo-board">
+          <div className="promo-frame">
+            <video
+              className="promo-video"
+              src="/media/dnyansetu-promo.mp4?v=2"
+              poster="/media/dnyansetu-promo-poster.jpg"
+              controls
+              preload="none"
+              playsInline
+              width="1280"
+              height="720"
+              aria-label={tr("DnyanSetu introduction video", "ज्ञानसेतु परिचय व्हिडिओ")}
+            />
           </div>
-          <a className="yt-subscribe-btn yt-strip-btn" href={YT_CHANNEL.subscribeUrl} target="_blank" rel="noreferrer">
-            <YtLogo size={18} /> {tr("Subscribe", "सबस्क्राइब करा")}
-          </a>
         </div>
       </section>
 
@@ -3883,111 +3817,6 @@ function PendingApprovalsPanel({ onChanged }) {
   );
 }
 
-/* Students asking to post in the Talent Corner (ID card + guidelines tick).
-   Approve lets them post; Reject sends a short reason they see next time. */
-function TalentRequestsPanel() {
-  const [rows, setRows] = useState(null);
-  const [error, setError] = useState("");
-  const [busyId, setBusyId] = useState("");
-  const [rejecting, setRejecting] = useState(null);
-  const [reason, setReason] = useState("");
-  const [zoom, setZoom] = useState("");
-
-  const load = useCallback(async () => {
-    try {
-      setRows(await listTalentRequests());
-      setError("");
-    } catch (err) {
-      setError(err.message);
-      setRows([]);
-    }
-  }, []);
-  useEffect(() => { load(); }, [load]);
-  useLiveRefresh(() => listTalentRequests().then((list) => setRows(sameOr(list))));
-
-  const decide = async (row, approve) => {
-    setBusyId(row.userId);
-    setError("");
-    try {
-      await reviewTalentRequest(row.userId, approve, approve ? "" : reason.trim());
-      setRejecting(null);
-      setReason("");
-      await load();
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setBusyId("");
-    }
-  };
-
-  return (
-    <div className="card pending-panel" style={{ gridColumn: "1 / -1" }}>
-      <div className="pending-panel-head">
-        <div>
-          <h3><Sparkles size={20} /> Talent Corner posting requests</h3>
-          <p className="dash-meta">Students who want to post. Check the college ID card, then approve.</p>
-        </div>
-        <button type="button" className="btn btn-outline btn-sm" onClick={load}><RefreshCw size={14} /> Refresh</button>
-      </div>
-
-      {error && <p className="upload-error">{error}</p>}
-      {rows === null ? (
-        <p className="notes-loading"><Loader2 size={18} className="spin" /> Loading…</p>
-      ) : rows.length === 0 ? (
-        <p className="resource-empty">No Talent Corner requests waiting.</p>
-      ) : (
-        <div className="pending-list">
-          {rows.map((row) => (
-            <article className="pending-card" key={row.userId}>
-              <button type="button" className="pending-card-proof" onClick={() => row.idCardUrl && setZoom(row.idCardUrl)} disabled={!row.idCardUrl} aria-label={`View ID card of ${row.name}`}>
-                {row.idCardUrl ? <img src={row.idCardUrl} alt={`ID card of ${row.name}`} /> : <span><IdCard size={22} /> No ID card</span>}
-              </button>
-              <div className="pending-card-body">
-                <div className="pending-card-name">
-                  <strong>{row.name || "Unnamed"}</strong>
-                  {row.stream && <span className="dash-meta">{streamDegree(row.stream, row.stream)}</span>}
-                </div>
-                <p className="pending-card-email"><Mail size={13} /> {row.email}</p>
-                <p className="pending-card-date">Asked {new Date(row.createdAt).toLocaleDateString("en-IN")}</p>
-                {rejecting === row.userId ? (
-                  <div className="pending-reject">
-                    <input className="field-input" value={reason} maxLength={300} onChange={(e) => setReason(e.target.value)} placeholder="Reason (shown to the student), e.g. ID card not readable" />
-                    <div className="pending-actions">
-                      <button type="button" className="btn btn-xs btn-outline" onClick={() => { setRejecting(null); setReason(""); }} disabled={busyId === row.userId}>Cancel</button>
-                      <button type="button" className="btn btn-xs btn-danger" onClick={() => decide(row, false)} disabled={busyId === row.userId}>
-                        {busyId === row.userId ? <Loader2 size={13} className="spin" /> : <X size={13} />} Reject
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="pending-actions">
-                    <button type="button" className="btn btn-sm btn-primary" onClick={() => decide(row, true)} disabled={busyId === row.userId}>
-                      {busyId === row.userId ? <Loader2 size={14} className="spin" /> : <CheckCircle2 size={14} />} Approve
-                    </button>
-                    <button type="button" className="btn btn-sm btn-outline" onClick={() => setRejecting(row.userId)} disabled={busyId === row.userId}>Reject</button>
-                  </div>
-                )}
-              </div>
-            </article>
-          ))}
-        </div>
-      )}
-
-      {zoom && (
-        <div className="modal-overlay" onClick={() => setZoom("")} role="dialog" aria-label="ID card">
-          <div className="modal-card pending-zoom" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-head">
-              <h3>ID card</h3>
-              <button type="button" className="btn btn-ghost" onClick={() => setZoom("")}><X size={18} /></button>
-            </div>
-            <img src={zoom} alt="ID card, full size" />
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
 /* ------------------------------ Admin tables ------------------------------
    One compact row per account across the admin pages. On phones each row
    folds into a short strip (labels inline) so nothing scrolls sideways. */
@@ -4211,7 +4040,6 @@ function AdminApprovalsPage({ users, onRefreshUsers, onUpdateUser }) {
   return (
     <div className="dash-grid">
       <PendingApprovalsPanel onChanged={onRefreshUsers} />
-      <TalentRequestsPanel />
 
       {error && <p className="upload-error" style={{ gridColumn: "1 / -1" }}>{error}</p>}
 
@@ -4583,16 +4411,6 @@ function AdminPortal({ users, onUpdateUser, onDeleteUser, search: shellSearch })
     <div className="dash-grid">
       <div className="ak-overview" style={{ gridColumn: "1 / -1" }}><AdminOverview users={users} /></div>
 
-      {/* RaktSetu has its own admin page (overview, reports, all requests). */}
-      <a className="card admin-rakt-link" href="/raktsetu/admin" style={{ gridColumn: "1 / -1" }}>
-        <span className="admin-rakt-icon"><Droplet size={20} /></span>
-        <span className="admin-rakt-copy">
-          <strong>RaktSetu admin</strong>
-          <small>Blood-request overview, reports to review, remove fake requests, moderation log</small>
-        </span>
-        <ArrowRight size={18} />
-      </a>
-
       <RestrictedAccountsPanel users={users} onUpdateUser={onUpdateUser} />
 
       <div style={{ gridColumn: "1 / -1" }} className="card">
@@ -4855,21 +4673,10 @@ function TopNavApp({ view, go, onHome, onLogout, user, pendingCount = 0 }) {
           )}
 
           {user.role === "admin" && (
-            <>
-              <button type="button" className={`app-nav-item ${view === "admin-portal" ? "active" : ""}`} onClick={() => go("admin-portal")}>
-                Admin Control Desk
-              </button>
-              <button type="button" className={`app-nav-item ${view === "admin-approvals" ? "active" : ""}`} onClick={() => go("admin-approvals")}>
-                Approvals
-                {pendingCount > 0 && <span className="app-nav-count" aria-label={`${pendingCount} waiting`}>{pendingCount}</span>}
-              </button>
-              <button type="button" className={`app-nav-item ${view === "admin-quiz" ? "active" : ""}`} onClick={() => go("admin-quiz")}>
-                Quiz Results
-              </button>
-              <button type="button" className={`app-nav-item ${view === "admin-content" ? "active" : ""}`} onClick={() => go("admin-content")}>
-                Scholarships &amp; Notices
-              </button>
-            </>
+            <button type="button" className="app-nav-item" onClick={() => go("admin-portal")}>
+              Admin dashboard
+              {pendingCount > 0 && <span className="app-nav-count" aria-label={`${pendingCount} waiting`}>{pendingCount}</span>}
+            </button>
           )}
 
           {!isStaffOnly && !isScholarshipAdmin && (
@@ -4893,12 +4700,6 @@ function TopNavApp({ view, go, onHome, onLogout, user, pendingCount = 0 }) {
           {!isStaffOnly && (
             <button type="button" className={`app-nav-item ${view === "scholarships" ? "active" : ""}`} onClick={() => go("scholarships")}>
               Scholarships
-            </button>
-          )}
-
-          {!isScholarshipAdmin && (
-            <button type="button" className={`app-nav-item ${view === "talent" ? "active" : ""}`} onClick={() => go("talent")}>
-              Talent Corner
             </button>
           )}
 
@@ -5703,22 +5504,6 @@ export default function App() {
   /* Members-only pages bounce to the login tab instead of opening. Checked here
      rather than only on the card, so a deep link or a back-button jump lands in
      the same place. */
-  const openTalent = (intent = null) => {
-    talentIntent = intent;
-    navigateTo("talent");
-  };
-
-  /* From a Talent Corner card: the administrator blocks or deletes the
-     account behind a post. Same effect as the Admin Control Desk buttons. */
-  const handleTalentBlock = async (userId) => {
-    await adminSetRestricted(userId, true);
-    setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, restricted: true } : u)));
-  };
-  const handleTalentDeleteAccount = async (userId) => {
-    await adminDeleteProfile(userId);
-    setUsers((prev) => prev.filter((u) => u.id !== userId));
-  };
-
   const openPage = (page) => {
     if (MEMBERS_ONLY_PAGES.has(page) && !currentUser) {
       setPendingPage(page);
@@ -5743,7 +5528,7 @@ export default function App() {
      along on every page reached from it — not just the three portals. It needs
      a user to render, so a signed-out visitor on an open page still sees none. */
   const isAppView = Boolean(currentUser)
-    && ["profile", "faculty-portal", "notes", "quiz", "pyq", "scholarships", "talent", "projects"].includes(view);
+    && ["profile", "faculty-portal", "notes", "quiz", "pyq", "scholarships", "projects"].includes(view);
   /* The administrator and the scholarship admin work inside the dashboard
      shell (sidebar + top bar) instead of the public header. */
   const inAdminShell = Boolean(currentUser) && ADMIN_VIEWS.has(view)
@@ -5812,7 +5597,6 @@ export default function App() {
             }}
             onOpenAbout={() => navigateTo("about")}
             onOpenPage={openPage}
-            onOpenTalent={openTalent}
             user={currentUser}
             onOpenDashboard={() => navigateTo(homeViewFor(currentUser))}
           />
@@ -5848,22 +5632,6 @@ export default function App() {
           </Suspense>
         )}
         {view === "scholarships" && <ScholarshipsPage onBack={goBack} onRegisterBack={registerPageBack} profile={currentUser} />}
-        {view === "talent" && (
-          <Suspense fallback={<div className="boot-screen"><Loader2 size={20} className="spin" /> Loading Talent Corner…</div>}>
-            <TalentPage
-              user={currentUser}
-              readIntent={readTalentIntent}
-              clearIntent={clearTalentIntent}
-              onBack={goBack}
-              onSignIn={() => {
-                setPendingPage("talent");
-                setAuthMode("login"); setAuthRoleScope("student"); navigateTo("auth");
-              }}
-              onBlockUser={handleTalentBlock}
-              onDeleteUser={handleTalentDeleteAccount}
-            />
-          </Suspense>
-        )}
         {view === "auth" && (
           <AuthScreen
             mode={authMode}
@@ -6058,7 +5826,7 @@ function InstallAppButton({ compact = false, variant = compact ? "compact" : "bu
             <small>www.dnyansetu.online</small>
           </span>
           <button type="button" className="install-banner-cta" onClick={onClick}>
-            {mode === "ios" ? tr("Add", "जोडा") : tr("Install", "इन्स्टॉल")}
+            {tr("Install", "इन्स्टॉल")}
           </button>
           <button type="button" className="install-banner-close" onClick={closeBanner} aria-label={tr("Close", "बंद करा")}>
             <X size={13} />
@@ -6549,64 +6317,12 @@ function Styles() {
 
       .admin-denied { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 26px; }
 
-      .admin-activity-bar {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        flex-wrap: wrap;
-        margin-top: 14px;
-      }
-      .admin-activity-hint { font-size: 12.5px; color: var(--text-muted); }
 
       /* One column of account cards. Deliberately not a table: the desk is read
          top-to-bottom on a phone and on a desktop alike, and each account needs
          room for its notes and quiz figures. */
-      .admin-people { display: flex; flex-direction: column; gap: 12px; margin-top: 4px; }
-      .admin-person {
-        border: 1px solid var(--border-light);
-        border-left: 3px solid var(--abc-blue);
-        border-radius: var(--radius-sm);
-        background: #FFFFFF;
-        padding: 16px 18px;
-      }
-      .admin-person-head {
-        display: flex;
-        align-items: flex-start;
-        justify-content: space-between;
-        gap: 14px;
-        flex-wrap: wrap;
-        padding-bottom: 12px;
-        border-bottom: 1px solid var(--border-light);
-      }
-      .admin-person-id { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
-      .admin-person-id strong { font-size: 15px; color: var(--text-strong); }
-      .admin-person-email { font-size: 12.5px; color: var(--text-muted); word-break: break-all; }
-      .admin-person-tags { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 
-      .admin-person-facts {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-        gap: 12px 18px;
-        margin: 14px 0 0;
-      }
-      .admin-person-facts dt {
-        font-size: 11px;
-        font-weight: 600;
-        letter-spacing: 0.05em;
-        text-transform: uppercase;
-        color: var(--text-muted);
-        margin-bottom: 3px;
-      }
-      .admin-person-facts dd { margin: 0; font-size: 13.5px; color: var(--text-strong); font-weight: 600; }
 
-      .admin-person-actions {
-        display: flex;
-        gap: 8px;
-        flex-wrap: wrap;
-        margin-top: 14px;
-        padding-top: 12px;
-        border-top: 1px solid var(--border-light);
-      }
 
       /* Waiting-approval count on the admin's Approvals link. */
       .app-nav-count {
@@ -6640,7 +6356,6 @@ function Styles() {
       .quiz-rank-intermediate { background: #EEF2FF; color: #4338CA; border-color: #C7D2FE; }
       .quiz-rank-advanced { background: #F5F3FF; color: #6D28D9; border-color: #DDD6FE; }
       .quiz-rank-exam { background: #ECFDF5; color: #047857; border-color: #A7F3D0; }
-      .admin-quiz-person + .admin-quiz-person { border-top: 1px solid var(--border-light); }
       .admin-quiz-subjects { display: flex; flex-direction: column; gap: 10px; padding: 4px 14px 14px; background: #FFFFFF; }
       .admin-quiz-subject { border: 1px solid var(--border-light); border-radius: var(--radius-sm); padding: 10px 12px; background: #F8FAFC; }
       .admin-quiz-subject-name { display: flex; flex-direction: column; gap: 2px; margin-bottom: 8px; }
@@ -6700,25 +6415,9 @@ function Styles() {
         .admin-table .btn-xs { min-height: 34px; }
         .admin-table-detail td { flex: 1 1 100%; padding: 0; background: none; }
       }
-      .admin-signin-list { display: flex; flex-direction: column; border: 1px solid var(--border-light); border-radius: var(--radius-sm); overflow: hidden; }
-      .admin-signin-row {
-        display: grid;
-        grid-template-columns: minmax(0, 1.4fr) minmax(0, 1.6fr) auto;
-        align-items: center;
-        gap: 10px 16px;
-        padding: 12px 14px;
-        background: #FFFFFF;
-      }
-      .admin-signin-row + .admin-signin-row { border-top: 1px solid var(--border-light); }
-      .admin-signin-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-      .admin-signin-when { display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; color: var(--text-muted); }
 
       @media (max-width: 640px) {
-        .admin-signin-row { grid-template-columns: 1fr; gap: 8px; }
-        .admin-signin-row .btn { justify-self: start; min-height: 36px; }
         .admin-signin-tools { width: 100%; display: grid; grid-template-columns: 1fr 1fr; }
-        .admin-person { padding: 14px; }
-        .admin-person-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 14px; }
       }
 
       /* ================= Host Institution Crest & Lockup ================= */
@@ -6912,21 +6611,8 @@ function Styles() {
       }
       .hero-full .hero-full-tagline { margin: 4px 0 0; max-width: 620px; font-size: 17px; line-height: 1.6; color: rgba(255,255,255,0.88); }
       .hero-full-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 12px; }
-      .hero-full-brochure {
-        display: inline-flex; align-items: center; gap: 12px; margin-top: 18px;
-        padding: 8px 18px 8px 8px; border-radius: 6px;
-        background: rgba(11, 30, 46, .55); border: 1px solid rgba(255,255,255,.28);
-        color: #fff; text-decoration: none; backdrop-filter: blur(6px);
-        transition: background .2s, border-color .2s;
-      }
-      .hero-full-brochure:hover { background: rgba(11, 30, 46, .8); border-color: var(--abc-saffron); }
-      .hero-full-brochure-icon {
-        display: grid; place-items: center; width: 38px; height: 38px; border-radius: 4px;
-        background: var(--abc-saffron); color: #fff; flex: none;
-      }
-      .hero-full-brochure-text { display: flex; flex-direction: column; line-height: 1.2; text-align: left; }
-      .hero-full-brochure-text strong { font-size: 15px; font-weight: 700; }
-      .hero-full-brochure-text small { font-size: 12px; color: rgba(255,255,255,.75); margin-top: 2px; }
+      .hero-full-actions .lbl-short { display: none; }
+      @media (max-width: 640px) { .hero-full-actions .lbl-short { display: inline; } }
       .hero-full-secondary { background: #FFFFFF; color: var(--abc-navy); border: 1px solid #FFFFFF; }
       .hero-full-staff { gap: 8px; }
       .hero-full-secondary:hover { background: #F1F5F9; color: var(--abc-navy); }
@@ -6939,27 +6625,6 @@ function Styles() {
         padding: 0 48px;
         display: flex; align-items: center; gap: 18px;
       }
-      .hero-full-progress { display: flex; gap: 8px; flex: 1; max-width: 360px; }
-      .hero-full-bar {
-        flex: 1; height: 22px; padding: 0; border: 0;
-        background: transparent; cursor: pointer;
-        display: flex; align-items: center;
-      }
-      .hero-full-bar span {
-        display: block; width: 100%; height: 3px; border-radius: 3px;
-        background: rgba(255,255,255,0.3);
-        position: relative; overflow: hidden;
-      }
-      .hero-full-bar span::after {
-        content: ""; position: absolute; inset: 0;
-        background: #F4B860;
-        transform: scaleX(0); transform-origin: left center;
-      }
-      .hero-full-bar.is-done span::after { transform: scaleX(1); }
-      .hero-full-bar.is-active span::after { animation: heroBar 6.5s linear forwards; }
-      @keyframes heroBar { from { transform: scaleX(0); } to { transform: scaleX(1); } }
-      .hero-full-count { font-family: 'JetBrains Mono', monospace; font-size: 15px; font-weight: 700; color: #FFFFFF; white-space: nowrap; }
-      .hero-full-count small { font-size: 12px; color: rgba(255,255,255,0.6); }
       .hero-full-arrows { display: flex; gap: 10px; margin-left: auto; }
       .hero-full-arrows button {
         width: 46px; height: 46px; border-radius: 50%;
@@ -6996,15 +6661,17 @@ function Styles() {
         .hero-full .hero-full-tagline { font-size: 14.5px; line-height: 1.55; }
         .hero-full-actions { width: 100%; gap: 10px; margin-top: 8px; }
         .hero-full-actions .btn { flex: 1 1 140px; justify-content: center; }
+        /* a compact block: one wide primary button, two small ones beneath */
+        .hero-full-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .hero-full-actions .btn-primary { grid-column: 1 / -1; min-height: 46px; padding-block: 10px; font-size: 15px; }
+        .hero-full-actions .hero-full-secondary { min-height: 42px; padding: 8px 10px; font-size: 13px; white-space: nowrap; }
+        .hero-full-actions .lbl-full { display: none; }
         .hero-full-controls { top: calc(62.5vw - 50px); bottom: auto; padding: 0 14px; gap: 12px; }
-        .hero-full-progress { max-width: none; }
         .hero-full-arrows button { width: 36px; height: 36px; }
-        .hero-full-count { font-size: 13px; }
       }
       @media (prefers-reduced-motion: reduce) {
         .hero-full-slide { transition: opacity 0.4s ease; transform: none; }
         .hero-full-slide.is-active, .hero-full-content > *, .hero-full-bar.is-active span::after { animation: none; }
-        .hero-full-bar.is-active span::after { transform: scaleX(1); }
       }
 
       .about-page-shell { padding: 32px 24px 64px; max-width: 1200px; margin: 0 auto; }
@@ -7294,18 +6961,6 @@ function Styles() {
       .service-card.is-highlighted { animation: searchFlash 2.4s ease-out; }
 
 
-      .admin-rakt-link {
-        display: flex; align-items: center; gap: 14px; text-decoration: none; color: var(--text-dark);
-        border-left: 4px solid #A51C24; transition: box-shadow 0.2s ease, transform 0.2s ease;
-      }
-      .admin-rakt-link:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
-      .admin-rakt-icon {
-        flex: 0 0 auto; width: 44px; height: 44px; border-radius: 10px; display: grid; place-items: center;
-        background: #FCEBEC; color: #A51C24;
-      }
-      .admin-rakt-copy { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-      .admin-rakt-copy strong { font-size: 16px; }
-      .admin-rakt-copy small { font-size: 13px; color: var(--text-muted); }
       @keyframes serviceRise {
         from { opacity: 0; transform: translateY(18px); }
         to { opacity: 1; transform: none; }
@@ -8450,28 +8105,6 @@ function Styles() {
       .yt-gate .ig-follow-btn { margin-top: 14px; }
       .yt-subscribe-btn-lg svg rect { fill: #fff; }
       .yt-subscribe-btn-lg svg path { fill: #FF0000; }
-      .yt-strip-wrap { padding: 8px 48px 40px; max-width: 1200px; margin: 0 auto; }
-      .yt-strip {
-        display: flex; align-items: center; gap: 18px; padding: 18px 22px;
-        background: #fff; border: 1px solid var(--border-light); border-left: 4px solid #FF0000;
-        border-radius: var(--radius-sm, 10px); box-shadow: 0 2px 10px rgba(15, 23, 42, 0.05);
-      }
-      .yt-strip-avatar { width: 64px; height: 64px; flex: 0 0 64px; border-radius: 50%; }
-      .yt-strip-copy { flex: 1; min-width: 0; text-align: left; }
-      .yt-strip-kicker { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-muted); }
-      .yt-strip-copy h2 { margin: 2px 0 2px; font-size: 20px; color: var(--text-dark); }
-      .yt-strip-copy p { margin: 0; font-size: 14px; color: var(--text-muted); }
-      .yt-strip-btn { flex: none; background: #FF0000; }
-      .yt-strip-btn:hover { background: #CC0000; }
-      .yt-strip-btn svg rect { fill: #fff; }
-      .yt-strip-btn svg path { fill: #FF0000; }
-      @media (max-width: 640px) {
-        .yt-strip-wrap { padding: 4px 16px 28px; }
-        .yt-strip { flex-wrap: wrap; gap: 12px 14px; padding: 16px; }
-        .yt-strip-avatar { width: 52px; height: 52px; flex-basis: 52px; }
-        .yt-strip-copy { flex: 1 1 180px; }
-        .yt-strip-btn { width: 100%; }
-      }
       .yt-gate { text-align: center; max-width: 420px; margin: 0 auto; }
       .yt-gate-step { margin: 0 0 22px; font-size: 13px; font-weight: 700; color: var(--abc-saffron); letter-spacing: 0.03em; text-transform: uppercase; }
       .yt-gate .yt-gate-avatar { width: 96px; height: 96px; border-radius: 50%; margin: 24px auto 18px; display: block; box-shadow: 0 0 0 4px #fff, 0 0 0 6px #FF0000; }
@@ -9655,7 +9288,6 @@ function Styles() {
       .pending-panel-head { align-items: center; }
       .pending-panel .resource-empty { margin-top: 14px; }
       .pending-panel-head h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 4px; }
-      .admin-activity-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 14px; }
       @media (max-width: 640px) {
         .admin-stat-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
         .admin-stat { padding: 10px 10px; min-width: 0; }
@@ -9664,10 +9296,6 @@ function Styles() {
         .pending-panel-head { flex-direction: column; align-items: stretch; gap: 10px; }
         .pending-panel-head .btn { align-self: flex-start; }
         .pending-panel-head h3 { font-size: 16px; }
-        .admin-activity-bar .btn { width: 100%; justify-content: center; }
-        .admin-person-head { flex-direction: column; align-items: flex-start; gap: 8px; }
-        .admin-person-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-        .admin-person-actions .btn { min-height: 38px; justify-content: center; font-size: 13px; }
         .dash-grid > .card { padding: 16px; }
       }
       .admin-section-head {

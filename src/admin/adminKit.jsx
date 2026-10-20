@@ -233,21 +233,6 @@ export function RingCard({ title, pct, note }) {
   );
 }
 
-/* A titled white card for tables and forms. */
-export function Panel({ title, icon: Icon, right, children, className = "" }) {
-  return (
-    <section className={`ak-card ak-panel ${className}`}>
-      {(title || right) && (
-        <div className="ak-card-head">
-          <h2>{Icon && <Icon size={16} />}{title}</h2>
-          {right}
-        </div>
-      )}
-      {children}
-    </section>
-  );
-}
-
 /* ---------------------------------------------------------- time bucketing */
 
 /* Counts items per period for the chart. mode: day | week | month | year. */

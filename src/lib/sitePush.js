@@ -1,7 +1,7 @@
 /* ============================================================================
    DnyanSetu — college notifications on this phone / browser (rebuilt 2026-10-11)
 
-   New announcements, notes, scholarship updates and Talent Corner posts.
+   New announcements, notes and scholarship updates.
    Uses public/sw.js (scope "/"); RaktSetu's blood alerts are separate
    (src/raktsetu/push.js). Permission is only asked from a button press.
 
@@ -137,16 +137,6 @@ export async function enableSitePush() {
     throw new Error("Notifications are blocked. Allow them for this site in your browser settings, then try again.");
   }
   return syncSitePush();
-}
-
-export async function disableSitePush() {
-  const sub = await siteSubscription();
-  if (!sub) return;
-  try {
-    await call("DELETE", { endpoint: sub.endpoint });
-  } finally {
-    await sub.unsubscribe().catch(() => {});
-  }
 }
 
 /* Tells the server something was just published so it can notify every

@@ -119,14 +119,6 @@ export async function fetchProgress(userId, poolSizeFor) {
   return foldAttempts(await loadAttempts(userId, 1000), poolSizeFor);
 }
 
-/* Raw attempts for one account, newest first. The admin desk uses this to show
-   who has actually practised; the quiz_attempts policy lets the administrator
-   read any account's rows. */
-export async function fetchAttempts(userId, max = 500) {
-  if (!isBackendConfigured || !userId) return [];
-  return loadAttempts(userId, max);
-}
-
 export async function saveAttempt(userId, { streamId, year, subjectId, stage, result, questions }) {
   if (!isBackendConfigured || !userId) return;
   const { error } = await supabase.from("quiz_attempts").insert({

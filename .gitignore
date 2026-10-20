@@ -7,3 +7,6 @@ dist-ssr
 .env.*.local
 .DS_Store
 *.log
+
+# browser test output
+.playwright-cli/

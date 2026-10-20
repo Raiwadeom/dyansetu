@@ -246,27 +246,6 @@ export const SCHOLARSHIPS = [
   },
 ];
 
-export function scholarshipsFor(categoryId) {
-  return SCHOLARSHIPS.filter((s) => s.categories.includes(categoryId));
-}
-
-/* Every distinct document a student in this category will need, in a stable order. */
-export function documentsFor(categoryId, lang = "en") {
-  const seen = [];
-  scholarshipsFor(categoryId).forEach((s) =>
-    s.documents.forEach((d) => {
-      if (!seen.includes(d)) seen.push(d);
-    })
-  );
-  const dict = lang === "mr" ? DOC_MR : DOC;
-  return seen.map((key) => dict[key]).filter(Boolean);
-}
-
-export function expandDocuments(keys, lang = "en") {
-  const dict = lang === "mr" ? DOC_MR : DOC;
-  return keys.map((key) => dict[key]).filter(Boolean);
-}
-
 /* The built-in schemes in the database's shape (documents written out in both
    languages). Used to seed the scholarships table and as the fallback when the
    database cannot be reached. */

@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  ArrowLeft, Check, CheckCircle2, Clock, Code2, ExternalLink, FolderGit2, Github, GraduationCap, ImagePlus, Loader2,
-  Eye, Pencil, Plus, Search, ShieldCheck, Trash2, UserCheck, Users, X, XCircle,
+  ArrowLeft, Check, CheckCircle2, Clock, Code2, ExternalLink, FolderGit2, Github, ImagePlus, Loader2,
+  Eye, Pencil, Plus, Search, ShieldCheck, Trash2, X, XCircle,
 } from "lucide-react";
 import collegeLogo from "../img/college-logo.jpg";
 import ProjectCover from "./ProjectCover.jsx";
@@ -249,7 +249,7 @@ export function ProjectDetail({ p, onClose, canManage, staff, busy, onEdit, onDe
 
 /* The list: one row per project on every screen size — thumbnail, title and
    students, a short description, class, type, hosting platform, status and a
-   View button. Rows that are waiting or not approved are tinted. On a phone
+   View button. The project picture is only shown in the View dialog. Rows that are waiting or not approved are tinted. On a phone
    the less important columns fold away but it stays a table. */
 export function ProjectTable({ rows, user, staff, busyId, onEdit, onDecide, onDelete }) {
   const [detail, setDetail] = useState(null);
@@ -277,9 +277,6 @@ export function ProjectTable({ rows, user, staff, busyId, onEdit, onDecide, onDe
               <tr key={p.id} className={p.status !== "approved" ? `is-${p.status}` : ""}>
                 <td className="sp-cell-no" data-label="No.">{i + 1}</td>
                 <td className="sp-cell-project" data-label="Project">
-                  <span className="sp-thumb">
-                    {p.image ? <img src={p.image} alt="" loading="lazy" /> : <ProjectCover title={p.title} size="thumb" />}
-                  </span>
                   <span className="sp-cell-text">
                     <button type="button" className="sp-titlebtn" onClick={() => setDetail(p.id)}>{p.title}</button>
                     <small>{p.students}</small>
@@ -403,23 +400,24 @@ export default function ProjectsPage({ user, onBack, onSignIn, onOpenProfile, em
         </div>
       </div>
     )}
+    {!embedded && (
+      <header className="sph">
+        <div className="sph-in">
+          <div className="sph-copy">
+            <p className="sph-kicker"><Code2 size={14} /> Student Projects</p>
+            <h1>Projects built by our students</h1>
+            <p className="sph-sub">Final-year, OJT and mini projects, each one live on the internet.</p>
+          </div>
+          <ul className="sp-counts sph-counts" aria-label="Project counts">
+              <li><strong>{live.length}</strong><span>Live</span></li>
+              <li><strong>{count("final-year")}</strong><span>Final year</span></li>
+              <li><strong>{count("ojt")}</strong><span>OJT</span></li>
+              <li><strong>{count("mini")}</strong><span>Mini</span></li>
+            </ul>
+        </div>
+      </header>
+    )}
     <main className={`sp-page${embedded ? " is-embedded" : ""}`}>
-      {!embedded && (
-        <header className="sp-hero">
-          <p className="sp-eyebrow"><Code2 size={14} /> Student Projects</p>
-          <h1>Projects built by our students</h1>
-          <p className="sp-sub">
-            Final-year, OJT and mini projects, each one live on the internet. Browse freely, open a project and
-            see what our students can build.
-          </p>
-          <ul className="sp-counts" aria-label="Project counts">
-            <li><strong>{live.length}</strong><span>Live</span></li>
-            <li><strong>{count("final-year")}</strong><span>Final year</span></li>
-            <li><strong>{count("ojt")}</strong><span>OJT</span></li>
-            <li><strong>{count("mini")}</strong><span>Mini</span></li>
-          </ul>
-        </header>
-      )}
 
       <div className="sp-bar">
         <label className="sp-search">

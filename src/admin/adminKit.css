@@ -173,9 +173,6 @@
 }
 .ak-main h3 { font-size: 15px; font-weight: 700; letter-spacing: -0.01em; }
 .ak-main .dash-meta, .ak-main .rs-muted { color: var(--ak-mute); }
-.ak-main .admin-rakt-link { background: linear-gradient(135deg, #0D7A47, #0A5A33); color: #fff; border: 0; }
-.ak-main .admin-rakt-link .admin-rakt-copy small { color: #D5EEDF; }
-.ak-main .admin-rakt-icon { background: rgba(255,255,255,.18); color: #fff; }
 
 .ak-main .admin-stat-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-top: 14px; }
 .ak-main .admin-stat { background: var(--ak-soft); border: 0; border-radius: 12px; padding: 14px 16px; }
@@ -210,8 +207,6 @@
 .ak-main .upload-error { border-radius: 10px; }
 
 .ak-main .rs-section { padding: 0; max-width: none; }
-.ak-main .rs-page-head { display: none; }
-.ak-main .rs-statpanels { display: none; }
 .ak-main .rs-chip { border-radius: 999px; background: var(--ak-white); border: 1px solid var(--ak-line); color: var(--ak-ink); }
 .ak-main .rs-chip.is-active { background: var(--ak-green); border-color: var(--ak-green); color: #fff; }
 
@@ -256,7 +251,5 @@
 }
 @media (prefers-reduced-motion: reduce) { .ak * { transition: none !important; } }
 
-/* one entry for RaktSetu admin is enough: the sidebar already has it */
-.ak-main .admin-rakt-link { display: none; }
 .ak-main .rs-member-table thead th, .ak-main .rs-table-wrap thead th { background: none; color: var(--ak-mute); border-bottom: 1px solid var(--ak-line); }
 .ak-main .rs-member-table thead tr { background: none; }

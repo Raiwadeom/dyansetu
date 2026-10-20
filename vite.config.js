@@ -113,8 +113,6 @@ const SEO_PAGES = [
     description: "Government and private scholarships for college students in Maharashtra: eligibility, documents and last dates, with help from DnyanSetu." },
   { path: "/raktsetu", file: "raktsetu", title: "RaktSetu — Find Blood Donors | DnyanSetu",
     description: "RaktSetu connects people who need blood with volunteer donors registered on DnyanSetu. Post a request and nearby donors get an instant alert. Never pay for blood." },
-  { path: "/talent", file: "talent", title: "Talent Corner — Student Poems & Writing | DnyanSetu",
-    description: "Poems, shayari and creative writing by students of Chhatrapati Shivajiraje Mahavidyalaya, Udgir. Read, like and follow your favourite writers on DnyanSetu." },
   { path: "/login", file: "login", title: "Student Login — DnyanSetu",
     description: "Sign in to DnyanSetu for notes, previous-year papers, practice quizzes and scholarships." },
   { path: "/signup", file: "signup", title: "Create Student Account — DnyanSetu",

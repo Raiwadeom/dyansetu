@@ -7,7 +7,7 @@
    PUT    { oldEndpoint, subscription } the service worker swapping in a
                                         renewed subscription
    POST   { notify: kind, id }          something new was published; signed in.
-          kind = "announcement" | "note" | "scholarship" | "talent"
+          kind = "announcement" | "note" | "scholarship"
 
    For notify the browser only names *what* was published. The row is re-read
    here, the caller must be its author (or an administrator), and a one-time
@@ -100,39 +100,6 @@ async function notify(caller, kind, id) {
     };
   }
 
-  if (kind === "talent") {
-    const { data: row } = await admin.from("talent_posts").select("author_id").eq("id", id).maybeSingle();
-    if (!row || row.author_id !== me) return null;
-    /* One notification per student per hour, so a burst of posts does not
-       flood every phone; each post is still announced at most once. */
-    const { count } = await admin.from("talent_posts").select("id", { count: "exact", head: true })
-      .eq("author_id", me).gte("push_sent_at", recent);
-    if (count) return null;
-    const { data } = await admin.from("talent_posts")
-      .update({ push_sent_at: now })
-      .eq("id", id).is("push_sent_at", null).gte("created_at", recent)
-      .select("id, category, title, body, author_name, images");
-    const t = data?.[0];
-    if (!t) return null;
-    const kindLabel = { poem: "poem", shayari: "shayari", content: "creation" }[t.category] || "post";
-    const lines = (t.body || "").split("\n").map((l) => l.trim()).filter(Boolean).slice(0, 2);
-    const preview = [t.title ? `“${t.title}”` : "", ...lines].filter(Boolean).join("\n");
-    /* A content post with a photo shows that photo (cropped 2:1); everything
-       else shows the Talent Corner banner for its category. */
-    const photo = t.category === "content" && Array.isArray(t.images) && t.images[0]?.url
-      ? String(t.images[0].url).replace("/image/upload/", "/image/upload/c_fill,g_auto,w_1024,h_512,q_auto,f_jpg/")
-      : "";
-    return {
-      skipUsers: [me],
-      title: `✨ New ${kindLabel} by ${clip(t.author_name || "a student", 40)}`,
-      body: clipLines(preview || "Tap to see it in the Talent Corner.", 180),
-      url: `/talent?post=${encodeURIComponent(t.id)}`,
-      tag: `talent-${t.id}`,
-      image: photo || `/push/talent-${t.category}.jpg`,
-      action: t.category === "content" ? "Watch now" : "Read now",
-    };
-  }
-
   if (kind === "scholarship") {
     if (!isAdmin) return null;
     const cutoff = new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString();
@@ -214,7 +181,7 @@ export default async function handler(req, res) {
         return;
       }
       const id = typeof body.id === "string" ? body.id.slice(0, 120) : "";
-      if (!id || !["announcement", "note", "scholarship", "talent"].includes(body.notify)) {
+      if (!id || !["announcement", "note", "scholarship"].includes(body.notify)) {
         res.status(400).json({ error: "Bad request." });
         return;
       }

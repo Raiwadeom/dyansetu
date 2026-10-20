@@ -1,5 +1,5 @@
 /* DnyanSetu service worker (notifications rebuilt 2026-10-11) — shows college
-   notifications (announcements, notes, scholarships, Talent Corner) and opens
+   notifications (announcements, notes, scholarships) and opens
    the right page when one is tapped.
    Scope "/". RaktSetu keeps its own worker at /raktsetu/ (raktsetu-sw.js),
    which wins for those pages because its scope is longer.

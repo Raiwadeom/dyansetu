@@ -35,10 +35,6 @@ const FOLDER_ROLES = {
   "dnyansetu/avatars": ["faculty", "admin"],
   "dnyansetu/id-proofs": ["faculty", "staff", "scholarship"],
   "dnyansetu/announcements": ["faculty", "admin", "scholarship"],
-  /* Talent Corner: students' artwork, posters and thumbnails (photos only). */
-  "dnyansetu/talent": ["student"],
-  /* Talent Corner posting request: a photo of the student's college ID card. */
-  "dnyansetu/talent-ids": ["student"],
   /* Student Projects: a screenshot of the project (photos only). */
   "dnyansetu/projects": ["student", "faculty", "admin"],
 };
@@ -102,8 +98,8 @@ export async function handleSignUpload(body) {
   if (!FOLDER_ROLES[folder].includes(role)) {
     return { status: 403, json: { error: "Your account cannot upload files here." } };
   }
-  /* Notes (and announcement PDFs) stay closed until the administrator has approved the teacher. */
-  const publishing = folder === "dnyansetu/notes" || folder === "dnyansetu/papers" || folder === "dnyansetu/announcements";
+  /* Notes, announcement PDFs and project screenshots stay closed until the administrator has approved the teacher. */
+  const publishing = folder === "dnyansetu/notes" || folder === "dnyansetu/papers" || folder === "dnyansetu/announcements" || folder === "dnyansetu/projects";
   if (publishing && role === "faculty" && caller.profile.approval_status && caller.profile.approval_status !== "approved") {
     return { status: 403, json: { error: "Your faculty account is waiting for administrator approval." } };
   }
@@ -112,7 +108,7 @@ export async function handleSignUpload(body) {
   const timestamp = Math.floor(Date.now() / 1000);
   /* Signed, so Cloudinary itself refuses any other file type (the browser's
      own check can be skipped by anyone calling the API directly). */
-  const allowedFormats = folder === "dnyansetu/talent" || folder === "dnyansetu/talent-ids" || folder === "dnyansetu/projects" ? PHOTO_FORMATS : ALLOWED_FORMATS;
+  const allowedFormats = folder === "dnyansetu/projects" ? PHOTO_FORMATS : ALLOWED_FORMATS;
   const params = { allowed_formats: allowedFormats, folder, timestamp };
   if (CLOUDINARY_UPLOAD_PRESET) params.upload_preset = CLOUDINARY_UPLOAD_PRESET;
 

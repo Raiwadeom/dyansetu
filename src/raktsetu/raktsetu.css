@@ -709,17 +709,6 @@
 
 /* Admin overview */
 /* Admin overview: four grouped panels instead of a wall of number boxes. */
-.rs-statpanels { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr)); gap: var(--rs-gap); }
-.rs-statpanel { border-top: 4px solid var(--tone); display: flex; flex-direction: column; gap: 14px; }
-.rs-root .rs-statpanel-title { font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--tone-ink); }
-.rs-statlist { margin: 0; display: flex; flex-direction: column; }
-.rs-statrow { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--rs-line); }
-.rs-statrow:last-child { border-bottom: 0; }
-.rs-statrow dt { color: var(--rs-muted); font-size: 14.5px; }
-.rs-statrow dd { margin: 0; font-weight: 700; font-size: 17px; color: var(--rs-navy); font-variant-numeric: tabular-nums; }
-.rs-statrow--strong { padding-top: 0; }
-.rs-statrow--strong dt { color: var(--rs-text); font-weight: 600; }
-.rs-statrow--strong dd { font-size: 28px; color: var(--tone-ink); line-height: 1.1; }
 .rs-quota { display: flex; flex-direction: column; gap: 6px; }
 .rs-quota-head { display: flex; justify-content: space-between; gap: 12px; font-size: 14.5px; color: var(--rs-muted); }
 .rs-quota-head strong { color: var(--rs-navy); font-variant-numeric: tabular-nums; }

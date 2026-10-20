@@ -1,13 +1,12 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { ArrowRight, Code2 } from "lucide-react";
 
 import { fetchProjects } from "../lib/projects.js";
-import { ProjectTable } from "./ProjectsPage.jsx";
 import "./projects.css";
 
-/* Landing-page section for Student Projects. Always shown: with projects it
-   shows three random ones; before the first one is approved it explains how a
-   student's project gets here. */
+/* Landing-page strip for Student Projects: a short heading and line on the
+   left, the project counts and one button on the right. The projects
+   themselves live on the full page. */
 export default function ProjectsShowcase({ tr, onOpen }) {
   const [list, setList] = useState(null);
   useEffect(() => {
@@ -17,69 +16,29 @@ export default function ProjectsShowcase({ tr, onOpen }) {
   }, []);
 
   const all = list || [];
-  /* Only three, picked at random each time the page loads, so every project
-     gets its turn; the full list is one click away. */
-  const latest = useMemo(() => {
-    const pool = [...all];
-    for (let i = pool.length - 1; i > 0; i -= 1) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [pool[i], pool[j]] = [pool[j], pool[i]];
-    }
-    return pool.slice(0, 3);
-  }, [list]); // eslint-disable-line react-hooks/exhaustive-deps
   const count = (k) => all.filter((p) => p.kind === k).length;
 
-  const steps = [
-    { n: "1", en: "Build and host it", mr: "प्रकल्प बनवा व होस्ट करा", enSub: "Put your final-year, OJT or mini project online (Vercel, Netlify, GitHub Pages…).", mrSub: "तुमचा अंतिम वर्ष, OJT किंवा मिनी प्रकल्प ऑनलाईन ठेवा (Vercel, Netlify, GitHub Pages…)." },
-    { n: "2", en: "Add it from your profile", mr: "प्रोफाईलमधून जोडा", enSub: "Sign in as a student and add the link, a short description and your class.", mrSub: "विद्यार्थी म्हणून साइन इन करा आणि लिंक, थोडक्यात माहिती व वर्ग जोडा." },
-    { n: "3", en: "A teacher approves it", mr: "शिक्षक मंजूर करतात", enSub: "Once checked, it appears here for everyone to see.", mrSub: "तपासणीनंतर तो येथे सर्वांना दिसतो." },
-  ];
-
   return (
-    <section className="sp-landing" id="student-projects" aria-labelledby="sp-landing-title">
-      <div className="sp-landing-in">
-        <div className="sp-landing-head">
-          <div className="sp-landing-copy">
-            <p className="sp-landing-kicker"><Code2 size={15} /> {tr("Student Projects", "विद्यार्थी प्रकल्प")}</p>
-            <h2 id="sp-landing-title">{tr("Projects built by our students, live on the internet", "आपल्या विद्यार्थ्यांनी बनवलेले प्रकल्प, इंटरनेटवर लाईव्ह")}</h2>
-            <p className="sp-landing-sub">
-              {tr(
-                "Final-year, OJT and mini projects from our B.Sc., B.Sc. CS and B.A. students. Open any project and see it working.",
-                "आमच्या B.Sc., B.Sc. CS व B.A. विद्यार्थ्यांचे अंतिम वर्ष, OJT व मिनी प्रकल्प. कोणताही प्रकल्प उघडून प्रत्यक्ष चालताना पहा.",
-              )}
-            </p>
-          </div>
-          <div className="sp-landing-side">
-            {list && all.length > 0 && (
-              <ul className="sp-landing-counts" aria-label={tr("Project counts", "प्रकल्प संख्या")}>
-                <li><strong>{all.length}</strong><span>{tr("Live", "लाईव्ह")}</span></li>
-                <li><strong>{count("final-year")}</strong><span>{tr("Final year", "अंतिम वर्ष")}</span></li>
-                <li><strong>{count("ojt")}</strong><span>OJT</span></li>
-              </ul>
-            )}
-            <button type="button" className="sp-landing-btn" onClick={onOpen}>
-              {tr("See all projects", "सर्व प्रकल्प पहा")} <ArrowRight size={16} />
-            </button>
-          </div>
+    <section className="sps" id="student-projects" aria-labelledby="sps-title">
+      <div className="sps-in">
+        <div className="sps-copy">
+          <p className="sps-kicker"><Code2 size={14} /> {tr("Student Projects", "विद्यार्थी प्रकल्प")}</p>
+          <h2 id="sps-title">{tr("Built by our students, live on the internet", "आपल्या विद्यार्थ्यांनी बनवलेले, इंटरनेटवर लाईव्ह")}</h2>
+          <p className="sps-sub">{tr("Final-year, OJT and mini projects. Open any project and see it working.", "अंतिम वर्ष, OJT व मिनी प्रकल्प. कोणताही प्रकल्प उघडून प्रत्यक्ष चालताना पहा.")}</p>
         </div>
-
-        {latest.length > 0 ? (
-          <div className="sp-landing-list">
-            <ProjectTable rows={latest} user={null} staff={false} />
-          </div>
-        ) : (
-          <ol className="sp-landing-steps">
-            {steps.map((s) => (
-              <li key={s.n}>
-                <span className="sp-step-no">{s.n}</span>
-                <div>
-                  <strong>{tr(s.en, s.mr)}</strong>
-                  <p>{tr(s.enSub, s.mrSub)}</p>
-                </div>
-              </li>
-            ))}
-          </ol>
-        )}
+        <div className="sps-side">
+          {list && all.length > 0 && (
+            <ul className="sp-counts sps-counts" aria-label={tr("Project counts", "प्रकल्प संख्या")}>
+              <li><strong>{all.length}</strong><span>{tr("Live", "लाईव्ह")}</span></li>
+              <li><strong>{count("final-year")}</strong><span>{tr("Final year", "अंतिम वर्ष")}</span></li>
+              <li><strong>{count("ojt")}</strong><span>OJT</span></li>
+              <li><strong>{count("mini")}</strong><span>{tr("Mini", "मिनी")}</span></li>
+            </ul>
+          )}
+          <button type="button" className="sps-btn" onClick={onOpen}>
+            {tr("See all projects", "सर्व प्रकल्प पहा")} <ArrowRight size={16} />
+          </button>
+        </div>
       </div>
     </section>
   );
