@@ -68,7 +68,7 @@ export function ProjectForm({ initial, user, onClose, onSaved }) {
     try {
       if (editing) await updateProject(initial.id, f, file);
       else await addProject(user, f, file);
-      onSaved(editing ? "Changes saved." : staff ? "Project added — it is live now." : "Thanks! Your project was sent. It appears once a teacher or the administrator approves it.");
+      onSaved(editing ? "Changes saved." : staff ? "Project added — it is live now." : "Your project is live now.");
     } catch (error) {
       setErr(error.message);
       setBusy(false);
