@@ -7,7 +7,7 @@ import collegeLogo from "../img/college-logo.jpg";
 import ProjectCover from "./ProjectCover.jsx";
 
 import {
-  PROJECT_KINDS, PROJECT_CLASSES, PROJECT_STREAMS, projectDraft, addProject, deleteProject, fetchProjects, isHttpsUrl, kindLabel, platformOf,
+  PROJECT_KINDS, PROJECT_CLASSES, PROJECT_STREAMS, projectDraft, addProject, deleteProject, fetchProjects, isHttpsUrl, kindLabel, liveLinkProblem, platformOf,
   setProjectStatus, streamLabel, updateProject,
 } from "../lib/projects.js";
 
@@ -61,6 +61,7 @@ export function ProjectForm({ initial, user, onClose, onSaved }) {
     if (f.students.trim().length < 2) return setErr("Add the name of the student(s) who made it.");
     if (!f.stream) return setErr("Choose the stream.");
     if (!isHttpsUrl(f.live)) return setErr("The project link must start with https:// — copy it from your hosting site.");
+    if (liveLinkProblem(f.live)) return setErr(liveLinkProblem(f.live));
     if (f.repo.trim() && !isHttpsUrl(f.repo)) return setErr("The code link must start with https://.");
     if (!confirm) return setErr("Please tick the confirmation box.");
     setBusy(true);

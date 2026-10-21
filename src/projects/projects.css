@@ -476,6 +476,13 @@
   .sps-sub { font-size: 13px; margin-top: 8px; }
 }
 
+/* Landing banner: taller, narrower card (copy on top, counts and button below) */
+.sps-in { max-width: 560px; flex-direction: column; align-items: flex-start; justify-content: flex-start; gap: 22px; padding: 34px 30px; }
+.sps-copy { flex: 0 0 auto; width: 100%; }
+.sps-side { width: 100%; flex-direction: column; align-items: stretch; gap: 12px; }
+.sps-counts { width: 100%; }
+.sps-btn { justify-content: center; padding: 13px; }
+
 /* View dialog: the buttons sit in the middle */
 .sp-detail-foot { justify-content: center; }
 .sp-detail-manage { margin-left: 0; width: 100%; justify-content: center; }

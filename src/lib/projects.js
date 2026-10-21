@@ -54,6 +54,22 @@ export const projectDraft = {
 
 export const isHttpsUrl = (v = "") => /^https:\/\/[^\s]{4,500}$/i.test(v.trim());
 
+/* Dashboard / login pages of hosting sites ask a visitor to sign in. The
+   project link must be the public site, so these are refused with a hint. */
+const DASHBOARD_LINKS = [
+  [/^(www\.)?vercel\.com$/, "Vercel"], [/^app\.netlify\.com$/, "Netlify"], [/^(www\.)?netlify\.com$/, "Netlify"],
+  [/^dashboard\.render\.com$/, "Render"], [/^console\.firebase\.google\.com$/, "Firebase"],
+  [/^(www\.)?railway\.com$/, "Railway"], [/^railway\.app$/, "Railway"], [/^dash\.cloudflare\.com$/, "Cloudflare"],
+];
+export function liveLinkProblem(v = "") {
+  try {
+    const host = new URL(v.trim()).hostname.toLowerCase();
+    const hit = DASHBOARD_LINKS.find(([re]) => re.test(host));
+    if (hit) return `That is a ${hit[1]} dashboard link and asks visitors to log in. Open your deployed site and paste its public link (for example name.vercel.app).`;
+  } catch { /* not a link; isHttpsUrl reports it */ }
+  return "";
+}
+
 /* Defence in depth: the database only stores https links, but a link is also
    re-checked right before it is put on a page, so a javascript: or data: link
    can never become clickable. Returns "" when the link is not safe. */
