@@ -476,12 +476,29 @@
   .sps-sub { font-size: 13px; margin-top: 8px; }
 }
 
-/* Landing banner: taller, narrower card (copy on top, counts and button below) */
-.sps-in { max-width: 560px; flex-direction: column; align-items: flex-start; justify-content: flex-start; gap: 22px; padding: 34px 30px; }
+/* Landing banner: roomy card, big heading, four large stat tiles, full-width button */
+.sps { padding: 0 16px; margin: 14px 0 28px; }
+.sps-in { max-width: 880px; flex-direction: column; align-items: stretch; justify-content: flex-start; gap: 30px; padding: 48px 48px 44px; border-radius: 24px; }
 .sps-copy { flex: 0 0 auto; width: 100%; }
-.sps-side { width: 100%; flex-direction: column; align-items: stretch; gap: 12px; }
-.sps-counts { width: 100%; }
-.sps-btn { justify-content: center; padding: 13px; }
+.sps-kicker { font-size: 13px; padding: 7px 16px; margin-bottom: 18px; }
+.sps h2 { font-size: clamp(30px, 4.4vw, 46px); line-height: 1.15; letter-spacing: -0.02em; max-width: 18ch; }
+.sps-sub { font-size: clamp(16px, 1.8vw, 19px); line-height: 1.55; margin-top: 16px; max-width: 52ch; }
+.sps-side { width: 100%; flex-direction: column; align-items: stretch; gap: 16px; }
+.sps-counts { width: 100% !important; display: grid !important; grid-template-columns: repeat(4, 1fr); gap: 0 !important; margin: 0 !important; border-radius: 16px !important; overflow: hidden; }
+.sps-counts li { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 20px 8px !important; text-align: center; }
+.sps-counts strong { font-size: clamp(30px, 4vw, 42px) !important; line-height: 1; }
+.sps-counts span { font-size: 14px !important; }
+.sps-btn { justify-content: center; padding: 17px; font-size: 17px; border-radius: 14px; }
+@media (max-width: 760px) {
+  .sps { padding: 0 12px; }
+  .sps-in { padding: 28px 20px 22px; gap: 22px; border-radius: 18px; }
+  .sps h2 { font-size: 27px; }
+  .sps-sub { font-size: 15px; margin-top: 12px; }
+  .sps-counts li { padding: 14px 4px !important; }
+  .sps-counts strong { font-size: 26px !important; }
+  .sps-counts span { font-size: 12px !important; }
+  .sps-btn { padding: 15px; font-size: 16px; }
+}
 
 /* View dialog: the buttons sit in the middle */
 .sp-detail-foot { justify-content: center; }
