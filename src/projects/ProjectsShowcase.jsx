@@ -25,6 +25,9 @@ export default function ProjectsShowcase({ tr, onOpen }) {
           <p className="sps-kicker"><Code2 size={14} /> {tr("Student Projects", "विद्यार्थी प्रकल्प")}</p>
           <h2 id="sps-title">{tr("Built by our students, live on the internet", "आपल्या विद्यार्थ्यांनी बनवलेले, इंटरनेटवर लाईव्ह")}</h2>
           <p className="sps-sub">{tr("Final-year, OJT and mini projects. Open any project and see it working.", "अंतिम वर्ष, OJT व मिनी प्रकल्प. कोणताही प्रकल्प उघडून प्रत्यक्ष चालताना पहा.")}</p>
+          <button type="button" className="sps-btn" onClick={onOpen}>
+            {tr("See all projects", "सर्व प्रकल्प पहा")} <ArrowRight size={16} />
+          </button>
         </div>
         <div className="sps-side">
           {list && all.length > 0 && (
@@ -35,9 +38,6 @@ export default function ProjectsShowcase({ tr, onOpen }) {
               <li><strong>{count("mini")}</strong><span>{tr("Mini", "मिनी")}</span></li>
             </ul>
           )}
-          <button type="button" className="sps-btn" onClick={onOpen}>
-            {tr("See all projects", "सर्व प्रकल्प पहा")} <ArrowRight size={16} />
-          </button>
         </div>
       </div>
     </section>

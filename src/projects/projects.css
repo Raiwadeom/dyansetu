@@ -427,77 +427,38 @@
 }
 
 /* ================= landing: slim Student Projects strip ("sps") ================= */
-.sps { background: #F3F6FA; border-top: 1px solid #DDE5EE; border-bottom: 1px solid #DDE5EE; margin-bottom: 24px; }
+.sps { margin: 16px 0 32px; padding: 0 16px; }
 .sps * { box-sizing: border-box; }
-.sps-in { max-width: 1180px; margin: 0 auto; padding: 26px 20px; display: flex; align-items: center; justify-content: space-between; gap: 28px; flex-wrap: wrap; }
-.sps-copy { flex: 1 1 380px; min-width: 0; }
-.sps-kicker { margin: 0 0 8px; padding-left: 10px; border-left: 3px solid #E65100; font-size: 12px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: #E65100; line-height: 1.2; }
-.sps h2 { margin: 0; font-size: clamp(21px, 2.6vw, 28px); line-height: 1.25; color: #0B1E2E !important; letter-spacing: -0.01em; }
-.sps-sub { margin: 8px 0 0; font-size: 14.5px; line-height: 1.55; color: #526071; }
-.sps-side { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
-.sps-counts { margin: 0 !important; width: 340px; max-width: 100% !important; }
-.sps-btn { display: inline-flex; align-items: center; gap: 8px; border: 0; border-radius: 10px; background: #E65100; color: #fff; padding: 12px 20px; font-size: 14.5px; font-weight: 700; cursor: pointer; white-space: nowrap; }
-.sps-btn:hover { background: #D84315; }
-@media (max-width: 760px) {
-  .sps-in { padding: 18px 12px; gap: 14px; }
-  .sps-copy { flex-basis: 100%; }
-  .sps h2 { font-size: 19px; }
-  .sps-sub { font-size: 13px; margin-top: 6px; }
-  .sps-side { width: 100%; flex-direction: column; align-items: stretch; gap: 10px; }
-  .sps-counts { width: 100%; }
-  .sps-btn { justify-content: center; padding: 11px; }
-}
-
-/* ---- landing strip as a navy banner card ---- */
-.sps { background: none; border: 0; margin: 8px 0 20px; padding: 0 12px; }
-.sps-in { position: relative; overflow: hidden; max-width: 1180px; padding: 30px 34px; gap: 26px; border-radius: 20px; color: #fff;
-  background: radial-gradient(circle at 92% 0%, rgba(230,81,0,.32), transparent 46%), linear-gradient(135deg, #0B1E2E 0%, #12304A 100%);
-  box-shadow: 0 14px 34px rgba(11, 30, 46, .22); }
-.sps-in::before { content: ""; position: absolute; inset: 0; pointer-events: none;
-  background-image: linear-gradient(rgba(255,255,255,.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.05) 1px, transparent 1px);
-  background-size: 36px 36px; -webkit-mask-image: linear-gradient(115deg, #000, transparent 75%); mask-image: linear-gradient(115deg, #000, transparent 75%); }
-.sps-copy, .sps-side { position: relative; }
-.sps-kicker { display: inline-flex; align-items: center; gap: 7px; margin: 0 0 12px; padding: 5px 12px; border: 1px solid rgba(255,160,100,.4); border-radius: 999px; background: rgba(230,81,0,.18); color: #FFB98A; font-size: 12px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
-.sps h2 { color: #fff !important; font-size: clamp(22px, 2.8vw, 30px); }
-.sps-sub { color: #C4D0DE; margin-top: 10px; }
-.sps-counts { border-color: rgba(255,255,255,.22) !important; background: rgba(255,255,255,.07) !important; }
-.sps-counts li { border-left-color: rgba(255,255,255,.16) !important; }
-.sps-counts li:first-child { background: #E65100 !important; }
-.sps-counts strong { color: #fff; }
-.sps-counts span { color: #D5DEE9; }
-.sps-counts li:first-child span { color: #FFE6D4; }
-.sps-btn { background: #fff; color: #0B1E2E; }
-.sps-btn:hover { background: #FFE6D4; }
-@media (max-width: 760px) {
-  .sps { padding: 0 10px; margin: 6px 0 16px; }
-  .sps-in { padding: 20px 16px 18px; gap: 16px; border-radius: 16px; }
-  .sps-kicker { font-size: 10.5px; padding: 4px 10px; margin-bottom: 10px; }
-  .sps h2 { font-size: 20px; line-height: 1.25; }
-  .sps-sub { font-size: 13px; margin-top: 8px; }
-}
-
-/* Landing banner: roomy card, big heading, four large stat tiles, full-width button */
-.sps { padding: 0 16px; margin: 14px 0 28px; }
-.sps-in { max-width: 880px; flex-direction: column; align-items: stretch; justify-content: flex-start; gap: 30px; padding: 48px 48px 44px; border-radius: 24px; }
-.sps-copy { flex: 0 0 auto; width: 100%; }
-.sps-kicker { font-size: 13px; padding: 7px 16px; margin-bottom: 18px; }
-.sps h2 { font-size: clamp(30px, 4.4vw, 46px); line-height: 1.15; letter-spacing: -0.02em; max-width: 18ch; }
-.sps-sub { font-size: clamp(16px, 1.8vw, 19px); line-height: 1.55; margin-top: 16px; max-width: 52ch; }
-.sps-side { width: 100%; flex-direction: column; align-items: stretch; gap: 16px; }
-.sps-counts { width: 100% !important; display: grid !important; grid-template-columns: repeat(4, 1fr); gap: 0 !important; margin: 0 !important; border-radius: 16px !important; overflow: hidden; }
-.sps-counts li { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 20px 8px !important; text-align: center; }
-.sps-counts strong { font-size: clamp(30px, 4vw, 42px) !important; line-height: 1; }
-.sps-counts span { font-size: 14px !important; }
-.sps-btn { justify-content: center; padding: 17px; font-size: 17px; border-radius: 14px; }
-@media (max-width: 760px) {
-  .sps { padding: 0 12px; }
-  .sps-in { padding: 28px 20px 22px; gap: 22px; border-radius: 18px; }
-  .sps h2 { font-size: 27px; }
-  .sps-sub { font-size: 15px; margin-top: 12px; }
-  .sps-counts li { padding: 14px 4px !important; }
-  .sps-counts strong { font-size: 26px !important; }
-  .sps-counts span { font-size: 12px !important; }
-  .sps-btn { padding: 15px; font-size: 16px; }
+.sps-in { max-width: 1040px; margin: 0 auto; display: grid; grid-template-columns: 1.15fr 1fr; align-items: stretch;
+  background: #fff; border: 1px solid #DDE5EE; border-top: 4px solid #0B1E2E; border-radius: 16px; overflow: hidden;
+  box-shadow: 0 10px 30px rgba(11, 30, 46, .08); }
+.sps-copy { display: flex; flex-direction: column; align-items: flex-start; padding: 40px 40px 38px; min-width: 0; }
+.sps .sps-kicker { display: inline-flex; align-items: center; gap: 7px; margin: 0 0 18px !important; padding: 0; border: 0; background: none; color: #E65100; font-size: 13px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+.sps .sps-copy h2 { margin: 0 0 16px !important; color: #0B1E2E !important; font-size: clamp(28px, 3.4vw, 40px); line-height: 1.15; letter-spacing: -0.02em; }
+.sps .sps-copy .sps-sub { margin: 0 0 30px !important; max-width: 46ch; font-size: 17px; line-height: 1.6; color: #526071; }
+.sps-btn { margin-top: auto; display: inline-flex; align-items: center; gap: 10px; border: 0; border-radius: 10px; background: #0B1E2E; color: #fff; padding: 14px 24px; font-size: 16px; font-weight: 700; cursor: pointer; white-space: nowrap; transition: background .15s; }
+.sps-btn:hover { background: #E65100; }
+.sps-btn:focus-visible { outline: 3px solid #E65100; outline-offset: 3px; }
+.sps-side { display: flex; background: #F3F6FA; border-left: 1px solid #E3EAF2; padding: 28px; }
+.sps-counts { list-style: none; margin: 0; padding: 0; width: 100%; display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.sps-counts li { display: flex; flex-direction: column; justify-content: center; gap: 6px; padding: 18px 20px 18px 24px; background: #fff; border: 1px solid #DDE5EE; border-radius: 12px; box-shadow: inset 4px 0 0 #B8C4D2; }
+.sps-counts li:first-child { background: #fff; border-color: #DDE5EE; box-shadow: inset 4px 0 0 #E65100; }
+.sps-counts li:first-child strong { color: #0B1E2E; }
+.sps-counts li:first-child span { color: #526071; }
+.sps-counts strong { font-size: 40px; line-height: 1; font-weight: 800; color: #0B1E2E; }
+.sps-counts span { font-size: 14px; font-weight: 600; color: #526071; }
+@media (max-width: 820px) {
+  .sps { padding: 0 12px; margin: 8px 0 22px; }
+  .sps-in { grid-template-columns: 1fr; }
+  .sps-copy { padding: 26px 20px 22px; }
+  .sps .sps-copy h2 { font-size: 27px; margin-bottom: 12px !important; }
+  .sps .sps-copy .sps-sub { font-size: 15px; margin-bottom: 22px !important; }
+  .sps-btn { width: 100%; justify-content: center; margin-top: 0; }
+  .sps-side { border-left: 0; border-top: 1px solid #E3EAF2; padding: 16px; }
+  .sps-counts { gap: 10px; }
+  .sps-counts li { padding: 14px 14px 14px 18px; }
+  .sps-counts strong { font-size: 30px; }
+  .sps-counts span { font-size: 13px; }
 }
 
 /* View dialog: the buttons sit in the middle */
