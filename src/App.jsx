@@ -64,7 +64,7 @@ import {
   Code2, Compass, MessageSquare, LogOut, Home, MapPin, X, Loader2, Target, Shield, ExternalLink,
   FileText, Edit3, Trash2, Ban, Sparkles, BookOpen, ImagePlus, BarChart3,
   Info, Facebook, Instagram, CalendarDays, Search, Droplet, ClipboardList, ListChecks, Coins, HandHeart,
-  ScrollText, NotebookPen, FileDown, AlertTriangle, Newspaper,
+  ScrollText, NotebookPen, FileDown, AlertTriangle, Newspaper, Plus,
   LayoutDashboard, Languages, Menu, Briefcase, ChevronLeft, ChevronRight, Clock, BadgeCheck, IdCard, LogIn, UserCheck, RefreshCw, Download, Share, SquarePlus, Play, Pause,
 } from "lucide-react";
 
