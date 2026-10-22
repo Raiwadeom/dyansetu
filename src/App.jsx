@@ -1312,7 +1312,7 @@ function Landing({ goAuth, onOpenAbout, onOpenPage, user, onOpenDashboard }) {
       </section>
 
       <Suspense fallback={null}>
-        <FeedbackSection tr={tr} user={user} />
+        <FeedbackSection tr={tr} />
       </Suspense>
 
       {/* Professional Functional Footer with Social Links */}

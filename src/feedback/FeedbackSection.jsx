@@ -8,10 +8,8 @@ const KIND_ICON = { query: HelpCircle, feature: Lightbulb, bug: Bug, feedback: M
 
 /* Landing page, just above the footer: a short note on the left and a small
    form on the right. Whatever is sent goes straight to the administrator. */
-export default function FeedbackSection({ tr, user }) {
+export default function FeedbackSection({ tr }) {
   const [kind, setKind] = useState("query");
-  const [name, setName] = useState(user?.name || "");
-  const [email, setEmail] = useState(user?.email || "");
   const [message, setMessage] = useState("");
   const [trap, setTrap] = useState("");
   const [busy, setBusy] = useState(false);
@@ -29,7 +27,7 @@ export default function FeedbackSection({ tr, user }) {
     if (trap) { setSent(true); return; }
     setBusy(true);
     try {
-      await sendFeedback({ name: name.trim(), email: email.trim(), kind, message: message.trim() });
+      await sendFeedback({ kind, message: message.trim() });
       setSent(true);
       setMessage("");
     } catch (err) {
@@ -76,17 +74,6 @@ export default function FeedbackSection({ tr, user }) {
                   );
                 })}
               </fieldset>
-
-              <div className="fbk-two">
-                <label className="fbk-field">
-                  <span>{tr("Your name", "तुमचे नाव")} <em>({tr("optional", "ऐच्छिक")})</em></span>
-                  <input value={name} maxLength={80} autoComplete="name" onChange={(e) => setName(e.target.value)} />
-                </label>
-                <label className="fbk-field">
-                  <span>{tr("Email for a reply", "उत्तरासाठी ईमेल")} <em>({tr("optional", "ऐच्छिक")})</em></span>
-                  <input type="email" value={email} maxLength={120} autoComplete="email" inputMode="email" onChange={(e) => setEmail(e.target.value)} />
-                </label>
-              </div>
 
               <label className="fbk-field">
                 <span>{tr("Your message", "तुमचा संदेश")}</span>
