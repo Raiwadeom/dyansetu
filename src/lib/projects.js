@@ -15,6 +15,8 @@ export const PROJECT_KINDS = [
   { id: "final-year", label: "Final-year project", short: "Final year" },
   { id: "ojt", label: "OJT / internship project", short: "OJT" },
   { id: "mini", label: "Mini project", short: "Mini" },
+  { id: "capstone", label: "Capstone project", short: "capstone" },
+  
 ];
 export const PROJECT_CLASSES = ["FY (First year)", "SY (Second year)", "TY (Third year)", "Final year", "Post-graduate"];
 export const kindLabel = (id) => PROJECT_KINDS.find((k) => k.id === id)?.short || "Project";
