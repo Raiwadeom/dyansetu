@@ -39,14 +39,34 @@
 .fbk-again { border: 1px solid #CBD5E1; background: #fff; border-radius: 10px; padding: 11px 20px; min-height: 44px; font: inherit; font-size: 14.5px; font-weight: 700; color: #0B1E2E; cursor: pointer; }
 .fbk-again:hover { border-color: #0B1E2E; }
 
+/* tablets and phones held sideways keep the two columns, just tighter */
 @media (max-width: 860px) {
-  .fbk { padding: 0 12px; margin: 8px 0 28px; }
+  .fbk { padding: 0 12px; margin: 8px 0 24px; }
+  .fbk-copy { padding: 22px 20px; }
+  .fbk-card { padding: 20px; }
+  .fbk .fbk-copy .fbk-sub { font-size: 14.5px; margin-bottom: 14px !important; }
+  .fbk-points { gap: 8px; font-size: 13.5px; }
+}
+/* phone held upright: one short block, no long scroll */
+@media (max-width: 640px) {
   .fbk-in { grid-template-columns: 1fr; }
-  .fbk-copy { padding: 26px 20px 22px; border-right: 0; border-bottom: 1px solid #E3EAF2; }
-  .fbk .fbk-copy .fbk-sub { font-size: 15px; margin-bottom: 16px !important; }
-  .fbk-card { padding: 20px 16px 22px; }
-  .fbk-two { grid-template-columns: 1fr; }
-  .fbk-field input, .fbk-field textarea { font-size: 16px; }
+  .fbk-copy { padding: 18px 16px 14px; border-right: 0; border-bottom: 1px solid #E3EAF2; }
+  .fbk .fbk-kicker { margin-bottom: 8px !important; }
+  .fbk .fbk-copy h2 { font-size: 21px; margin-bottom: 8px !important; }
+  .fbk .fbk-copy .fbk-sub { font-size: 14px; margin-bottom: 0 !important; }
+  .fbk-points { display: none; }
+  .fbk-card { padding: 14px 14px 16px; }
+  .fbk-card form { gap: 10px; }
+  .fbk-kinds { flex-wrap: nowrap; overflow-x: auto; gap: 6px; padding-bottom: 4px; scrollbar-width: none; }
+  .fbk-kinds::-webkit-scrollbar { display: none; }
+  .fbk-kinds legend { display: none; }
+  .fbk-kinds button { flex: none; padding: 7px 12px; min-height: 38px; font-size: 13px; }
+  .fbk-two { gap: 8px; }
+  .fbk-field { gap: 4px; font-size: 12px; }
+  .fbk-field em { display: none; }
+  .fbk-field input, .fbk-field textarea { font-size: 16px; padding: 9px 10px; }
+  .fbk-field textarea { min-height: 84px; }
+  .fbk-send { min-height: 46px; padding: 12px 20px; font-size: 15px; }
 }
 
 /* ------------------------------------------------------------------ admin */

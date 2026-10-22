@@ -16,6 +16,8 @@ import { PillTabs, StatRow, StatTile } from "./adminKit.jsx";
 import "../feedback/feedback.css";
 
 const STATE_LABEL = { new: "New", read: "Read", resolved: "Resolved" };
+/* The address is encoded so odd characters can never add mail fields (cc, body…). */
+const mailTo = (email) => `mailto:${encodeURIComponent(email).replace(/%40/g, "@")}?subject=${encodeURIComponent("Your message to DnyanSetu")}`;
 const when = (iso) => new Date(iso).toLocaleString("en-IN", { day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit" });
 
 export default function FeedbackAdminPage() {
@@ -85,7 +87,7 @@ export default function FeedbackAdminPage() {
                 <p className="fba-msg">{f.message}</p>
                 <div className="fba-from">
                   <strong>{f.name || "Anonymous"}</strong>
-                  {f.email ? <a href={`mailto:${f.email}?subject=${encodeURIComponent("Your message to DnyanSetu")}`}>{f.email}</a> : <span>No email left</span>}
+                  {f.email ? <a href={mailTo(f.email)}>{f.email}</a> : <span>No email left</span>}
                   {f.user_id && <span>Signed-in user</span>}
                 </div>
                 <div className="fba-actions">
@@ -105,7 +107,7 @@ export default function FeedbackAdminPage() {
                     </button>
                   )}
                   {f.email && (
-                    <a className="fba-btn" href={`mailto:${f.email}?subject=${encodeURIComponent("Your message to DnyanSetu")}`}>
+                    <a className="fba-btn" href={mailTo(f.email)}>
                       <Mail size={15} /> Reply
                     </a>
                   )}
