@@ -388,7 +388,7 @@ export default function ProjectsPage({ user, onBack, onSignIn, onOpenProfile, em
 
   return (
     <div className={embedded ? "sp-embed" : "sp-shell"}>
-    {!embedded && (
+    {!embedded && !user && (
       <div className="sp-ident">
         <div className="sp-ident-in">
           <img className="sp-crest" src={collegeLogo} alt="College emblem" width="60" height="60" />
