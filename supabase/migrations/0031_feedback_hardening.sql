@@ -1,6 +1,7 @@
 -- Feedback hardening: a strict email shape (no ? & % # or quotes, so it can
--- never alter a mailto: link), and the site-wide daily ceiling now stops only
--- anonymous senders, so a flood can never lock out signed-in members.
+-- never alter a mailto: link), and the site-wide daily ceiling is now separate for
+-- anonymous (300) and signed-in (1000) senders, so a flood on one side can never
+-- lock out the other.
 
 create or replace function public.submit_feedback(p_name text, p_email text, p_kind text, p_message text)
 returns boolean language plpgsql volatile security definer set search_path = public as $$
@@ -25,6 +26,9 @@ begin
     raise exception 'You have sent several messages today. Please try again tomorrow.';
   end if;
   if v_uid is null and (select count(*) from public.feedback where user_id is null and created_at > now() - interval '1 day') >= 300 then
+    raise exception 'We are receiving a lot of messages right now. Please try again later.';
+  end if;
+  if v_uid is not null and (select count(*) from public.feedback where user_id is not null and created_at > now() - interval '1 day') >= 1000 then
     raise exception 'We are receiving a lot of messages right now. Please try again later.';
   end if;
   insert into public.feedback (user_id, name, email, kind, message)
