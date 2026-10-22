@@ -14,6 +14,8 @@ const LegalPage = lazy(() => import("./legal/LegalPage"));
 const ProjectsPage = lazy(() => import("./projects/ProjectsPage"));
 const MyProjectsCard = lazy(() => import("./projects/MyProjectsCard"));
 const ProjectsShowcase = lazy(() => import("./projects/ProjectsShowcase"));
+const FeedbackSection = lazy(() => import("./feedback/FeedbackSection"));
+const FeedbackAdminPage = lazy(() => import("./admin/FeedbackAdminPage"));
 import { generateTrackingId } from "./utils/identity";
 import { downloadCsv, timestampedName } from "./utils/exportSheet";
 import { isBackendConfigured, supabase } from "./lib/supabase";
@@ -52,6 +54,7 @@ import { LANG_KEY, LangContext, useLang, makeTr } from "./lib/i18n";
 import { isStandalone, markIosStepsSeen, useInstallApp } from "./lib/installPrompt";
 import { VisitorCounter } from "./lib/visitCounter.jsx";
 import { useLiveRefresh } from "./lib/liveRefresh.js";
+import { useFeedbackCount } from "./lib/useFeedbackCount.js";
 
 /* Live refreshes reload the same data every few seconds; keeping the old
    object when nothing changed stops lists, tickers and forms from resetting. */
@@ -224,7 +227,7 @@ const FACULTY_DESIGNATIONS = ["Professor", "Associate Professor", "Assistant Pro
 /* A restored view still has to be one this account may actually open — a stale
    entry must never hand out a portal the user has no right to. */
 /* The administrator's pages, each its own entry in the header. */
-const ADMIN_VIEWS = new Set(["admin-portal", "admin-approvals", "admin-quiz", "admin-content", "admin-projects"]);
+const ADMIN_VIEWS = new Set(["admin-portal", "admin-approvals", "admin-quiz", "admin-content", "admin-projects", "admin-feedback"]);
 
 function mayOpenView(view, profile) {
   if (!view || view === "auth" || view === "accept-terms") return false;
@@ -1307,6 +1310,10 @@ function Landing({ goAuth, onOpenAbout, onOpenPage, user, onOpenDashboard }) {
           </div>
         </div>
       </section>
+
+      <Suspense fallback={null}>
+        <FeedbackSection tr={tr} user={user} />
+      </Suspense>
 
       {/* Professional Functional Footer with Social Links */}
       <footer className="site-footer">
@@ -4507,17 +4514,20 @@ const ADMIN_TITLES = {
   "admin-approvals": "Approvals",
   "admin-quiz": "Quiz results",
   "admin-projects": "Student projects",
+  "admin-feedback": "Feedback",
   "admin-content": "Scholarships & notices",
 };
 
 /* Sidebar + top bar around every admin page (main admin and scholarship admin). */
 function AdminFrame({ view, go, user, onHome, onLogout, pendingCount, search, onSearch, children }) {
   const main = user.role === "admin";
+  const feedbackNew = useFeedbackCount(main);
   const nav = main ? [
     { id: "admin-portal", label: "Dashboard", icon: LayoutDashboard, onClick: () => go("admin-portal") },
     { id: "admin-approvals", label: "Approvals", icon: BadgeCheck, badge: pendingCount, onClick: () => go("admin-approvals") },
     { id: "admin-quiz", label: "Quiz results", icon: BarChart3, onClick: () => go("admin-quiz") },
     { id: "admin-projects", label: "Student projects", icon: Code2, onClick: () => go("admin-projects") },
+    { id: "admin-feedback", label: "Feedback", icon: MessageSquare, badge: feedbackNew, onClick: () => go("admin-feedback") },
     { id: "admin-content", label: "Scholarships & notices", icon: Coins, onClick: () => go("admin-content") },
     { id: "raktsetu", label: "RaktSetu admin", icon: Droplet, href: "/raktsetu/admin" },
   ] : [
@@ -5724,6 +5734,11 @@ export default function App() {
             <ProjectsPage user={currentUser} embedded />
           </Suspense>
         )}
+        {view === "admin-feedback" && (adminLock === "held" || adminLock === "idle") && (
+          <Suspense fallback={<div className="boot-screen"><Loader2 size={20} className="spin" /> Loading feedback…</div>}>
+            <FeedbackAdminPage />
+          </Suspense>
+        )}
             </>
           </AdminFrame>
         ) : (
@@ -5769,6 +5784,11 @@ export default function App() {
         {view === "admin-projects" && (adminLock === "held" || adminLock === "idle") && (
           <Suspense fallback={<div className="boot-screen"><Loader2 size={20} className="spin" /> Loading projects…</div>}>
             <ProjectsPage user={currentUser} embedded />
+          </Suspense>
+        )}
+        {view === "admin-feedback" && (adminLock === "held" || adminLock === "idle") && (
+          <Suspense fallback={<div className="boot-screen"><Loader2 size={20} className="spin" /> Loading feedback…</div>}>
+            <FeedbackAdminPage />
           </Suspense>
         )}
           </>

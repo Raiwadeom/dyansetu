@@ -253,3 +253,6 @@
 
 .ak-main .rs-member-table thead th, .ak-main .rs-table-wrap thead th { background: none; color: var(--ak-mute); border-bottom: 1px solid var(--ak-line); }
 .ak-main .rs-member-table thead tr { background: none; }
+
+/* a wide table inside a page must scroll on its own, never push the page sideways */
+.ak-body, .ak-main { min-width: 0; }
