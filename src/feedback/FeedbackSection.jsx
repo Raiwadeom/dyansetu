@@ -51,11 +51,6 @@ export default function FeedbackSection({ tr, user }) {
               "प्रश्न विचारा, नवीन सुविधा सुचवा किंवा काय चालत नाही ते सांगा. तुमचा संदेश थेट प्रशासकाकडे जातो.",
             )}
           </p>
-          <ul className="fbk-points">
-            <li><CheckCircle2 size={16} /> {tr("No account needed", "खाते आवश्यक नाही")}</li>
-            <li><CheckCircle2 size={16} /> {tr("Your email is optional", "ईमेल देणे ऐच्छिक आहे")}</li>
-            <li><CheckCircle2 size={16} /> {tr("Only the administrator can read it", "फक्त प्रशासक वाचू शकतात")}</li>
-          </ul>
         </div>
 
         <div className="fbk-card">
