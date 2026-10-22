@@ -3922,6 +3922,7 @@ function SignInListPanel({ users, onUpdateUser }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [filter, setFilter] = useState("all");
+  const [query, setQuery] = useState("");
 
   const load = async () => {
     setBusy(true);
@@ -3944,8 +3945,10 @@ function SignInListPanel({ users, onUpdateUser }) {
   const formatWhen = (ms) =>
     ms ? new Date(ms).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" }) : "Never signed in";
 
+  const needle = query.trim().toLowerCase();
   const rows = users
     .filter((u) => filter === "all" || (filter === "blocked" ? u.restricted : !u.restricted))
+    .filter((u) => !needle || `${u.name || ""} ${u.email || ""}`.toLowerCase().includes(needle))
     .slice()
     .sort((a, b) => lastOf(b) - lastOf(a));
 
@@ -3972,6 +3975,20 @@ function SignInListPanel({ users, onUpdateUser }) {
           </button>
         </div>
       </div>
+
+      <label className="field" style={{ maxWidth: 420, display: "block", marginBottom: 12 }}>
+        <span className="field-input-wrap">
+          <Search size={16} className="field-icon" />
+          <input
+            className="field-input"
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search by name or email"
+            aria-label="Search accounts by name or email"
+          />
+        </span>
+      </label>
 
       <div className="admin-signin-filter" role="group" aria-label="Filter accounts">
         {[["all", "All accounts"], ["active", "Active"], ["blocked", "Restricted"]].map(([id, label]) => (
