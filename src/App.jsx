@@ -4571,6 +4571,41 @@ function AdminFrame({ view, go, user, onHome, onLogout, pendingCount, search, on
   );
 }
 
+/* Left sidebar for a signed-in teacher: the same links the top bar offered. */
+const FACULTY_TITLES = {
+  "faculty-portal": "Faculty Studio",
+  notes: "Subject Notes",
+  pyq: "Question Papers",
+  scholarships: "Scholarships",
+  projects: "Projects",
+};
+
+function FacultyFrameIf({ on, view, go, user, onHome, onLogout, children }) {
+  if (!on) return children;
+  const nav = [
+    { id: "faculty-portal", label: "Faculty Studio", icon: LayoutDashboard, onClick: () => go("faculty-portal") },
+    { id: "notes", label: "Subject Notes", icon: NotebookPen, onClick: () => go("notes") },
+    { id: "pyq", label: "Question Papers", icon: ScrollText, onClick: () => go("pyq") },
+    { id: "scholarships", label: "Scholarships", icon: Coins, onClick: () => go("scholarships") },
+    { id: "projects", label: "Projects", icon: Code2, onClick: () => go("projects") },
+    { id: "raktsetu", label: "RaktSetu", icon: Droplet, href: RAKTSETU_APP_URL },
+  ];
+  return (
+    <AdminShell
+      brand="DnyanSetu"
+      tag="Faculty"
+      nav={nav}
+      active={view}
+      title={FACULTY_TITLES[view] || "Faculty"}
+      user={user}
+      onLogout={onLogout}
+      footer={[{ id: "home", label: "Website home", icon: Home, onClick: onHome }]}
+    >
+      {children}
+    </AdminShell>
+  );
+}
+
 /* =============================== Top Nav Bar ============================== */
 
 function TopNavApp({ view, go, onHome, onLogout, user, pendingCount = 0 }) {
@@ -5560,6 +5595,8 @@ export default function App() {
      shell (sidebar + top bar) instead of the public header. */
   const inAdminShell = Boolean(currentUser) && ADMIN_VIEWS.has(view)
     && (currentUser.role === "admin" || currentUser.role === "scholarship");
+  /* A signed-in teacher gets the same left sidebar instead of the top links. */
+  const inFacultyShell = isAppView && currentUser.role === "faculty";
 
   return (
     <LangContext.Provider value={{ lang, setLang }}>
@@ -5600,7 +5637,7 @@ export default function App() {
         </div>
       )}
 
-      {isAppView && (
+      {isAppView && !inFacultyShell && (
         <TopNavApp
           view={view}
           go={navigateTo}
@@ -5615,6 +5652,14 @@ export default function App() {
 
       {/* A crash in one page shows a "try again" card there; the header and
           the rest of the site keep working. Changing page clears it. */}
+      <FacultyFrameIf
+        on={inFacultyShell}
+        view={view}
+        go={navigateTo}
+        user={currentUser}
+        onHome={() => { setBrowsingHome(true); navigateTo("landing"); }}
+        onLogout={logout}
+      >
       <ErrorBoundary resetKey={view} inline>
         {view === "landing" && (
           <Landing
@@ -5825,6 +5870,7 @@ export default function App() {
         )}
       {view === "notfound" && <NotFoundPage />}
       </ErrorBoundary>
+      </FacultyFrameIf>
     </div>
     </LangContext.Provider>
   );
