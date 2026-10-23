@@ -235,7 +235,7 @@ export function ProjectDetail({ p, onClose, canManage, staff, busy, onEdit, onDe
           )}
           {canManage && (
             <span className="sp-detail-manage">
-              {staff && p.status !== "approved" && <button type="button" className="sp-chipbtn is-ok" disabled={busy} onClick={() => { onDecide(p, "approved"); onClose(); }}><Check size={13} /> Approve</button>}
+              {staff && p.status !== "approved" && <button type="button" className="sp-chipbtn is-ok" disabled={busy} onClick={() => { onDecide(p, "approved"); onClose(); }}><Check size={13} /> {p.status === "rejected" ? "Unhide" : "Approve"}</button>}
               {staff && p.status === "pending" && <button type="button" className="sp-chipbtn" disabled={busy} onClick={() => { onDecide(p, "rejected"); onClose(); }}><X size={13} /> Reject</button>}
               {staff && p.status === "approved" && <button type="button" className="sp-chipbtn" disabled={busy} onClick={() => { onDecide(p, "rejected"); onClose(); }}>Hide</button>}
               <button type="button" className="sp-chipbtn" onClick={() => { onEdit(p); onClose(); }}><Pencil size={13} /> Edit</button>
@@ -362,8 +362,9 @@ export default function ProjectsPage({ user, onBack, onSignIn, onOpenProfile, em
   const mine = useMemo(() => (projects || []).filter((p) => user && p.ownerId === user.id), [projects, user]);
   const pending = useMemo(() => (projects || []).filter((p) => p.status === "pending"), [projects]);
   const live = useMemo(() => (projects || []).filter((p) => p.status === "approved"), [projects]);
+  const hidden = useMemo(() => (projects || []).filter((p) => p.status === "rejected"), [projects]);
 
-  const source = tab === "review" ? pending : tab === "mine" ? mine : live;
+  const source = tab === "review" ? pending : tab === "hidden" ? hidden : tab === "mine" ? mine : live;
   const term = q.trim().toLowerCase();
   const shown = source.filter((p) =>
     (kind === "all" || p.kind === kind)
@@ -372,7 +373,7 @@ export default function ProjectsPage({ user, onBack, onSignIn, onOpenProfile, em
 
   const decide = async (p, status) => {
     setBusyId(p.id);
-    try { await setProjectStatus(p.id, status); await load(); setNotice(status === "approved" ? "Project approved." : "Project hidden from the public list."); }
+    try { await setProjectStatus(p.id, status); await load(); setNotice(status === "approved" ? (p.status === "rejected" ? "Project is visible again." : "Project approved.") : "Project hidden from the public list."); }
     catch (e) { setError(e.message); }
     finally { setBusyId(""); }
   };
@@ -438,6 +439,7 @@ export default function ProjectsPage({ user, onBack, onSignIn, onOpenProfile, em
         <div className="sp-tabs" role="tablist">
           <button role="tab" aria-selected={tab === "live"} className={tab === "live" ? "is-on" : ""} onClick={() => setTab("live")}>Live ({live.length})</button>
           {staff && <button role="tab" aria-selected={tab === "review"} className={tab === "review" ? "is-on" : ""} onClick={() => setTab("review")}>Needs review ({pending.length})</button>}
+          {staff && <button role="tab" aria-selected={tab === "hidden"} className={tab === "hidden" ? "is-on" : ""} onClick={() => setTab("hidden")}>Hidden ({hidden.length})</button>}
           {mine.length > 0 && <button role="tab" aria-selected={tab === "mine"} className={tab === "mine" ? "is-on" : ""} onClick={() => setTab("mine")}>My projects ({mine.length})</button>}
         </div>
       )}
