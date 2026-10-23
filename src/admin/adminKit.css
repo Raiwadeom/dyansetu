@@ -35,7 +35,10 @@
   position: sticky; top: 0; height: 100vh; overflow-y: auto; z-index: 40;
   border-right: 1px solid var(--ak-line);
 }
-.ak-brand { display: flex; align-items: center; gap: 9px; padding: 0 8px 20px; }
+.ak-brand { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; grid-template-rows: auto auto; column-gap: 10px; row-gap: 5px; align-items: center; padding: 0 8px 20px; }
+.ak-brand .ak-mark { grid-row: 1 / span 2; }
+.ak-brand .ak-tag { grid-column: 2; justify-self: start; }
+.ak-brand .ak-close { grid-column: 3; grid-row: 1 / span 2; }
 .ak-logo { font-size: 20px; font-weight: 800; letter-spacing: -0.03em; line-height: 1; }
 .ak-mark { width: 34px; height: 34px; border-radius: 9px; flex: none; display: block; box-shadow: 0 3px 10px rgba(15,23,42,.18); }
 .ak-tag { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--ak-green); background: var(--ak-green-l); border-radius: 6px; padding: 2px 6px; }

@@ -3308,19 +3308,21 @@ function FacultyPortal({ profile, onSaveProfile }) {
       </div>
 
       {showProfileEditor && (
-        <section className="card" style={{ gridColumn: "1 / -1" }}>
-          <div className="profile-card-heading">
+        <div className="modal-overlay" onClick={() => setShowProfileEditor(false)}>
+        <div className="modal-card upload-modal profile-edit-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Edit profile">
+          <div className="upload-modal-head">
             <div>
-              <span className="profile-section-kicker">EDIT</span>
-              <h2>{isStaff ? "Update Staff Profile" : "Update Faculty Profile"}</h2>
+              <h3>{isStaff ? "Update Staff Profile" : "Update Faculty Profile"}</h3>
+              <p>Changes show on your profile straight away.</p>
             </div>
-            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setShowProfileEditor(false)}><X size={16} /></button>
+            <button type="button" className="btn btn-ghost upload-modal-close" onClick={() => setShowProfileEditor(false)} aria-label="Close"><X size={18} /></button>
           </div>
-          <form onSubmit={(e) => {
+          <form className="profile-edit-form" onSubmit={(e) => {
             e.preventDefault();
             onSaveProfile({ ...profile, ...profileForm });
             setShowProfileEditor(false);
           }}>
+            <div className="upload-modal-body">
             <div className="two-col">
               <Field label="Full Name" icon={User} value={profileForm.name} onChange={(e) => setProfileForm({ ...profileForm, name: e.target.value })} />
               <Field label="Department" icon={GraduationCap} value={profileForm.department} onChange={(e) => setProfileForm({ ...profileForm, department: e.target.value })} />
@@ -3349,9 +3351,14 @@ function FacultyPortal({ profile, onSaveProfile }) {
               <Field label="Google Scholar Link" icon={ExternalLink} value={profileForm.googleScholar} onChange={(e) => setProfileForm({ ...profileForm, googleScholar: e.target.value })} />
               <Field label="University" icon={Compass} value={profileForm.university} onChange={(e) => setProfileForm({ ...profileForm, university: e.target.value })} />
             </div>
-            <button type="submit" className="btn btn-primary btn-block btn-lg" style={{ marginTop: 16 }}>{isStaff ? "Save Staff Profile" : "Save Faculty Profile"}</button>
+            </div>
+            <div className="upload-modal-foot">
+              <button type="button" className="btn btn-outline" onClick={() => setShowProfileEditor(false)}>Cancel</button>
+              <button type="submit" className="btn btn-primary">{isStaff ? "Save Staff Profile" : "Save Faculty Profile"}</button>
+            </div>
           </form>
-        </section>
+        </div>
+        </div>
       )}
 
       {!isStaff && (
@@ -4573,8 +4580,10 @@ function AdminFrame({ view, go, user, onHome, onLogout, pendingCount, search, on
 
 /* Left sidebar for a signed-in teacher: the same links the top bar offered. */
 const FACULTY_TITLES = {
+  profile: "My Profile",
   "faculty-portal": "Faculty Studio",
   notes: "Subject Notes",
+  quiz: "Quiz & Practice",
   pyq: "Question Papers",
   scholarships: "Scholarships",
   projects: "Projects",
@@ -4582,21 +4591,28 @@ const FACULTY_TITLES = {
 
 function FacultyFrameIf({ on, view, go, user, onHome, onLogout, children }) {
   if (!on) return children;
+  const role = user.role;
+  const home = role === "student"
+    ? { id: "profile", label: "My Profile", icon: User, onClick: () => go("profile") }
+    : { id: "faculty-portal", label: role === "staff" ? "My Profile" : "Faculty Studio", icon: LayoutDashboard, onClick: () => go("faculty-portal") };
   const nav = [
-    { id: "faculty-portal", label: "Faculty Studio", icon: LayoutDashboard, onClick: () => go("faculty-portal") },
-    { id: "notes", label: "Subject Notes", icon: NotebookPen, onClick: () => go("notes") },
-    { id: "pyq", label: "Question Papers", icon: ScrollText, onClick: () => go("pyq") },
-    { id: "scholarships", label: "Scholarships", icon: Coins, onClick: () => go("scholarships") },
-    { id: "projects", label: "Projects", icon: Code2, onClick: () => go("projects") },
+    home,
+    ...(role !== "staff" ? [{ id: "notes", label: "Subject Notes", icon: NotebookPen, onClick: () => go("notes") }] : []),
+    ...(role === "student" ? [{ id: "quiz", label: "Quiz & Practice", icon: BarChart3, onClick: () => go("quiz") }] : []),
+    ...(role !== "staff" ? [
+      { id: "pyq", label: "Question Papers", icon: ScrollText, onClick: () => go("pyq") },
+      { id: "scholarships", label: "Scholarships", icon: Coins, onClick: () => go("scholarships") },
+      { id: "projects", label: "Projects", icon: Code2, onClick: () => go("projects") },
+    ] : []),
     { id: "raktsetu", label: "RaktSetu", icon: Droplet, href: RAKTSETU_APP_URL },
   ];
   return (
     <AdminShell
       brand="DnyanSetu"
-      tag="Faculty"
+      tag={role === "student" ? "Student" : role === "staff" ? "Staff" : "Faculty"}
       nav={nav}
       active={view}
-      title={FACULTY_TITLES[view] || "Faculty"}
+      title={view === "faculty-portal" && role === "staff" ? "My Profile" : (FACULTY_TITLES[view] || "DnyanSetu")}
       user={user}
       onLogout={onLogout}
       footer={[{ id: "home", label: "Website home", icon: Home, onClick: onHome }]}
@@ -5595,8 +5611,8 @@ export default function App() {
      shell (sidebar + top bar) instead of the public header. */
   const inAdminShell = Boolean(currentUser) && ADMIN_VIEWS.has(view)
     && (currentUser.role === "admin" || currentUser.role === "scholarship");
-  /* A signed-in teacher gets the same left sidebar instead of the top links. */
-  const inFacultyShell = isAppView && currentUser.role === "faculty";
+  /* Students, teachers and staff get the same left sidebar instead of the top links. */
+  const inFacultyShell = isAppView && ["student", "faculty", "staff"].includes(currentUser.role);
 
   return (
     <LangContext.Provider value={{ lang, setLang }}>
@@ -8823,6 +8839,9 @@ function Styles() {
       }
 
       /* ---------------------------- <= 640px (large phone) --------------- */
+      .profile-edit-form { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+      .modal-card.profile-edit-modal { max-width: 720px; }
+      .profile-edit-modal .upload-modal-body { display: block; }
       @media (max-width: 640px) {
         .section { padding: 38px 18px; }
         .section-title { font-size: 22px; line-height: 1.25; margin-bottom: 18px; }
