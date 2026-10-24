@@ -3051,15 +3051,16 @@ function StudentProfile({ profile, onSaveProfile, onOpenProjects }) {
           <YtChannelCard />
 
           {isEditing && (
-            <section className="profile-card">
-              <div className="profile-card-heading">
+            <div className="modal-overlay" onClick={() => setIsEditing(false)}>
+            <div className="modal-card upload-modal profile-edit-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Edit profile">
+              <div className="upload-modal-head">
                 <div>
-                  <span className="profile-section-kicker">EDIT</span>
-                  <h2>Update Profile</h2>
+                  <h3>Update Student Profile</h3>
+                  <p>Changes show on your profile straight away.</p>
                 </div>
-                <button type="button" className="btn btn-ghost btn-sm" onClick={() => setIsEditing(false)}><X size={16} /></button>
+                <button type="button" className="btn btn-ghost upload-modal-close" onClick={() => setIsEditing(false)} aria-label="Close"><X size={18} /></button>
               </div>
-              <form onSubmit={(e) => {
+              <form className="profile-edit-form" onSubmit={(e) => {
                 e.preventDefault();
                 const normalizedSkills = draft.skills
                   .split(",")
@@ -3074,6 +3075,7 @@ function StudentProfile({ profile, onSaveProfile, onOpenProjects }) {
                 });
                 setIsEditing(false);
               }}>
+                <div className="upload-modal-body">
                 <div className="two-col">
                   <Field label="Full Name" icon={User} value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} />
                   <SelectField label="Gender" value={draft.gender} onChange={(e) => setDraft({ ...draft, gender: e.target.value })} options={GENDER_OPTIONS} />
@@ -3093,9 +3095,14 @@ function StudentProfile({ profile, onSaveProfile, onOpenProjects }) {
                 </div>
                 <SelectField label="Scholarship category" icon={Coins} value={draft.scholarshipCategory} onChange={(e) => setDraft({ ...draft, scholarshipCategory: e.target.value })} options={CATEGORY_OPTIONS} />
                 <Field label="About" icon={Info} value={draft.about} onChange={(e) => setDraft({ ...draft, about: e.target.value })} />
-                <button type="submit" className="btn btn-primary btn-block btn-lg" style={{ marginTop: 16 }}>Save Changes</button>
+                </div>
+                <div className="upload-modal-foot">
+                  <button type="button" className="btn btn-outline" onClick={() => setIsEditing(false)}>Cancel</button>
+                  <button type="submit" className="btn btn-primary">Save Changes</button>
+                </div>
               </form>
-            </section>
+            </div>
+            </div>
           )}
 
           <section className="profile-card">
@@ -3291,19 +3298,18 @@ function FacultyPortal({ profile, onSaveProfile }) {
                   <Shield size={13} /> ID: {profile.trackingId}
                 </span>
               )}
+              <div className="fac-hero-actions">
+                {!isStaff && (
+                  <button className="btn btn-primary" onClick={() => setShowNotesModal(true)}>
+                    <NotebookPen size={16} /> Upload Notes / Papers
+                  </button>
+                )}
+                <button className="btn btn-outline" onClick={() => setShowProfileEditor((prev) => !prev)}>
+                  <Edit3 size={16} /> Edit Profile
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-
-        <div className="fac-hero-actions">
-          {!isStaff && (
-            <button className="btn btn-primary btn-lg" onClick={() => setShowNotesModal(true)}>
-              <NotebookPen size={18} /> Upload Notes / Papers
-            </button>
-          )}
-          <button className="btn btn-outline btn-lg" onClick={() => setShowProfileEditor((prev) => !prev)}>
-            <Edit3 size={18} /> Edit Profile
-          </button>
         </div>
       </div>
 
@@ -7863,6 +7869,13 @@ function Styles() {
       .field-icon { color: var(--text-muted); flex-shrink: 0; }
       .field-input { border: none; outline: none; padding: 12px 0; font-size: 14px; width: 100%; background: transparent; color: var(--text-dark); font-family: 'Plus Jakarta Sans', sans-serif; }
       .field-input-wrap:focus-within { border-color: var(--abc-navy); box-shadow: 0 0 0 2px rgba(11, 30, 46, 0.1); }
+      /* One box only: the wrapper draws the border, the input inside stays bare. */
+      .field .field-input-wrap > .field-input { border: 0 !important; border-radius: 0 !important; box-shadow: none !important; outline: none !important; background: transparent !important; padding: 12px 0 !important; min-width: 0; }
+
+      /* Faculty / staff header: buttons share the line with the email / ID chips */
+      .fac-social-grid .fac-hero-actions { margin-left: auto; }
+      .fac-social-grid .fac-hero-actions .btn { padding: 8px 16px; font-size: 13.5px; }
+      @media (max-width: 640px) { .fac-social-grid .fac-hero-actions { margin-left: 0; width: 100%; } .fac-social-grid .fac-hero-actions .btn { flex: 1 1 auto; justify-content: center; } }
 
       /* Wizard / Setup Flow */
       .wizard-screen {
@@ -9255,7 +9268,8 @@ function Styles() {
       }
       .scheme-note svg { flex: 0 0 auto; margin-top: 2px; }
       .scheme-note--global { margin: 20px 0 20px; }
-      .scheme-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+      .scheme-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; min-width: 0; }
+      .scheme-actions .btn { max-width: 100%; min-width: 0; white-space: normal; text-align: center; box-sizing: border-box; }
 
       .doc-list { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; padding-top: 16px; border-top: 1px dashed var(--border-light); list-style: none; }
       .doc-list li { display: flex; align-items: flex-start; gap: 9px; font-size: 13.5px; color: var(--text-subtle); line-height: 1.6; }
@@ -9399,6 +9413,52 @@ function Styles() {
         .pending-panel-head .btn { align-self: flex-start; }
         .pending-panel-head h3 { font-size: 16px; }
         .dash-grid > .card { padding: 16px; }
+      }
+
+      /* ---- Profile look (student / faculty / staff): soft canvas, big rounded white cards,
+         centred header with the photo overlapping an inset cover, pill buttons. ---- */
+      body:has(.profile-page), body:has(.faculty-profile-hero),
+      .dnyansetu:has(.profile-page), .dnyansetu:has(.faculty-profile-hero) { background: #F3F4F7; }
+      .profile-header-card, .faculty-profile-hero { border: 0; border-top: 0; border-radius: 24px; padding: 14px; box-shadow: 0 1px 2px rgba(15,23,42,.04), 0 8px 28px rgba(15,23,42,.06); }
+      .profile-cover, .fac-hero-cover { border-radius: 18px; }
+      .profile-cover { height: 170px; }
+      .profile-header-content { display: block; padding: 0 16px 14px; text-align: center; }
+      .profile-avatar-wrap { margin: -66px auto 0; }
+      .profile-avatar { width: 124px; height: 124px; border-width: 5px; }
+      .profile-main-info { padding-top: 12px; }
+      .profile-title-row { flex-direction: column; align-items: center; gap: 8px; }
+      .profile-name-line { justify-content: center; }
+      .profile-name-line h1 { font-size: 26px; }
+      .profile-headline, .profile-institution, .profile-location { justify-content: center; }
+      .profile-metrics-row, .profile-actions { justify-content: center; }
+      .profile-metric { background: #F3F4F7; border: 0; padding: 8px 14px; font-size: 12px; }
+      .profile-actions .btn, .fac-hero-actions .btn { border-radius: 999px; }
+      .profile-actions .btn-primary, .fac-hero-actions .btn-primary { background: #1F2A44; border-color: #1F2A44; color: #fff; box-shadow: none; }
+      .profile-actions .btn-primary:hover, .fac-hero-actions .btn-primary:hover { background: #0B1E2E; }
+      .fac-hero-actions .btn-outline { background: #fff; }
+      .fac-hero-main { flex-direction: column; align-items: center; text-align: center; gap: 0; width: 100%; }
+      .fac-pfp-wrap { margin-top: -62px; }
+      .fac-pfp-placeholder { width: 112px; height: 112px; }
+      .fac-info { align-items: center; padding-bottom: 6px; }
+      .fac-name-row, .fac-institution-meta { justify-content: center; }
+      .fac-social-grid, .fac-social-grid .fac-hero-actions { justify-content: center; }
+      .fac-social-grid .fac-hero-actions { margin-left: 0; }
+      .social-badge { box-shadow: none; border-color: transparent !important; }
+      .profile-card, .dash-grid > .card, .dash-grid > div > .card { border: 0; border-radius: 20px; padding: 24px; box-shadow: 0 1px 2px rgba(15,23,42,.04), 0 6px 22px rgba(15,23,42,.05); }
+      .profile-section-kicker { font-family: inherit; font-size: 11px; letter-spacing: .06em; }
+      .skill-pill { border-radius: 999px; background: #F3F4F7; border-color: transparent; }
+      .education-logo { border-radius: 14px; }
+      .profile-layout { margin-top: 16px; }
+      @media (max-width: 640px) {
+        .profile-header-card, .faculty-profile-hero { border-radius: 20px; padding: 10px; }
+        .profile-header-content { padding: 0 8px 10px; }
+        .profile-avatar-wrap { margin-top: -56px; }
+        .profile-avatar { width: 104px; height: 104px; }
+        .profile-actions { flex-direction: row; }
+        .profile-actions .btn { width: auto; flex: 1 1 auto; }
+        .fac-hero-main { align-items: center; }
+        .fac-social-grid .fac-hero-actions { width: 100%; }
+        .profile-card, .dash-grid > .card, .dash-grid > div > .card { border-radius: 18px; padding: 18px 16px; }
       }
       .admin-section-head {
         display: flex; align-items: center; justify-content: space-between;
