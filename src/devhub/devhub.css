@@ -942,3 +942,95 @@ html.dh-root, html.dh-root body, .dh-aurora { background: #121116; }
 /* hide the browser's side scroll bar on the Dev Hub pages (scrolling still works) */
 html.dh-root { scrollbar-width: none; -ms-overflow-style: none; }
 html.dh-root::-webkit-scrollbar, html.dh-root body::-webkit-scrollbar { display: none; width: 0; height: 0; }
+
+/* ---- team deck on phones: role buttons wrap (never cut off), deck stays inside the panel ---- */
+@media (max-width: 860px) {
+  .dh-deck-list { display: flex; flex-wrap: wrap; gap: 8px; }
+  .dh-deck-list li { flex: 0 0 auto; max-width: 100%; }
+  .dh-deck-list button { width: auto; max-width: 100%; display: inline-flex; align-items: center; padding: 9px 16px; border-radius: 999px; white-space: normal; text-align: left; }
+  .dh-deck-list button strong { font-size: 13px; line-height: 1.2; }
+  .dh-deck-list .dh-deck-hint { flex: 1 1 100%; }
+  .dh-deck { width: min(100%, 330px); height: 470px; margin: 0 auto; }
+  .dh-deck-card { width: calc(100% - 40px); }
+  .dh-teamstage { overflow: hidden; }
+}
+
+/* ============ scroll stability + footer + keycaps (phones) ============ */
+/* The background layer keeps one fixed size (large viewport) so the phone address bar
+   sliding in/out while scrolling up never resizes and repaints it. */
+.dh-aurora { bottom: auto; height: 100vh; height: 100lvh; contain: strict; }
+html.dh-root { overscroll-behavior-y: none; }
+.dh-keys-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.dh-key { width: 100%; min-width: 0; }
+@media (max-width: 860px) {
+  /* Heavy blur / backdrop filters / endless animations are what make phones stutter. */
+  .dh-aurora i { display: none; }
+  .dh-aurora { background: radial-gradient(60% 40% at 15% 0%, rgba(47, 139, 255, 0.35), transparent 70%), radial-gradient(50% 35% at 100% 45%, rgba(255, 217, 26, 0.16), transparent 70%), radial-gradient(60% 40% at 30% 100%, rgba(47, 139, 255, 0.22), transparent 70%), #121116; }
+  .dh-page * { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+  .dh-sun, .dh-bigword, .dh-keys-paper, .dh-lead-ring, .dh-badge-ring { animation: none !important; }
+  .dh-bigword { transform: translate(-50%, -50%); }
+}
+@media (max-width: 720px) {
+  .dh-footer { padding: 28px 0 112px; }
+  .dh-footer-in { flex-direction: column; align-items: center; text-align: center; gap: 14px; }
+  .dh-foot-brand { flex-direction: column; gap: 8px; line-height: 1.55; }
+  .dh-keys-grid { inset: 24% 8% 18% 8%; gap: 7%; }
+}
+
+/* ============ floating WhatsApp + Instagram: corner buttons, above the back-to-top ============ */
+.dh-float { top: auto !important; bottom: 82px; left: auto !important; right: 16px !important; transform: none !important; flex-direction: column; gap: 12px; }
+.dh-float-btn { width: 52px; height: 52px; box-shadow: 0 14px 30px -10px rgba(0, 0, 0, 0.55), 0 0 0 3px rgba(255, 255, 255, 0.9); animation: dh-fab 4s ease-in-out infinite; }
+.dh-float-ig { animation-delay: -2s; }
+.dh-float-wa::after { content: ""; position: absolute; inset: 0; border-radius: 50%; box-shadow: 0 0 0 0 rgba(37, 211, 102, 0.55); animation: dh-ping 2.6s ease-out infinite; }
+.dh-float-wa { position: relative; }
+@keyframes dh-fab { 50% { transform: translateY(-5px); } }
+@keyframes dh-ping { to { box-shadow: 0 0 0 16px rgba(37, 211, 102, 0); } }
+.dh-float-btn:hover { transform: scale(1.1); }
+@media (max-width: 860px) { .dh-float { bottom: 78px; right: 14px !important; left: auto !important; flex-direction: column; } .dh-float-btn { width: 46px; height: 46px; } }
+@media (prefers-reduced-motion: reduce) { .dh-float-btn, .dh-float-wa::after { animation: none; } }
+
+/* ============ phone nav bar: back button visible, menu rows aligned ============ */
+@media (max-width: 1000px) {
+  .dh-header .dh-back { display: inline-flex; margin-left: auto; padding: 7px 11px; border: 1.5px solid #0a0b14; border-radius: 999px; opacity: 1; font-size: 11px; font-weight: 700; white-space: nowrap; }
+  .dh-header .dh-back svg { flex: none; }
+}
+@media (max-width: 860px) {
+  .dh-burger { margin-left: 8px; flex: none; }
+  .dh-nav .dh-nav-link, .dh-nav > button:not(.dh-cloud) { display: flex; align-items: center; width: 100%; padding: 14px 6px; border-radius: 0; border-bottom: 1px solid rgba(10, 11, 20, 0.1); font-family: var(--display); font-weight: 700; font-size: 13px; letter-spacing: 0.04em; text-transform: uppercase; text-align: left; line-height: 1.2; }
+  .dh-nav .dh-nav-link:hover { background: #efe9ff; }
+  .dh-nav .dh-nav-back { display: none; }
+}
+@media (max-width: 380px) { .dh-header .dh-back { padding: 7px 9px; font-size: 10px; } .dh-brand span:last-child { font-size: 17px; } }
+
+/* phones: soften the giant yellow word + sunburst so the small text on top stays readable */
+@media (max-width: 860px) {
+  .dh-bigword { opacity: 0.45; }
+  .dh-sun { opacity: 0.55; }
+  .dh-hero .dh-lede { color: #0a0b14; }
+}
+
+/* phones: Technical Lead card gets room so the portrait sits inside the ring, above the info box */
+@media (max-width: 720px) {
+  .dh-lead { min-height: 660px; }
+  .dh-lead-ring { width: 270px; margin: -135px 0 0 -135px; top: 36%; }
+  .dh-lead-person { width: 175px; bottom: 318px; }
+  .dh-lead-role { top: 112px; }
+  .dh-lead-box { bottom: 64px; }
+}
+
+/* ============ floating social tiles: white squircles, tilted, drifting (like the reference) ============ */
+.dh-float { align-items: flex-end; gap: 14px; }
+.dh-float .dh-float-btn { --r: -9deg; width: 58px; height: 58px; border-radius: 20px; background: #fdfdfb !important; color: #25d366; border: 1px solid rgba(10, 11, 20, 0.06); box-shadow: 0 16px 30px -12px rgba(0, 0, 0, 0.5), inset 0 1px 0 #fff !important; transform: rotate(var(--r)); animation: dh-tile 5.5s ease-in-out infinite; transition: box-shadow 0.25s; }
+.dh-float .dh-float-ig { --r: 8deg; margin-right: 26px; animation-delay: -1.8s; }
+.dh-float .dh-float-yt { --r: -5deg; margin-right: 6px; animation-delay: -3.4s; }
+.dh-float .dh-float-btn:hover { animation-play-state: paused; transform: rotate(0deg) scale(1.1); box-shadow: 0 22px 36px -12px rgba(0, 0, 0, 0.6), inset 0 1px 0 #fff !important; }
+.dh-float .dh-float-wa::after { display: none; }
+@keyframes dh-tile { 0%, 100% { transform: translateY(0) rotate(var(--r)); } 50% { transform: translateY(-7px) rotate(calc(var(--r) * -0.45)); } }
+@media (max-width: 860px) {
+  .dh-float { gap: 10px; bottom: 76px; }
+  .dh-float .dh-float-btn { width: 48px; height: 48px; border-radius: 16px; }
+  .dh-float .dh-float-ig { margin-right: 20px; }
+  .dh-float .dh-float-btn svg { width: 26px; height: 26px; }
+  .dh-float .dh-float-yt svg { width: 28px; height: 22px; }
+}
+@media (prefers-reduced-motion: reduce) { .dh-float .dh-float-btn { animation: none; } }

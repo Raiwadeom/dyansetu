@@ -94,6 +94,31 @@ function KeyCaps() {
   );
 }
 
+/* Full-colour logos for the floating tiles. */
+function InstagramColorIcon({ size = 30 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <defs>
+        <linearGradient id="dh-ig-grad" x1="0" y1="1" x2="1" y2="0">
+          <stop offset="0" stopColor="#feda75" /><stop offset="0.35" stopColor="#fa7e1e" /><stop offset="0.65" stopColor="#d62976" /><stop offset="1" stopColor="#4f5bd5" />
+        </linearGradient>
+      </defs>
+      <rect x="3" y="3" width="18" height="18" rx="5" stroke="url(#dh-ig-grad)" />
+      <circle cx="12" cy="12" r="4" stroke="url(#dh-ig-grad)" />
+      <circle cx="17.5" cy="6.5" r="1.1" fill="#d62976" stroke="none" />
+    </svg>
+  );
+}
+
+function YouTubeIcon({ size = 32 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 32 24" aria-hidden="true">
+      <rect width="32" height="24" rx="7" fill="#ff0000" />
+      <path d="M13 7.5v9l8-4.5z" fill="#fff" />
+    </svg>
+  );
+}
+
 /* Smooth-scroll to a section, or jump if the visitor prefers less motion. */
 function goTo(id) {
   const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
@@ -423,6 +448,15 @@ function Team() {
   const [order, setOrder] = useState(() => TEAM.map((_, i) => i));
   const [drag, setDrag] = useState({ x: 0, y: 0, on: false });
   const start = useRef(null);
+  /* Narrow screens: tighter fan so the stacked cards never run past the edge. */
+  const [narrow, setNarrow] = useState(() => window.matchMedia?.("(max-width: 860px)").matches ?? false);
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 860px)");
+    const on = () => setNarrow(mq.matches);
+    mq.addEventListener("change", on);
+    return () => mq.removeEventListener("change", on);
+  }, []);
+  const fan = narrow ? 18 : 46;
 
   const bring = (idx) => setOrder((o) => [idx, ...o.filter((v) => v !== idx)]);
   const send = (dir) => {
@@ -472,7 +506,7 @@ function Team() {
             <div className="dh-deck" role="group" aria-label="Team cards">
               {order.map((idx, pos) => {
                 const front = pos === 0;
-                const x = pos * 46 + (front ? drag.x : 0);
+                const x = pos * fan + (front ? drag.x : 0);
                 const y = pos * 14 + (front ? drag.y : 0);
                 const rot = (front ? -2 : pos * 5) + (front ? drag.x / 14 : 0);
                 const style = {
@@ -897,9 +931,10 @@ export default function DevHubApp() {
         </div>
       </footer>
 
-      <aside className="dh-float" aria-label="Contact">
-        <a className="dh-float-btn dh-float-wa" href={SOCIALS.whatsapp} target="_blank" rel="noreferrer" aria-label="Chat on WhatsApp"><WhatsAppIcon /></a>
-        <a className="dh-float-btn dh-float-ig" href={SOCIALS.instagram} target="_blank" rel="noreferrer" aria-label={`Instagram ${SOCIALS.instagramHandle}`}><InstagramIcon /></a>
+      <aside className="dh-float" aria-label="Contact and social links">
+        <a className="dh-float-btn dh-float-wa" href={SOCIALS.whatsapp} target="_blank" rel="noreferrer" aria-label="Chat on WhatsApp"><WhatsAppIcon size={30} /></a>
+        <a className="dh-float-btn dh-float-ig" href={SOCIALS.instagram} target="_blank" rel="noreferrer" aria-label={`Instagram ${SOCIALS.instagramHandle}`}><InstagramColorIcon size={30} /></a>
+        <a className="dh-float-btn dh-float-yt" href={SOCIALS.youtube} target="_blank" rel="noreferrer" aria-label="YouTube channel"><YouTubeIcon size={32} /></a>
       </aside>
     </div>
   );
