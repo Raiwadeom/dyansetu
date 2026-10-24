@@ -13,7 +13,7 @@ export const SOCIALS = {
   instagram: "https://www.instagram.com/oruim.tech",
   instagramHandle: "@oruim.tech",
   youtube: "https://www.youtube.com/@oruimtech",
-  whatsapp: "https://wa.me/", /* TODO: paste your WhatsApp chat / channel link */
+  whatsapp: "https://chat.whatsapp.com/LYCicNpEoPaAuZ9bbpLBWq", /* WhatsApp group invite */
 };
 
 export const TECHOVA = {
