@@ -3066,7 +3066,11 @@ function StudentProfile({ profile, onSaveProfile, onOpenProjects }) {
               <GraduationCap size={15} /> {profile.college || "College not added"} · {profile.university || "SRTM University, Nanded"}
             </p>
           </div>
-          <div className="hdr-right" />
+          <div className="hdr-right">
+            <a className="btn btn-outline hdr-btn" href="/devhub">
+              <Code2 size={15} /> Student Dev Hub
+            </a>
+          </div>
         </div>
       </section>
 
@@ -4850,6 +4854,13 @@ function TopNavApp({ view, go, onHome, onLogout, user, pendingCount = 0 }) {
             <button type="button" className={`app-nav-item ${view === "projects" ? "active" : ""}`} onClick={() => go("projects")}>
               Projects
             </button>
+          )}
+
+          {/* Student Dev Hub: its own page on the same domain. */}
+          {(isStudent || user.role === "admin") && (
+            <a className="app-nav-item" href="/devhub">
+              Dev Hub
+            </a>
           )}
 
           {/* A separate app on the same domain and session, so a plain link
