@@ -2924,6 +2924,19 @@ const DELETE_ACCOUNT_COPY = {
   staff: "Removes your staff account for good: your profile and RaktSetu details. This cannot be undone.",
 };
 
+/* Pill tabs under the profile header (reference layout). */
+function ProfileTabs({ tabs, active, onChange, label = "Profile sections" }) {
+  return (
+    <div className="ptabs" role="tablist" aria-label={label}>
+      {tabs.map((t) => (
+        <button key={t.id} type="button" role="tab" aria-selected={active === t.id} className={`ptab${active === t.id ? " is-on" : ""}`} onClick={() => onChange(t.id)}>
+          {t.label}{t.count !== undefined && <em>{t.count}</em>}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function DeleteAccountCard({ variant = "student" }) {
   const [open, setOpen] = useState(false);
   const [typed, setTyped] = useState("");
@@ -2986,6 +2999,7 @@ function StudentProfile({ profile, onSaveProfile, onOpenProjects }) {
     skills: (p.skills || []).join(", ")
   });
   const [draft, setDraft] = useState(() => draftFrom(profile));
+  const [tab, setTab] = useState("about");
 
   useEffect(() => {
     setDraft(draftFrom(profile));
@@ -3035,9 +3049,7 @@ function StudentProfile({ profile, onSaveProfile, onOpenProjects }) {
               <GraduationCap size={15} /> {profile.college || "College not added"} · {profile.university || "SRTM University, Nanded"}
             </p>
           </div>
-          <div className="hdr-right">
-            <RoleBadge role="student" />
-          </div>
+          <div className="hdr-right" />
         </div>
       </section>
 
@@ -3098,7 +3110,18 @@ function StudentProfile({ profile, onSaveProfile, onOpenProjects }) {
             </div>
           )}
 
-          <section className="profile-card">
+          <ProfileTabs
+            active={tab}
+            onChange={setTab}
+            tabs={[
+              { id: "about", label: "About" },
+              { id: "education", label: "Education" },
+              { id: "skills", label: "Skills", count: skills.length },
+              { id: "projects", label: "Projects" },
+            ]}
+          />
+
+          {tab === "about" && <section className="profile-card">
             <div className="profile-card-heading">
               <div>
                 <span className="profile-section-kicker">PROFILE</span>
@@ -3109,9 +3132,9 @@ function StudentProfile({ profile, onSaveProfile, onOpenProjects }) {
             <p className="profile-about">
               {profile.about || "Computer science student building academic foundations, practical skills, and career readiness through DnyanSetu."}
             </p>
-          </section>
+          </section>}
 
-          <section className="profile-card">
+          {tab === "education" && <section className="profile-card">
             <div className="profile-card-heading">
               <div>
                 <span className="profile-section-kicker">ACADEMICS</span>
@@ -3129,9 +3152,9 @@ function StudentProfile({ profile, onSaveProfile, onOpenProjects }) {
                 {profile.gradYear && <small>Expected graduation · {profile.gradYear}</small>}
               </div>
             </div>
-          </section>
+          </section>}
 
-          <section className="profile-card">
+          {tab === "skills" && <section className="profile-card">
             <div className="profile-card-heading">
               <div>
                 <span className="profile-section-kicker">CAPABILITIES</span>
@@ -3142,11 +3165,13 @@ function StudentProfile({ profile, onSaveProfile, onOpenProjects }) {
             <div className="skills-list">
               {skills.map((skill) => <span key={skill} className="skill-pill">{skill}</span>)}
             </div>
-          </section>
+          </section>}
 
-          <Suspense fallback={null}>
-            <MyProjectsCard user={profile} onOpenAll={onOpenProjects} />
-          </Suspense>
+          {tab === "projects" && (
+            <Suspense fallback={null}>
+              <MyProjectsCard user={profile} onOpenAll={onOpenProjects} />
+            </Suspense>
+          )}
 
         </div>
 
@@ -3211,6 +3236,7 @@ function FacultyPortal({ profile, onSaveProfile }) {
     refreshMyPapers();
   }, [profile.id, isStaff]);
   const [showProfileEditor, setShowProfileEditor] = useState(false);
+  const [facTab, setFacTab] = useState("notes");
 
   const [profileForm, setProfileForm] = useState({
     name: profile.name || "",
@@ -3351,11 +3377,23 @@ function FacultyPortal({ profile, onSaveProfile }) {
 
       <div className="fac-main">
       {!isStaff && (
+        <ProfileTabs
+          active={facTab}
+          onChange={setFacTab}
+          tabs={[
+            { id: "notes", label: "Notes", count: notesLoading ? "…" : myNotes.length },
+            { id: "papers", label: "Question Papers", count: papersLoading ? "…" : myPapers.length },
+            { id: "announcements", label: "Announcements" },
+          ]}
+        />
+      )}
+
+      {!isStaff && facTab === "announcements" && (
         <FacultyAnnouncementsCard profile={profile} />
       )}
 
         <div className="fac-lists">
-      {!isStaff && (
+      {!isStaff && facTab === "notes" && (
         <NotesManageList
           title="My Uploaded Notes"
           subtitle="Notes you have shared with students, newest first."
@@ -3369,7 +3407,7 @@ function FacultyPortal({ profile, onSaveProfile }) {
         />
       )}
 
-      {!isStaff && (
+      {!isStaff && facTab === "papers" && (
         <NotesManageList
           title="My Question Papers"
           subtitle="Previous year papers you have shared on the Question Papers page."
@@ -9527,6 +9565,32 @@ function Styles() {
         .cover-stats { right: 10px; bottom: 10px; gap: 14px; padding: 7px 12px; }
         .cover-stats b { font-size: 15px; }
         .hdr-center h1, .hdr-center h2 { font-size: 20px; }
+      }
+      /* ---- reference tabs row ---- */
+      .ptabs { display: flex; gap: 8px; flex-wrap: wrap; padding: 12px; background: #fff; border-radius: 20px; box-shadow: 0 1px 2px rgba(15,23,42,.04), 0 6px 22px rgba(15,23,42,.05); }
+      .ptab { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--border-light); background: #fff; color: #1F2A44; border-radius: 999px; padding: 9px 18px; font-size: 14px; font-weight: 600; cursor: pointer; }
+      .ptab em { font-style: normal; font-size: 11px; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; background: #E9ECF2; color: #1F2A44; }
+      .ptab.is-on { background: #1F2A44; border-color: #1F2A44; color: #fff; }
+      .ptab.is-on em { background: #E5483A; color: #fff; }
+      @media (max-width: 640px) { .ptabs { flex-wrap: nowrap; overflow-x: auto; padding: 10px; border-radius: 18px; } .ptab { flex: 0 0 auto; padding: 8px 14px; font-size: 13px; } }
+      .hdr-row { grid-template-columns: minmax(150px, 1fr) minmax(0, 2.2fr) minmax(150px, 1fr); }
+      .hdr-center .profile-name-line, .hdr-center .fac-name-row { flex-wrap: wrap; gap: 8px 10px; }
+      /* ---- alignment fixes ---- */
+      .profile-main-column > .card, .profile-main-column > .sp-mine { border: 0; border-radius: 20px; padding: 24px; box-shadow: 0 1px 2px rgba(15,23,42,.04), 0 6px 22px rgba(15,23,42,.05); background: #fff; }
+      .sp-mine-head > div { flex: 1 1 240px; min-width: 0; }
+      .sp-mine-head .sp-btn { flex: 0 0 auto; }
+      .hdr-center .fac-institution-meta, .hdr-center .profile-institution { display: block; text-align: center; line-height: 1.5; }
+      .hdr-center .fac-institution-meta svg, .hdr-center .profile-institution svg { display: inline; vertical-align: -2px; margin-right: 4px; }
+      .hdr-center .fac-designation-meta, .hdr-center .profile-headline { text-align: center; overflow-wrap: anywhere; }
+      @media (max-width: 760px) {
+        .cover-stats { right: auto; left: 50%; top: 10px; bottom: auto; transform: translateX(-50%); padding: 6px 14px; gap: 18px; background: rgba(11,30,46,.35); }
+        .hdr-row { display: flex; grid-template-columns: none; flex-direction: row; flex-wrap: wrap; justify-content: center; align-items: center; gap: 10px; }
+        .hdr-left, .hdr-right { display: contents; }
+        .hdr-center { order: -1; flex: 1 0 100%; padding-top: calc(var(--av) / 2 + 2px); }
+        .hdr-left > *, .hdr-right > * { order: 1; }
+        .hdr-btn { padding: 9px 16px; }
+        .profile-main-column > .card, .profile-main-column > .sp-mine { border-radius: 18px; padding: 18px 16px; }
+        .sp-mine-head .sp-btn { width: 100%; justify-content: center; }
       }
       .admin-section-head {
         display: flex; align-items: center; justify-content: space-between;
