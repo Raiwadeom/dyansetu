@@ -401,6 +401,22 @@ const LANDING_HUBS = [
         pendingNoteMr: "लवकरच उपलब्ध होईल",
       },
       {
+        id: "devhub",
+        name: "Student Dev Hub",
+        nameMr: "विद्यार्थी डेव्ह हब",
+        icon: Code2,
+        blurb: "Our college tech community — learn to code, build projects and meet the Techova winners.",
+        blurbMr: "आमच्या महाविद्यालयाची टेक कम्युनिटी — कोडिंग शिका, प्रकल्प बनवा आणि टेकोव्हा विजेत्यांना भेटा.",
+        keywords: "dev hub developer coding programming community techova tech nova winners hackathon projects",
+        image: "/services/devhub.jpg",
+        accent: "devhub",
+        href: "/devhub",
+        cta: "Open Dev Hub",
+        ctaMr: "डेव्ह हब उघडा",
+        pendingNote: "New",
+        pendingNoteMr: "नवीन",
+      },
+      {
         id: "scholarships",
         name: "Scholarships",
         nameMr: "शिष्यवृत्ती",
@@ -798,6 +814,7 @@ function Landing({ goAuth, onOpenAbout, onOpenPage, user, onOpenDashboard }) {
     { key: "home", icon: Home, label: tr("Home", "मुख्यपृष्ठ"), run: () => window.scrollTo({ top: 0, behavior: "smooth" }) },
     { key: "about", icon: Info, label: tr("About DnyanSetu", "डायनसेतू विषयी"), run: onOpenAbout },
     { key: "projects", icon: Code2, label: tr("Student Projects", "विद्यार्थी प्रकल्प"), run: () => onOpenPage("projects") },
+    { key: "devhub", icon: Code2, label: tr("Student Dev Hub", "विद्यार्थी डेव्ह हब"), href: "/devhub" },
     { key: "raktsetu", icon: Droplet, label: tr("RaktSetu", "रक्तसेतू"), href: "/raktsetu" },
     { key: "csmnews", icon: Newspaper, label: tr("CSM News Desk", "सीएसएम न्यूज डेस्क"), href: CSM_NEWS_DESK_URL, external: true },
     { key: "terms", icon: ScrollText, label: tr("Terms & Conditions", "अटी व शर्ती"), run: () => onOpenPage("terms") },
@@ -7055,6 +7072,7 @@ function Styles() {
       }
       .service-card--raktsetu { --svc: #A51C24; --svc-soft: #FCEBEC; }
       .service-card--news { --svc: #1E3A5F; --svc-soft: #E8EFF9; }
+      .service-card--devhub { --svc: #1F5FD6; --svc-soft: #E6F0FF; }
       .service-card--scholarship { --svc: #C98A1B; --svc-soft: #FFF4E0; }
       .service-card:hover { transform: translateY(-6px); box-shadow: 0 18px 36px rgba(15, 23, 42, 0.14); }
       .service-card-media {

@@ -15,6 +15,10 @@
     "audit": "npm audit"
   },
   "dependencies": {
+    "@fontsource-variable/bricolage-grotesque": "^5.3.0",
+    "@fontsource/anton": "^5.3.0",
+    "@fontsource/jetbrains-mono": "^5.3.0",
+    "@fontsource/playfair-display": "^5.3.0",
     "@supabase/supabase-js": "^2.117.2",
     "lucide-react": "^0.468.0",
     "react": "^18.3.1",

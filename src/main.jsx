@@ -15,6 +15,10 @@ import { reloadForUpdate, startUpdateCheck } from "./lib/updateCheck.js";
 const RaktSetuApp = lazy(() => import("./raktsetu/RaktSetuApp.jsx"));
 const isRaktSetu = /^\/raktsetu(\/|$)/i.test(window.location.pathname);
 
+/* /devhub is the student developer hub: its own dark 3D page, same domain. */
+const DevHubApp = lazy(() => import("./devhub/DevHubApp.jsx"));
+const isDevHub = /^\/devhub(\/|$)/i.test(window.location.pathname);
+
 /* Every page load counts once towards the footer visitor counter. */
 registerVisit(isRaktSetu ? "raktsetu" : "dnyansetu");
 
@@ -54,7 +58,11 @@ ReactDOM.createRoot(root).render(
   <React.StrictMode>
     <ErrorBoundary>
       <AuthProvider>
-        {isRaktSetu ? (
+        {isDevHub ? (
+          <Suspense fallback={null}>
+            <DevHubApp />
+          </Suspense>
+        ) : isRaktSetu ? (
           <Suspense fallback={null}>
             <RaktSetuApp />
           </Suspense>
