@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from "react";
-import { BellOff, Droplet, Megaphone, NotebookPen } from "lucide-react";
+import { BellOff, Droplet, Megaphone, NotebookPen, X } from "lucide-react";
 
 const ICONS = { announcement: Megaphone, note: NotebookPen, blood: Droplet };
 
@@ -30,7 +30,10 @@ export default function NotificationPanel({ items, seen, onPick, onMarkAll, onCl
     <div className="np-panel" ref={ref} role="dialog" aria-label="Notifications">
       <div className="np-panel-head">
         <strong>Notifications</strong>
-        <button type="button" onClick={onMarkAll}>Mark all read</button>
+        <span className="np-panel-actions">
+          <button type="button" onClick={onMarkAll}>Mark all read</button>
+          <button type="button" className="np-panel-close" onClick={onClose} aria-label="Close notifications"><X size={18} /></button>
+        </span>
       </div>
       {items.length === 0 ? (
         <p className="np-panel-empty"><BellOff size={18} /> Nothing new right now.</p>
