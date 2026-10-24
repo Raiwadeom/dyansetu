@@ -47,6 +47,8 @@ import PageHero from "./lib/PageHero.jsx";
 import { PAPER_SESSIONS, deletePaper, fetchMyPapers, fetchPapers, uploadPaper } from "./lib/papers.js";
 import { ensureSiteWorker } from "./lib/sitePush";
 import ScholarshipResetPage from "./admin/ScholarshipResetPage.jsx";
+import NotificationPanel from "./lib/NotificationPanel.jsx";
+import { useNotifications } from "./lib/useNotifications.js";
 import {
   AdminShell, BarCard, CalendarCard, PillTabs, StatRow, StatTile, bucketCounts, monthDelta,
 } from "./admin/adminKit.jsx";
@@ -3003,53 +3005,44 @@ function StudentProfile({ profile, onSaveProfile, onOpenProjects }) {
 
   return (
     <main className="profile-page">
-      <section className="profile-header-card">
-        <ProfileCover className="profile-cover" />
-
-        <div className="profile-header-content">
-          <div className="profile-avatar-wrap">
-            <div className="profile-avatar profile-avatar-art" title={initials || "Student"}><AvatarCycle gender={profile.gender} seed={profile.id} /></div>
-            <span className="profile-online-dot" title="Active" />
+      <section className="profile-header-card hdr">
+        <div className="hdr-cover-wrap">
+          <ProfileCover className="profile-cover" />
+          <div className="cover-stats">
+            <span><b>{profile.achievements?.length || 0}</b><small>achievements</small></span>
+            <span><b>{skills.length}</b><small>skills</small></span>
           </div>
-
-          <div className="profile-main-info">
-            <div className="profile-title-row">
-              <div className="profile-title-copy">
-                <div className="profile-name-line">
-                  <h1>{profile.name || "Student"}</h1>
-                  <span className="verified-badge"><CheckCircle2 size={14} /> Verified Student</span>
-                </div>
-                <p className="profile-headline">
-                  {streamDegree(profile.stream, profile.degree || "Student")} · {profile.branch || "Branch not added"}
-                </p>
-                <p className="profile-institution">
-                  <GraduationCap size={15} /> {profile.college || "College not added"}
-                </p>
-                <p className="profile-location">
-                  <MapPin size={14} /> {profile.university || "SRTM University, Nanded"}
-                </p>
-              </div>
-
-              <RoleBadge role="student" />
+        </div>
+        <div className="hdr-avatar">
+          <div className="profile-avatar profile-avatar-art" title={initials || "Student"}><AvatarCycle gender={profile.gender} seed={profile.id} /></div>
+          <span className="profile-online-dot" title="Active" />
+        </div>
+        <div className="hdr-row">
+          <div className="hdr-left">
+            <button type="button" className="btn btn-outline hdr-btn" onClick={() => setIsEditing(true)}>
+              <Edit3 size={15} /> Edit Profile
+            </button>
+          </div>
+          <div className="hdr-center">
+            <div className="profile-name-line">
+              <h1>{profile.name || "Student"}</h1>
+              <span className="verified-badge"><CheckCircle2 size={14} /> Verified Student</span>
             </div>
-
-            <div className="profile-metrics-row">
-              <span className="profile-metric"><Award size={14} /> {profile.achievements?.length || 0} Achievements</span>
-            </div>
-
-            <div className="profile-actions">
-              <button type="button" className="btn btn-primary" onClick={() => setIsEditing(true)}>
-                <Edit3 size={16} /> Edit Profile
-              </button>
-            </div>
+            <p className="profile-headline">
+              {streamDegree(profile.stream, profile.degree || "Student")} · {profile.branch || "Branch not added"}
+            </p>
+            <p className="profile-institution">
+              <GraduationCap size={15} /> {profile.college || "College not added"} · {profile.university || "SRTM University, Nanded"}
+            </p>
+          </div>
+          <div className="hdr-right">
+            <RoleBadge role="student" />
           </div>
         </div>
       </section>
 
       <div className="profile-layout">
         <div className="profile-main-column">
-          <YtChannelCard />
-
           {isEditing && (
             <div className="modal-overlay" onClick={() => setIsEditing(false)}>
             <div className="modal-card upload-modal profile-edit-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Edit profile">
@@ -3155,10 +3148,12 @@ function StudentProfile({ profile, onSaveProfile, onOpenProjects }) {
             <MyProjectsCard user={profile} onOpenAll={onOpenProjects} />
           </Suspense>
 
-          <DeleteAccountCard />
-
         </div>
 
+        <aside className="side-col">
+          <YtChannelCard />
+          <DeleteAccountCard />
+        </aside>
       </div>
     </main>
   );
@@ -3254,61 +3249,48 @@ function FacultyPortal({ profile, onSaveProfile }) {
 
   return (
     <div className="dash-grid">
-      {/* Organized Faculty Profile Header Card */}
-      <div className="card faculty-profile-hero" style={{ gridColumn: "1 / -1" }}>
-        <ProfileCover className="fac-hero-cover" />
-        <div className="fac-hero-main">
-          <div className="fac-pfp-wrap">
-            <div className="fac-pfp-placeholder fac-pfp-art" title={facultyInitials || "Faculty"}>
-              <AvatarCycle gender={profile.gender} seed={profile.id} />
+      {/* Faculty / staff header: buttons left, name centre, links right */}
+      <div className="card faculty-profile-hero hdr" style={{ gridColumn: "1 / -1" }}>
+        <div className="hdr-cover-wrap">
+          <ProfileCover className="fac-hero-cover" />
+          {!isStaff && (
+            <div className="cover-stats">
+              <span><b>{notesLoading ? "…" : myNotes.length}</b><small>notes</small></span>
+              <span><b>{papersLoading ? "…" : myPapers.length}</b><small>papers</small></span>
             </div>
+          )}
+        </div>
+        <div className="hdr-avatar">
+          <div className="fac-pfp-placeholder fac-pfp-art" title={facultyInitials || "Faculty"}>
+            <AvatarCycle gender={profile.gender} seed={profile.id} />
           </div>
-
-          <div className="fac-info">
+        </div>
+        <div className="hdr-row">
+          <div className="hdr-left">
+            {!isStaff && (
+              <button className="btn btn-primary hdr-btn" onClick={() => setShowNotesModal(true)}>
+                <NotebookPen size={15} /> Upload
+              </button>
+            )}
+            <button className="btn btn-outline hdr-btn" onClick={() => setShowProfileEditor((prev) => !prev)}>
+              <Edit3 size={15} /> Edit Profile
+            </button>
+          </div>
+          <div className="hdr-center">
             <div className="fac-name-row">
               <h2 className="dash-name">{profile.name}</h2>
               <RoleBadge role={profile.role} />
             </div>
             <p className="fac-designation-meta">{profile.designation} · {profile.department}</p>
-            {profile.about && <p className="fac-about">{profile.about}</p>}
             <p className="fac-institution-meta"><GraduationCap size={14} /> {profile.college || (isStaff ? INSTITUTION.short : "Department of Physics")} · {profile.university || "SRTM University, Nanded"}</p>
-            
-            {/* Properly Arranged Social & Research Links Grid */}
-            <div className="fac-social-grid">
-              {profile.linkedin && (
-                <a href={profile.linkedin} target="_blank" rel="noreferrer" className="social-badge social-badge-li">
-                  <Linkedin size={13} /> LinkedIn Profile <ExternalLink size={11} />
-                </a>
-              )}
-              {profile.orcid && (
-                <a href={`https://orcid.org/${profile.orcid}`} target="_blank" rel="noreferrer" className="social-badge social-badge-orcid">
-                  <ExternalLink size={13} /> ORCID: {profile.orcid}
-                </a>
-              )}
-              {profile.googleScholar && (
-                <a href={profile.googleScholar} target="_blank" rel="noreferrer" className="social-badge social-badge-scholar">
-                  <GraduationCap size={13} /> Google Scholar <ExternalLink size={11} />
-                </a>
-              )}
-              <span className="social-badge social-badge-email">
-                <Mail size={13} /> {profile.email}
-              </span>
-              {profile.trackingId && (
-                <span className="social-badge social-badge-scholar">
-                  <Shield size={13} /> ID: {profile.trackingId}
-                </span>
-              )}
-              <div className="fac-hero-actions">
-                {!isStaff && (
-                  <button className="btn btn-primary" onClick={() => setShowNotesModal(true)}>
-                    <NotebookPen size={16} /> Upload Notes / Papers
-                  </button>
-                )}
-                <button className="btn btn-outline" onClick={() => setShowProfileEditor((prev) => !prev)}>
-                  <Edit3 size={16} /> Edit Profile
-                </button>
-              </div>
-            </div>
+            {profile.trackingId && <span className="social-badge social-badge-scholar hdr-id"><Shield size={13} /> ID: {profile.trackingId}</span>}
+            {profile.about && <p className="fac-about">{profile.about}</p>}
+          </div>
+          <div className="hdr-right">
+            {profile.email && <a href={`mailto:${profile.email}`} className="hdr-icon" title={profile.email} aria-label={`Email ${profile.email}`}><Mail size={16} /></a>}
+            {profile.linkedin && <a href={profile.linkedin} target="_blank" rel="noreferrer" className="hdr-icon" title="LinkedIn" aria-label="LinkedIn"><Linkedin size={16} /></a>}
+            {profile.orcid && <a href={`https://orcid.org/${profile.orcid}`} target="_blank" rel="noreferrer" className="hdr-icon" title={`ORCID ${profile.orcid}`} aria-label="ORCID"><ExternalLink size={16} /></a>}
+            {profile.googleScholar && <a href={profile.googleScholar} target="_blank" rel="noreferrer" className="hdr-icon" title="Google Scholar" aria-label="Google Scholar"><GraduationCap size={16} /></a>}
           </div>
         </div>
       </div>
@@ -3367,10 +3349,12 @@ function FacultyPortal({ profile, onSaveProfile }) {
         </div>
       )}
 
+      <div className="fac-main">
       {!isStaff && (
-        <div style={{ gridColumn: "1 / -1" }}><FacultyAnnouncementsCard profile={profile} /></div>
+        <FacultyAnnouncementsCard profile={profile} />
       )}
 
+        <div className="fac-lists">
       {!isStaff && (
         <NotesManageList
           title="My Uploaded Notes"
@@ -3403,11 +3387,16 @@ function FacultyPortal({ profile, onSaveProfile }) {
         />
       )}
 
+        </div>
+      </div>
       {showNotesModal && !isStaff && (
         <NoteUploadModal author={profile} initialKind={showNotesModal === "paper" ? "paper" : "notes"} onClose={() => setShowNotesModal(false)} onUploaded={refreshMyNotes} onPaperUploaded={refreshMyPapers} />
       )}
 
-      <div style={{ gridColumn: "1 / -1" }}><DeleteAccountCard variant={isStaff ? "staff" : "faculty"} /></div>
+      <aside className="side-col">
+        <YtChannelCard />
+        <DeleteAccountCard variant={isStaff ? "staff" : "faculty"} />
+      </aside>
     </div>
   );
 }
@@ -4596,7 +4585,15 @@ const FACULTY_TITLES = {
 };
 
 function FacultyFrameIf({ on, view, go, user, onHome, onLogout, children }) {
+  const [bellOpen, setBellOpen] = useState(false);
+  const { items: bellItems, unread, seen, markAllRead } = useNotifications(user, on);
   if (!on) return children;
+  const openBellItem = (it) => {
+    setBellOpen(false);
+    if (it.kind === "note") go("notes");
+    else if (it.kind === "blood") window.location.href = RAKTSETU_APP_URL;
+    else onHome();
+  };
   const role = user.role;
   const home = role === "student"
     ? { id: "profile", label: "My Profile", icon: User, onClick: () => go("profile") }
@@ -4622,6 +4619,13 @@ function FacultyFrameIf({ on, view, go, user, onHome, onLogout, children }) {
       user={user}
       onLogout={onLogout}
       footer={[{ id: "home", label: "Website home", icon: Home, onClick: onHome }]}
+      bell={{
+        label: unread ? `${unread} new notifications` : "Notifications",
+        count: unread,
+        open: bellOpen,
+        onClick: () => setBellOpen((o) => !o),
+        panel: <NotificationPanel items={bellItems} seen={seen} onPick={openBellItem} onMarkAll={markAllRead} onClose={() => setBellOpen(false)} />,
+      }}
     >
       {children}
     </AdminShell>
@@ -9459,6 +9463,70 @@ function Styles() {
         .fac-hero-main { align-items: center; }
         .fac-social-grid .fac-hero-actions { width: 100%; }
         .profile-card, .dash-grid > .card, .dash-grid > div > .card { border-radius: 18px; padding: 18px 16px; }
+      }
+      /* ---- Header, same layout as the reference: buttons left, name centre, links right ---- */
+      .hdr { --cov: 170px; --av: 124px; position: relative; display: block; padding: 14px; }
+      .hdr-cover-wrap { position: relative; }
+      .hdr .profile-cover, .hdr .fac-hero-cover { height: var(--cov); min-height: 0; padding: 0; display: block; }
+      .cover-stats { position: absolute; right: 14px; bottom: 14px; display: flex; gap: 22px; padding: 10px 18px; border-radius: 14px; background: rgba(255,255,255,.2); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); color: #fff; z-index: 3; }
+      .cover-stats span { display: flex; flex-direction: column; align-items: center; line-height: 1.15; }
+      .cover-stats b { font-size: 17px; font-weight: 700; }
+      .cover-stats small { font-size: 11px; opacity: .85; }
+      .hdr-avatar { position: absolute; left: 50%; top: calc(14px + var(--cov) - var(--av) / 2); transform: translateX(-50%); width: var(--av); height: var(--av); z-index: 4; }
+      .hdr-avatar .profile-avatar, .hdr-avatar .fac-pfp-placeholder { width: var(--av); height: var(--av); border: 5px solid #fff; border-radius: 50%; overflow: hidden; box-shadow: 0 6px 20px rgba(15,23,42,.16); }
+      .hdr-avatar .profile-online-dot { right: 8px; bottom: 8px; }
+      .hdr-row { display: grid; grid-template-columns: 1fr minmax(0, 1.4fr) 1fr; gap: 12px; align-items: start; margin-top: 14px; padding: 0 6px 6px; }
+      .hdr-center { text-align: center; padding-top: calc(var(--av) / 2 - 4px); min-width: 0; }
+      .hdr-center .profile-name-line, .hdr-center .fac-name-row { justify-content: center; }
+      .hdr-center h1, .hdr-center h2 { font-size: 22px; margin: 0; }
+      .hdr-center p { margin: 4px 0 0 !important; justify-content: center; }
+      .hdr-center .fac-about { max-width: 520px; margin: 8px auto 0 !important; }
+      .hdr-id { margin-top: 8px; }
+      .hdr-left, .hdr-right { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding-top: 6px; }
+      .hdr-right { justify-content: flex-end; }
+      .hdr-btn { border-radius: 999px; padding: 9px 18px; font-size: 13.5px; }
+      .hdr-icon { width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--border-light); background: #fff; color: #1F2A44; display: inline-flex; align-items: center; justify-content: center; text-decoration: none; transition: background .15s, color .15s; }
+      .hdr-icon:hover { background: #1F2A44; color: #fff; }
+      .hdr .faculty-profile-hero, .faculty-profile-hero.hdr { gap: 0; }
+
+      /* ---- Two columns: content on the left, side cards on the right ---- */
+      .profile-layout { grid-template-columns: minmax(0, 1fr) 320px; }
+      .side-col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+      .dash-grid > .fac-main { grid-column: 1; min-width: 0; display: flex; flex-direction: column; gap: 16px; }
+      .dash-grid > .fac-main:empty { display: none; }
+      .dash-grid > .side-col { grid-column: 2; }
+      .fac-main:empty + .side-col { grid-column: 1 / -1; max-width: 420px; }
+      .fac-lists { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; }
+      .fac-lists > .upl-card { margin: 0; min-width: 0; border-radius: 20px; }
+      .fac-lists .upl-empty { padding: 18px 12px; }
+      /* YouTube card becomes the bold gradient card */
+      .side-col .yt-card { flex-direction: column; align-items: flex-start; gap: 10px; color: #fff; background: linear-gradient(135deg, #E5383B, #F2802E); }
+      .side-col .yt-card-avatar { width: 48px; height: 48px; flex-basis: 48px; border-color: rgba(255,255,255,.7); }
+      .side-col .yt-card-copy { flex: none; width: 100%; }
+      .side-col .yt-card-copy h2 { color: #fff; font-size: 20px; }
+      .side-col .yt-card-copy p { color: rgba(255,255,255,.9); }
+      .side-col .yt-card .profile-section-kicker { color: #fff; }
+      .side-col .yt-subscribe-btn { width: 100%; justify-content: center; background: #fff; color: #111; }
+      .side-col .yt-subscribe-btn:hover { background: #FFF1E8; }
+      .side-col .ig-follow-btn { background: rgba(255,255,255,.18); color: #fff; border: 1px solid rgba(255,255,255,.6); }
+      .side-col .ig-follow-btn:hover { background: rgba(255,255,255,.3); }
+      .side-col .delete-account-card { padding: 20px; }
+      @media (max-width: 900px) {
+        .profile-layout, .dash-grid { grid-template-columns: minmax(0, 1fr); }
+        .dash-grid > .side-col, .dash-grid > .fac-main { grid-column: 1; }
+        .fac-main:empty + .side-col { max-width: none; }
+        .fac-lists { grid-template-columns: minmax(0, 1fr); }
+      }
+      @media (max-width: 760px) {
+        .hdr { --cov: 130px; --av: 100px; padding: 10px; }
+        .hdr-avatar { top: calc(10px + var(--cov) - var(--av) / 2); }
+        .hdr-row { display: flex; flex-direction: column; align-items: center; gap: 10px; margin-top: 10px; padding: 0 4px 4px; }
+        .hdr-center { order: 1; width: 100%; padding-top: calc(var(--av) / 2 + 2px); }
+        .hdr-left { order: 2; justify-content: center; padding-top: 0; }
+        .hdr-right { order: 3; justify-content: center; padding-top: 0; }
+        .cover-stats { right: 10px; bottom: 10px; gap: 14px; padding: 7px 12px; }
+        .cover-stats b { font-size: 15px; }
+        .hdr-center h1, .hdr-center h2 { font-size: 20px; }
       }
       .admin-section-head {
         display: flex; align-items: center; justify-content: space-between;

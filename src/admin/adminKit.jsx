@@ -82,10 +82,13 @@ export function AdminShell({
               </label>
             )}
             {bell && (
-              <button type="button" className="ak-round" aria-label={bell.label} onClick={bell.onClick}>
-                <Bell size={15} />
-                {bell.count ? <i className="ak-dot" /> : null}
-              </button>
+              <span className="ak-bellwrap">
+                <button type="button" className="ak-round" aria-label={bell.label} aria-expanded={bell.panel ? Boolean(bell.open) : undefined} onClick={bell.onClick}>
+                  <Bell size={15} />
+                  {bell.count ? <i className="ak-dot" /> : null}
+                </button>
+                {bell.open && bell.panel}
+              </span>
             )}
             <span className="ak-avatar" title={user?.name || "Administrator"}>{initialsOf(user?.name)}</span>
           </div>
